@@ -241,7 +241,7 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [hasApplied, setHasApplied] = useState(false);
   const [existingApplication, setExistingApplication] = useState<any>(null);
-
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -274,7 +274,13 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
           }
         } catch (error) {
           console.error("Error checking existing application:", error);
+        } finally {
+          // 🔥 NEW: Turn off loading once Firebase is done checking
+          setIsLoading(false); 
         }
+      } else {
+        // 🔥 NEW: Turn off loading if they aren't logged in at all
+        setIsLoading(false);
       }
     });
 
@@ -292,8 +298,9 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
         }
       );
     }
-
+    
     return () => unsub();
+
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -449,72 +456,76 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
       setSubmitStatus(null);
     }
   };
-
+if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-12 h-12 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin mb-4 mx-auto"></div>
+        <p className="text-slate-500 font-medium animate-pulse">Checking your profile securely...</p>
+      </div>
+    );
+  }
   return (
     <>
-      {/* ALREADY APPLIED POPUP */}
       {hasApplied && existingApplication && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-8 mb-6 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center text-3xl">
-              ⏳
-            </div>
-          </div>
-          <h3 className="text-2xl font-bold text-amber-900 mb-2">
-            Application Already Submitted
-          </h3>
-          <p className="text-amber-800 mb-4 leading-relaxed">
-            You have already submitted your veterinarian registration form. Our team is currently reviewing your application.
-          </p>
+  <div className="rounded-2xl p-8 mb-6 text-center border">
 
-          <div className="bg-white rounded-lg p-4 mb-4 text-left space-y-3 border border-amber-100">
-            <div>
-              <span className="text-sm font-semibold text-slate-600">Status:</span>
-              <span className="ml-2 inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-semibold">
-                {existingApplication.verificationStatus === "pending_review"
-                  ? "📋 Pending Review"
-                  : existingApplication.verificationStatus === "approved"
-                  ? "✅ Approved"
-                  : existingApplication.verificationStatus === "rejected"
-                  ? "❌ Rejected"
-                  : "Pending"}
-              </span>
-            </div>
-            {existingApplication.fullName && (
-              <div>
-                <span className="text-sm font-semibold text-slate-600">Name:</span>
-                <span className="text-sm text-slate-700 ml-2">{existingApplication.fullName}</span>
-              </div>
-            )}
-            {existingApplication.email && (
-              <div>
-                <span className="text-sm font-semibold text-slate-600">Email:</span>
-                <span className="text-sm text-slate-700 ml-2">{existingApplication.email}</span>
-              </div>
-            )}
-            {existingApplication.createdAt && (
-              <div>
-                <span className="text-sm font-semibold text-slate-600">Submitted:</span>
-                <span className="text-sm text-slate-700 ml-2">
-                  {new Date(existingApplication.createdAt.toDate?.() || existingApplication.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-            )}
-          </div>
+    {/* ✅ STATUS BASED UI */}
+    {existingApplication.verificationStatus === "pending_review" && (
+      <>
+        <div className="text-4xl mb-3">⏳</div>
+        <h3 className="text-2xl font-bold text-amber-700 mb-2">
+          Application Under Review
+        </h3>
+        <p className="text-slate-600 mb-4">
+          Your application has been submitted successfully and is currently under review.
+        </p>
+      </>
+    )}
 
-          <p className="text-sm text-amber-700 mb-6">
-            We'll notify you via email once we've reviewed your credentials. This typically takes 5-7 business days.
-          </p>
+    {existingApplication.verificationStatus === "approved" && (
+      <>
+        <div className="text-4xl mb-3">✅</div>
+        <h3 className="text-2xl font-bold text-green-700 mb-2">
+          You’re Approved 🎉
+        </h3>
+        <p className="text-slate-600 mb-4">
+          Congratulations! Your profile has been verified. You can now start helping animals and accessing all platform features.
+        </p>
+      </>
+    )}
 
-          <button
-            onClick={onClose}
-            className="w-full bg-amber-600 text-white py-3 rounded-xl font-semibold hover:bg-amber-700 transition"
-          >
-            Close
-          </button>
-        </div>
-      )}
+    {existingApplication.verificationStatus === "rejected" && (
+      <>
+        <div className="text-4xl mb-3">❌</div>
+        <h3 className="text-2xl font-bold text-red-600 mb-2">
+          Application Rejected
+        </h3>
+        <p className="text-slate-600 mb-4">
+          Unfortunately, your application could not be approved. Please review your details and apply again.
+        </p>
+      </>
+    )}
 
+    {/* COMMON DETAILS */}
+    <div className="bg-slate-50 rounded-lg p-4 text-left space-y-2 mt-4">
+      <p><b>Name:</b> {existingApplication.fullName}</p>
+      <p><b>Email:</b> {existingApplication.email}</p>
+      <p>
+        <b>Status:</b>{" "}
+        {existingApplication.verificationStatus === "pending_review" && "Pending Review"}
+        {existingApplication.verificationStatus === "approved" && "Approved"}
+        {existingApplication.verificationStatus === "rejected" && "Rejected"}
+      </p>
+    </div>
+
+    <button
+      onClick={onClose}
+      className="mt-6 bg-slate-800 text-white px-6 py-2 rounded-xl"
+    >
+      Close
+    </button>
+  </div>
+)}
       {/* REGISTRATION FORM */}
       {!hasApplied && (
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -559,7 +570,7 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
           </h3>
           <div className="space-y-4">
             <FormInput
-              label="Full Name"
+              label="Veterinarian Name"
               name="fullName"
               value={formData.fullName}
               onChange={handleInputChange}

@@ -5,44 +5,103 @@ import ParallaxHero from "./components/ParallaxHero";
 import Reveal from "./components/Reveal";
 import Counter from "./components/Counter";
 import GradientText from "./components/GradientText";
+import { useState, useEffect } from 'react';
+
 
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#fcf1db] text-slate-900 selection:bg-orange-200 selection:text-orange-900 overflow-hidden">
       
       {/* HERO SECTION */}
-      <ParallaxHero>
-  <section className="w-full px-4 md:px-8 lg:px-16 mt-4 md:mt-6 lg:mt-6">
+     {/* HERO SECTION - Forced to the back (z-0) */}
+      <div className="relative z-0">
+        <ParallaxHero>
+          <section className="w-full px-4 md:px-8 lg:px-16 mt-4 md:mt-6 lg:mt-6">
+            <div className="relative w-full h-auto">
+              <img
+                src="/banner.png"
+                alt="AnimalSathi Banner"
+                className=" hidden md:block w-full h-auto object-contain scale-110"
+              />
 
-    <div className="relative w-full h-auto">
+              <img
+                src="/banner-mobile.png" 
+                alt="AnimalSathi Mobile Banner"
+                className="block md:hidden w-full h-auto object-contain scale-110 origin-center"
+              />
+            </div>
+          </section>
+        </ParallaxHero>
+      </div>
 
-      <img
-        src="/banner.png"
-        alt="AnimalSathi Banner"
-        className="w-full h-auto object-contain scale-110"
-      />
-      
-      
+      {/* CORE FEATURES & BANNER BUTTONS - Forced to the front (z-20) */}
+      <div className="relative z-20">
+        <Reveal>
+          {/* 🔥 Increased the negative margin (-mt-24 to -mt-32) to pull everything up over the banner */}
+          <section className="relative -mt-24 md:-mt-32 px-6">
+            
+            {/* 🔥 NEW BUTTONS SITTING ON THE BANNER */}
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center md:items-start justify-center md:justify-start gap-4 mb-8 md:pl-4">
+              <Link
+                href="/volunteer-form"
+                className="bg-orange-500 text-white px-8 py-3.5 rounded-full font-bold text-sm md:text-lg hover:bg-orange-600 transition-all duration-300 shadow-xl shadow-orange-500/30 hover:-translate-y-1 flex items-center justify-center gap-2 group"
+              >
+                <span className="group-hover:scale-110 transition-transform">🦸‍♂️</span> Become a Volunteer
+              </Link>
 
-    </div>
+              <Link
+                href="/shop"
+                className="bg-slate-900 text-white px-8 py-3.5 rounded-full font-bold text-sm md:text-lg hover:bg-slate-800 transition-all duration-300 shadow-xl hover:shadow-slate-900/30 hover:-translate-y-1 flex items-center justify-center gap-2 group"
+              >
+                <span className="group-hover:scale-110 transition-transform">🛒</span> Visit Pet Shop
+              </Link>
+            </div>
 
-  </section>
-</ParallaxHero>
-
-      {/* CORE FEATURES (MINI) */}
+            {/* THE 4 MINI CARDS */}
+            <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              <FeatureMini icon="🚨" title="SOS Alerts" text="Instant emergency reporting" />
+              <FeatureMini icon="📍" title="Nearby Vets" text="Find clinics within 10km" />
+              <FeatureMini icon="🤝" title="Volunteers" text="Connect with rescuer networks" />
+              <FeatureMini icon="🛒" title="Pet Shop" text="Quality food & medicines" />
+            </div>
+            
+          </section>
+        </Reveal>
+      </div>
+      {/* PET SHOP (SPLIT LAYOUT) */}
       <Reveal>
-        <section className="relative -mt-10 px-6 z-10">
-          <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            <FeatureMini icon="🚨" title="SOS Alerts" text="Instant emergency reporting" />
-            <FeatureMini icon="📍" title="Nearby Vets" text="Find clinics within 10km" />
-            <FeatureMini icon="🤝" title="Volunteers" text="Connect with rescuer networks" />
-            <FeatureMini icon="🛒" title="Pet Shop" text="Quality food & medicines" />
+        <section className="px-6 py-32">
+          <div className="max-w-6xl mx-auto bg-orange-100/50 rounded-3xl p-8 md:p-16 flex flex-col md:flex-row items-center gap-12 border border-orange-100">
+            <div className="flex-1 text-center md:text-left">
+              <span className="text-orange-600 font-bold tracking-wider uppercase text-sm mb-4 block">Marketplace</span>
+              <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-6">Pet Care, Delivered.</h2>
+              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+                Support our mission while spoiling your furry friends. Discover nearby pet shops offering high-quality food, medicines, and essential accessories.
+              </p>
+              <Link
+                href="/shop"
+                className="inline-flex items-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-full font-semibold hover:bg-slate-800 transition-colors shadow-md"
+              >
+                🛒 Explore the Shop
+              </Link>
+            </div>
+            <div className="flex-1 w-full relative">
+              {/* Auto-playing Image Carousel */}
+              <AutoCarousel />
+              
+              {/* Decorative element */}
+              {/* Decorative element */}
+              <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-xl border border-slate-100 z-20">
+                <p className="font-bold text-slate-800">⭐ 4.9/5</p>
+                <p className="text-sm text-slate-500">From 1k+ Pet Parents</p>
+              </div>
+            </div>
           </div>
         </section>
       </Reveal>
 
       <Reveal>
-  <section className="px-6 py-28 mt-16">
+  <section className="px-6 py-16 md:py-24">
 
     <div className="max-w-4xl mx-auto text-center">
 
@@ -124,39 +183,7 @@ export default function HomePage() {
 
      
 
-      {/* PET SHOP (SPLIT LAYOUT) */}
-      <Reveal>
-        <section className="px-6 py-32">
-          <div className="max-w-6xl mx-auto bg-orange-100/50 rounded-3xl p-8 md:p-16 flex flex-col md:flex-row items-center gap-12 border border-orange-100">
-            <div className="flex-1 text-center md:text-left">
-              <span className="text-orange-600 font-bold tracking-wider uppercase text-sm mb-4 block">Marketplace</span>
-              <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-6">Pet Care, Delivered.</h2>
-              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                Support our mission while spoiling your furry friends. Discover nearby pet shops offering high-quality food, medicines, and essential accessories.
-              </p>
-              <Link
-                href="/shop"
-                className="inline-flex items-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-full font-semibold hover:bg-slate-800 transition-colors shadow-md"
-              >
-                🛒 Explore the Shop
-              </Link>
-            </div>
-            <div className="flex-1 w-full relative">
-              <img 
-                src="https://images.unsplash.com/photo-1623387641168-d9803ddd3f35?auto=format&fit=crop&q=80&w=800" 
-                alt="Happy dog with pet supplies" 
-                className="rounded-2xl shadow-2xl object-contain h-80 w-full"
-              />
-              
-              {/* Decorative element */}
-              <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-xl border border-slate-100">
-                <p className="font-bold text-slate-800">⭐ 4.9/5</p>
-                <p className="text-sm text-slate-500">From 1k+ Pet Parents</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </Reveal>
+      
 
       {/* BOTTOM CTA */}
      <Reveal>
@@ -295,6 +322,44 @@ function StepCard({
   );
 }
 
+
+/* ---------- AUTO CAROUSEL FOR SHOP ---------- */
+
+function AutoCarousel() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const images = [
+    "https://images.unsplash.com/photo-1623387641168-d9803ddd3f35?auto=format&fit=crop&q=80&w=800", // Dog with supplies
+    "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=800", // Dog with toy
+    "https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=800", // Dog treats/bones
+    "https://images.unsplash.com/photo-1596492784531-6e6eb5ea9993?auto=format&fit=crop&q=80&w=800"  // Cat looking at supplies
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 500); // Changes image every 3.5 seconds
+
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="relative w-full h-72 md:h-96 rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-slate-100">
+      {images.map((src, index) => (
+        <img
+          key={src}
+          src={src}
+          alt={`Shop item ${index + 1}`}
+          className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-in-out ${
+            index === currentIndex 
+              ? "opacity-100 scale-100 z-10" 
+              : "opacity-0 scale-105 z-0"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
 /* ---------- IMPACT CARD ---------- */
 
 function ImpactCard({ 

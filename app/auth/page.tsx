@@ -70,10 +70,14 @@ const router = useRouter();
           uid:userCred.user.uid,
           name:name,
           email:email,
+          photoURL: userCred.user.photoURL || null,
           role:"user",
           volunteerApproved:false,
+          volunteerStatus:null, 
+          ngoApproved: false,
           emailVerified:false,
-          createdAt:serverTimestamp()
+          createdAt:serverTimestamp(),
+          lastLoginAt: serverTimestamp()
         });
 
         alert("Verification email sent. Please verify before login.");
@@ -86,6 +90,10 @@ const router = useRouter();
           alert("Please verify your email before logging in.");
           return;
         }
+
+        await setDoc(doc(db, "users", userCred.user.uid), {
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
 
         window.location.href = "/";
 
@@ -115,10 +123,18 @@ const router = useRouter();
         photoURL: user.photoURL || null,
         role: "user",
         volunteerApproved: false,
+        volunteerStatus: null,
+        ngoApproved: false,
         emailVerified: true,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp()
       });
-    }
+    } else {
+        // Update last login time if they already exist
+        await setDoc(userRef, {
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
+      }
 
     window.location.href = "/";
 

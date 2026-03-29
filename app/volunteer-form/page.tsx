@@ -15,6 +15,7 @@ export default function VolunteerFormPage() {
   const [user,setUser] = useState<any>(null);
 
   const [photo,setPhoto] = useState<File | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
   const [form,setForm] = useState({
     name:"",
@@ -32,6 +33,7 @@ const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
   const unsub = onAuthStateChanged(auth, async (currentUser)=>{
 
+      
     if(currentUser){
 
       setUser(currentUser);
@@ -39,16 +41,19 @@ const [submitStatus, setSubmitStatus] = useState<string | null>(null);
       const userRef = doc(db, "users", currentUser.uid);
       const snap = await getDoc(userRef);
 
-      if(snap.exists()){
+      if (snap.exists()) {
+  const data = snap.data();
 
-        const data = snap.data();
+  // 🔥 ADD THIS
+  if (data.volunteerStatus) {
+    setStatus(data.volunteerStatus);
+  }
 
-        // 🔥 CHECK IF ALREADY VOLUNTEER
-        if(data.role === "volunteer" && data.volunteerApproved === true){
-          setIsVolunteer(true);
-        }
-
-      }
+  // existing logic
+  if (data.volunteerStatus === "approved") {
+    setIsVolunteer(true);
+  }
+}
 
       setForm((prev)=>({
         ...prev,
@@ -110,39 +115,11 @@ const [submitStatus, setSubmitStatus] = useState<string | null>(null);
       /* 2. Call backend to generate ID card and certificate */
       setSubmitStatus("🎓 Generating official documents..."); // <--- UI UPDATE
       const BASE_URL = 'https://pawsos-certificates-production.up.railway.app';
-      const generatedId = `ID-${user.uid.slice(0, 6)}`;
-      const generatedCertId = `CERT-${user.uid.slice(0, 6)}`;
+      
 
-      const [idResponse, certResponse] = await Promise.all([
-        fetch(`${BASE_URL}/api/idcard/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            name: form.name, 
-            id: generatedId, 
-            status: 'Approved', 
-            city: form.address 
-          })
-        }),
-        fetch(`${BASE_URL}/api/certificates/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            name: form.name, 
-            certificateId: generatedCertId 
-          })
-        })
-      ]);
+      
 
-      if (!idResponse.ok || !certResponse.ok) {
-         throw new Error("Failed to generate official documents from the server.");
-      }
-
-      const idData = await idResponse.json();
-      const certData = await certResponse.json();
-
-      const idCardFullPath = `${BASE_URL}${idData.filePath}`;
-      const certificateFullPath = `${BASE_URL}${certData.filePath}`;
+    
 
       /* 3. Get User's GPS Location */
       setSubmitStatus("📍 Verifying your location..."); // <--- UI UPDATE
@@ -165,31 +142,34 @@ const [submitStatus, setSubmitStatus] = useState<string | null>(null);
       /* 4. Update existing user document in Firestore */
       setSubmitStatus("🔐 Securing your profile..."); // <--- UI UPDATE
       await setDoc(
-        doc(db, "users", user.uid),
-        {
-          uid: user.uid,
-          name: form.name,
-          email: form.email,
-          contact: form.phone,
-          phone: form.phone, 
-          address: form.address,
-          city: form.address,
-          reason: form.reason,
-          photoURL: photoURL || user?.photoURL || "", 
-          idCardPath: idCardFullPath,         
-          certificatePath: certificateFullPath, 
-          role: "volunteer",
-          volunteerApproved: true,
-          volunteerSince: serverTimestamp(),
-          ...locationData 
-        },
-        { merge: true }
-      );
+  doc(db, "users", user.uid),
+  {
+    uid: user.uid,
+    name: form.name,
+    email: form.email,
+    contact: form.phone,
+    phone: form.phone,
+    address: form.address,
+    city: form.address,
+    reason: form.reason,
+    photoURL: photoURL || user?.photoURL || "",
+
+    volunteerStatus: "pending",   // 🔥 KEY
+    volunteerApproved: false,     // 🔥 KEY
+
+    volunteerRequestedAt: serverTimestamp(),
+
+    ...locationData
+  },
+  { merge: true }
+);
 
       setSubmitStatus("✅ Done!"); // <--- UI UPDATE
 
       setTimeout(() => {
-        alert("Volunteer profile updated successfully!");
+  setStatus("pending");   // 🔥 ADD THIS
+
+  alert("Your request has been submitted and is under review.");
         setForm({
           name: "",
           phone: "",
@@ -199,7 +179,7 @@ const [submitStatus, setSubmitStatus] = useState<string | null>(null);
         });
         setPhoto(null);
         setSubmitStatus(null);
-        setIsVolunteer(true);
+        
       }, 800);
 
     } catch (error) {
@@ -215,7 +195,36 @@ if (checking) {
     </div>
   );
 }
+if (status === "pending") {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <h2 className="text-xl font-semibold">
+        Your application is under review ⏳
+      </h2>
+    </div>
+  );
+}
+if (status === "rejected") {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="bg-white p-8 rounded-xl shadow text-center max-w-md">
+        <h2 className="text-xl font-bold text-red-600 mb-2">
+          Application Rejected ❌
+        </h2>
+        <p className="text-gray-600 mb-4">
+          Unfortunately, your volunteer request was not approved.
+        </p>
 
+        <button
+          onClick={() => setStatus(null)}
+          className="bg-orange-500 text-white px-4 py-2 rounded"
+        >
+          Apply Again
+        </button>
+      </div>
+    </div>
+  );
+}
 if (isVolunteer) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-slate-50 px-6 relative overflow-hidden">

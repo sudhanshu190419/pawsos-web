@@ -160,13 +160,18 @@
     setMounted(true);
   }, []);
 
-    useEffect(() => {
+    const [vetData, setVetData] = useState<any>(null); // 🔥 NEW: State for Vet Data
+    const [ngoData, setNgoData] = useState<any>(null);
+
+
+  useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         router.push("/auth");
       } else {
         setUser(currentUser);
         
+        // 1. Fetch Normal User/Volunteer Data
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
@@ -175,6 +180,27 @@
           if (data.role === "volunteer" && data.volunteerApproved === true) {
             setIsVolunteer(true);
           }
+        }
+
+        // 2. 🔥 NEW: Fetch Veterinarian Data
+        try {
+          const vetDocRef = doc(db, "vets_web", currentUser.uid);
+          const vetDoc = await getDoc(vetDocRef);
+          if (vetDoc.exists()) {
+            setVetData(vetDoc.data());
+          }
+          
+        } catch (error) {
+          console.error("Error fetching vet data:", error);
+        }
+        try {
+          const ngoDocRef = doc(db, "ngos_web", currentUser.uid);
+          const ngoDoc = await getDoc(ngoDocRef);
+          if (ngoDoc.exists()) {
+            setNgoData(ngoDoc.data());
+          }
+        } catch (error) {
+          console.error("Error fetching NGO data:", error);
         }
       }
       setLoading(false);
@@ -261,17 +287,30 @@
                 </p>
 
                 {/* NEW DYNAMIC BADGE */}
-  {isVolunteer ? (
-    <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-6 shadow-sm">
-      <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shadow-[0_0_8px_rgba(37,99,235,0.8)]"></span>
-      Verified Rescuer
-    </div>
-  ) : (
-    <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
-      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-      Community Member
-    </div>
-  )}
+                
+  {/* NEW DYNAMIC BADGE (Prioritizes Vet Status) */}
+                {/* NEW DYNAMIC BADGE (Prioritizes NGO -> Vet -> Volunteer) */}
+                {ngoData?.verificationStatus === "approved" ? (
+                  <div className="inline-flex items-center gap-2 bg-purple-50 text-purple-700 border border-purple-200 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-6 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse shadow-[0_0_8px_rgba(147,51,234,0.8)]"></span>
+                    Verified NGO
+                  </div>
+                ) : vetData?.verificationStatus === "approved" ? (
+                  <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-6 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shadow-[0_0_8px_rgba(37,99,235,0.8)]"></span>
+                    Verified Veterinarian
+                  </div>
+                ) : isVolunteer ? (
+                  <div className="inline-flex items-center gap-2 bg-orange-50 text-orange-700 border border-orange-200 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-6 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                    Verified Rescuer
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    Community Member
+                  </div>
+                )}
 
                 {/* Sidebar Navigation (Now uses onClick instead of href) */}
                 <div className="flex flex-col gap-2 text-left border-t border-slate-100 pt-6">
@@ -314,6 +353,8 @@
       resolvedCount={resolvedCount} 
       onNavigate={setActiveTab}
       userData={userData}
+      vetData={vetData}
+      ngoData={ngoData}
       onEditClick={() => {
         // Pre-fill fields with existing data
         setEditPhone(userData?.phone || "");
@@ -444,6 +485,8 @@
     resolvedCount = 0, 
     onNavigate,
     userData,
+    vetData,
+    ngoData,
     onEditClick // <--- Add this prop
   }: any) {
     return (
@@ -458,45 +501,79 @@
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <StatBox icon="🚨" value={String(sosCount || 0)} label="SOS Reported" />
             
-            <a href="/onboarding" className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-5 border border-orange-200 flex flex-col items-center justify-center text-center hover:shadow-md hover:-translate-y-1 transition-all group">
+            <a href="/volunteer-form" className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-5 border border-orange-200 flex flex-col items-center justify-center text-center hover:shadow-md hover:-translate-y-1 transition-all group">
               <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">🤝</div>
               <div className="text-lg font-black text-orange-700">Become a Volunteer</div>
               <div className="text-xs font-bold text-orange-600 uppercase tracking-wide mt-1">Join the rescue team →</div>
             </a>
           </div>
         )}
+{ngoData && (
+          <div className="mt-8">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 px-2">
+              NGO Partner Profile
+            </h3>
+            <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm">
+              
+              {/* Application Status */}
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <span className="font-bold text-slate-800 text-lg">Partnership Status</span>
+                <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                  ngoData.verificationStatus === "approved" ? "bg-green-100 text-green-700 border border-green-200" :
+                  ngoData.verificationStatus === "rejected" ? "bg-red-100 text-red-700 border border-red-200" :
+                  "bg-amber-100 text-amber-700 border border-amber-200"
+                }`}>
+                  {ngoData.verificationStatus === "approved" ? "Verified" :
+                   ngoData.verificationStatus === "rejected" ? "Rejected" : "Pending Review"}
+                </span>
+              </div>
 
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-2xl font-bold text-slate-800">Personal Details</h3>
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onEditClick();
-              }}
-              className="text-orange-600 bg-orange-50 hover:bg-orange-100 px-6 py-2 rounded-full text-sm font-bold transition-all active:scale-95"
-            >
-              Edit Details
-            </button>
+              {/* NGO Info */}
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-2xl border border-orange-100">🏢</div>
+                  <div>
+                    <p className="font-bold text-slate-800 text-lg">{ngoData.ngoName || "NGO Details"}</p>
+                    <p className="text-sm text-slate-500 mt-1">{ngoData.fullAddress || "No address provided"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Operational Capacity (Ambulance/Shelter) */}
+              <div className="p-6 border-b border-slate-100 bg-white">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Operational Capacity</p>
+                <div className="flex flex-wrap gap-4">
+                  <div className={`px-4 py-2 rounded-xl border text-sm font-bold flex items-center gap-2 ${ngoData.hasAmbulance ? "bg-red-50 border-red-200 text-red-700" : "bg-slate-50 border-slate-200 text-slate-400"}`}>
+                    🚑 Ambulance {ngoData.hasAmbulance ? "Active" : "None"}
+                  </div>
+                  <div className={`px-4 py-2 rounded-xl border text-sm font-bold flex items-center gap-2 ${ngoData.hasShelter ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-400"}`}>
+                    🏡 Shelter {ngoData.hasShelter ? "Active" : "None"}
+                  </div>
+                </div>
+              </div>
+
+              {/* View Uploaded Cert */}
+              <a 
+                href={ngoData.regCert} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="p-6 flex justify-between items-center hover:bg-slate-50 transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl border border-slate-200 group-hover:bg-purple-50 transition-colors">📄</div>
+                  <div>
+                    <p className="font-bold text-slate-800 text-lg">Registration Certificate</p>
+                    <p className="text-sm text-slate-500 mt-1">Tap to view uploaded document</p>
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-purple-500 group-hover:text-white transition-all">
+                  →
+                </div>
+              </a>
+              
+            </div>
           </div>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            <DetailField label="Full Name" value={user.displayName || "Not Provided"} />
-            <DetailField label="Email Address" value={user.email || "Not Provided"} />
-            
-            {/* Shows data if available, otherwise "Not Provided" */}
-            <DetailField 
-              label="Phone Number" 
-              value={userData?.phone || userData?.phoneNumber || "Not Provided"} 
-            />
-            <DetailField 
-              label="City / Location" 
-              value={userData?.city || userData?.location || "Not Provided"} 
-            />
-          </div>
-        </div>
+        )}
       </>
     );
   }
