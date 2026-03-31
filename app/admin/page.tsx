@@ -2,39 +2,103 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { db } from "../lib/firebase";
-import { collection, query, where, onSnapshot, serverTimestamp  } from "firebase/firestore";
+import { useRouter } from "next/navigation"; // 🔥 Added for redirects
+import { auth, db } from "../lib/firebase"; // 🔥 Make sure auth is exported from here
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
+
 import LiveSOSFeed from "../components/LiveSOSFeed";
 import PendingApprovals from "../components/PendingApprovals";
 import VolunteerApprovals from "../components/VolunteerApprovals";
+import VetApprovals from "../components/VetApprovals"; 
+
 
 export default function AdminDashboard() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState("dashboard"); // Controls which page is showing
+  const router = useRouter();
   
-  // Real-time counts for the Badges & Stat Cards
+  // 🔥 NEW: Security State
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAdminAuthorized, setIsAdminAuthorized] = useState(false);
+
+  // Existing UI State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState("dashboard"); 
+  
   const [pendingNGOCount, setPendingNGOCount] = useState(0);
   const [activeSOSCount, setActiveSOSCount] = useState(0);
+  const [pendingVetCount, setPendingVetCount] = useState(0);
 
+  // 🔥 THE SECURITY GATEKEEPER
   useEffect(() => {
-    // Listen for Pending NGOs Count
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Check if this logged-in user actually has admin rights
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists() && userDoc.data().role === "admin") {
+            setIsAdminAuthorized(true);
+          } else {
+            console.warn("Access Denied: User is not an admin.");
+            router.push("/"); // Kick to home page
+          }
+        } catch (error) {
+          console.error("Error verifying admin status:", error);
+          router.push("/");
+        }
+      } else {
+        // Not logged in at all
+        router.push("/login"); // or "/" depending on your setup
+      }
+      setIsCheckingAuth(false);
+    });
+
+    return () => unsubscribeAuth();
+  }, [router]);
+
+  // Existing Data Fetching (Only runs if authorized)
+  useEffect(() => {
+    if (!isAdminAuthorized) return; // Don't fetch if not admin
+
     const ngoQuery = query(collection(db, "ngos_web"), where("verificationStatus", "==", "pending_review"));
     const unsubNGO = onSnapshot(ngoQuery, (snapshot) => {
       setPendingNGOCount(snapshot.size);
     });
 
-    // Listen for Active/Critical SOS Count (You can adjust the 'status' to match your logic)
     const sosQuery = query(collection(db, "sos_alerts"), where("status", "in", ["active", "critical"]));
     const unsubSOS = onSnapshot(sosQuery, (snapshot) => {
       setActiveSOSCount(snapshot.size);
+    });
+    
+    const vetQuery = query(collection(db, "users"), where("vetStatus", "==", "pending"));
+    const unsubVet = onSnapshot(vetQuery, (snapshot) => {
+      setPendingVetCount(snapshot.size);
     });
 
     return () => {
       unsubNGO();
       unsubSOS();
+      unsubVet();
     };
-  }, []);
+  }, [isAdminAuthorized]); // 🔥 Dependency added
 
+
+  // 🔥 LOADING SCREEN (Prevents UI flashing while checking credentials)
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold tracking-wide">Verifying Secure Access...</p>
+      </div>
+    );
+  }
+
+  // 🔥 DOUBLE CHECK (If somehow they bypass loading, render nothing)
+  if (!isAdminAuthorized) return null;
+
+
+  // ... THE REST OF YOUR RETURN STATEMENT STAYS EXACTLY THE SAME ...
   return (
     <div className="min-h-screen bg-slate-50 flex">
       
@@ -60,17 +124,18 @@ export default function AdminDashboard() {
           <div onClick={() => setActiveTab("ngos")}>
             <NavItem icon="🏢" label="NGO Approvals" badge={pendingNGOCount > 0 ? pendingNGOCount : null} active={activeTab === "ngos"} isOpen={isSidebarOpen} />
           </div>
-          
           <div onClick={() => setActiveTab("volunteers")}>
-  <NavItem icon="🦸‍♂️" label="Volunteers" active={activeTab === "volunteers"} isOpen={isSidebarOpen} />
-</div>
-          <NavItem icon="🏥" label="Veterinarians" isOpen={isSidebarOpen} />
-          <NavItem icon="🛒" label="Shop Orders" isOpen={isSidebarOpen} />
-          
-          <div className="mt-8 mb-4">
-            <p className={`text-xs font-bold text-slate-500 uppercase tracking-widest px-4 ${!isSidebarOpen && "md:hidden"}`}>System</p>
+            <NavItem icon="🦸‍♂️" label="Volunteers" active={activeTab === "volunteers"} isOpen={isSidebarOpen} />
           </div>
-          <NavItem icon="⚙️" label="Settings" isOpen={isSidebarOpen} />
+          <div onClick={() => setActiveTab("vets")}>
+            <NavItem icon="🏥" label="Veterinarians" badge={pendingVetCount > 0 ? pendingVetCount : null} active={activeTab === "vets"} isOpen={isSidebarOpen} />
+          </div>
+          <div onClick={() => setActiveTab("shop")}>
+            <NavItem icon="🛒" label="Shop Orders" active={activeTab === "shop"} isOpen={isSidebarOpen} />
+          </div>
+          
+          
+          
         </nav>
 
         {/* Admin Profile Footer */}
@@ -132,6 +197,12 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {activeTab === "vets" && (
+            <div className="max-w-3xl mx-auto animate-in fade-in duration-300 h-[800px]">
+               <VetApprovals />
+            </div>
+          )}
+
           {activeTab === "ngos" && (
             <div className="max-w-3xl mx-auto animate-in fade-in duration-300 h-[800px]">
                <PendingApprovals />
@@ -146,11 +217,29 @@ export default function AdminDashboard() {
               <LiveSOSFeed />
             </div>
           )}
+
           {activeTab === "volunteers" && (
-  <div className="max-w-3xl mx-auto animate-in fade-in duration-300">
-    <VolunteerApprovals />
-  </div>
-)}
+            <div className="max-w-3xl mx-auto animate-in fade-in duration-300">
+              <VolunteerApprovals />
+            </div>
+          )}
+
+          {activeTab === "shop" && (
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in duration-300">
+              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h2 className="text-lg font-bold text-slate-800">Shop Orders Management</h2>
+              </div>
+              <div className="p-16 flex flex-col items-center justify-center text-center">
+                <div className="text-6xl mb-4 opacity-50">🛒</div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">Shop Module Coming Soon</h3>
+                <p className="text-slate-500 max-w-md">
+                  This section will track all your merchandise orders, donations, and shop inventory once the e-commerce features are connected.
+                </p>
+              </div>
+            </div>
+          )}
+
+          
 
         </div>
       </main>

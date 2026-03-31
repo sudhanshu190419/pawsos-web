@@ -322,9 +322,14 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
     });
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, willingToTravel: e.target.checked }));
-  };
+  const handleCheckboxChange = (e?: React.ChangeEvent<HTMLInputElement>) => {
+  if (!e) return;
+
+  setFormData((prev) => ({
+    ...prev,
+    willingToTravel: e.target.checked,
+  }));
+};
 
   const validateStep = (step: number): boolean => {
     switch (step) {
