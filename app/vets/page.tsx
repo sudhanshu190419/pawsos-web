@@ -322,14 +322,15 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
     });
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (!e) return;
+  // 🔥 Added "| any" to make this bulletproof for Vercel builds
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement> | any) => {
+    if (!e || !e.target) return;
 
-  setFormData((prev) => ({
-    ...prev,
-    willingToTravel: e.target.checked,
-  }));
-};
+    setFormData((prev) => ({
+      ...prev,
+      willingToTravel: e.target.checked,
+    }));
+  };
 
   const validateStep = (step: number): boolean => {
     switch (step) {
@@ -839,7 +840,7 @@ function CheckboxField({
 }: {
   label: string;
   checked: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (e?: any) => void;
 }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer">
