@@ -110,7 +110,7 @@ if (currentUser) {
             <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-56 py-3 flex flex-col">
                 <Link href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
-                <Link href="/onboarding" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
+                <Link href="/onboarding" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
                 <Link href="/vets" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
               </div>
             </div>
@@ -126,7 +126,7 @@ if (currentUser) {
               <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-48 py-3 flex flex-col">
                 <Link href="/about" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">📖</span> Our Story</Link>
                 <Link href="/investors" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">💼</span> Investors</Link>
-                <Link href="/contact" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">✉️</span> Contact Us</Link>
+                <Link href="/contact" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">✉️</span> Contact Us</Link>
               </div>
             </div>
           </div>
@@ -152,9 +152,9 @@ if (currentUser) {
                     <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
                   </div>
                   <div className="py-2 flex flex-col">
-                    <Link href="/dashboard?tab=profile" className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
-                    <Link href="/dashboard?tab=reports" className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">📋</span> My SOS Reports</Link>
-                    <Link href="/dashboard?tab=settings" className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">⚙️</span> Settings</Link>
+                    <Link href="/dashboard?tab=profile" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
+                    <Link href="/dashboard?tab=reports"  prefetch={false}className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">📋</span> My SOS Reports</Link>
+                    <Link href="/dashboard?tab=settings" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">⚙️</span> Settings</Link>
                   </div>
                   <div className="py-2 border-t border-slate-100 bg-white">
                     <button onClick={handleLogout} className="w-full text-left px-5 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3"><span className="text-lg">🚪</span> Sign Out</button>
