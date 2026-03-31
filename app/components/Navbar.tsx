@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { auth } from "../lib/firebase";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
@@ -35,15 +37,19 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
         
         {/* LOGO */}
+        {/* LOGO */}
         <Link
           href="/"
-         
           className="hover:scale-105 transition-transform flex items-center ml-14 md:ml-0"
           onClick={() => setIsMobileMenuOpen(false)}
         >
-          <img 
+          {/* 🔥 NEW: Optimized Next.js Image Component */}
+          <Image 
             src="/logo.png" 
             alt="AnimalSathi Logo" 
+            width={180} 
+            height={60} 
+            priority={true} // Tells Vercel: "Load this instantly!"
             className="h-10 md:h-14 w-auto object-contain" 
           />
         </Link>
