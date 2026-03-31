@@ -1,6 +1,6 @@
   "use client";
 
-  import { useEffect, useState } from "react";
+  import { useEffect, useState, Suspense } from "react";
   import { auth , db} from "./../lib/firebase"; // Adjust path to your firebase config
   import { onAuthStateChanged, User, updateProfile } from "firebase/auth";
   import { useRouter, useSearchParams } from "next/navigation";
@@ -8,8 +8,8 @@
   import { createPortal } from "react-dom";
   import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-  export default function ProfilePage() {
-    const [user, setUser] = useState<User | null>(null);
+  function ProfilePageContent() { // 🔥 Removed 'export default' and renamed
+  const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [isVolunteer, setIsVolunteer] = useState(false);
 
@@ -469,6 +469,17 @@
       </main>
     );
   }
+  export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+      </div>
+    }>
+      <ProfilePageContent />
+    </Suspense>
+  );
+}
 
   /* =========================================
     TAB CONTENT COMPONENTS
