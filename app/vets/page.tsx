@@ -323,14 +323,7 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   };
 
   // 🔥 Added "| any" to make this bulletproof for Vercel builds
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement> | any) => {
-    if (!e || !e.target) return;
-
-    setFormData((prev) => ({
-      ...prev,
-      willingToTravel: e.target.checked,
-    }));
-  };
+  
 
   const validateStep = (step: number): boolean => {
     switch (step) {
@@ -702,7 +695,14 @@ if (isLoading) {
             <CheckboxField
               label="Willing to travel for rescue cases?"
               checked={formData.willingToTravel}
-              onChange={handleCheckboxChange}
+              onChange={(e: any) => {
+                if (e && e.target) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    willingToTravel: e.target.checked,
+                  }));
+                }
+              }}
             />
           </div>
         </div>
