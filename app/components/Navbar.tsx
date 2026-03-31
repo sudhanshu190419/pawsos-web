@@ -162,9 +162,9 @@ export default function Navbar() {
           <div className="py-3 border-b border-slate-50">
             <p className="text-xs font-black text-orange-500 uppercase tracking-wider mb-2">Join Us</p>
             <div className="flex flex-col gap-2 pl-2">
-              <Link onClick={() => setIsMobileMenuOpen(false)} href={user ? "/volunteer-form" : "/auth"} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🦸‍♂️ Become a Volunteer</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏢 NGO Partnerships</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/vet-onboarding" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Register as a Vet</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🦸‍♂️ Become a Volunteer</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏢 NGO Partnerships</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/vet-onboarding" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Register as a Vet</Link>
             </div>
           </div>
 
