@@ -56,7 +56,7 @@ export default function Navbar() {
 
         {/* CENTER NAV LINKS (DESKTOP ONLY) */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
-          <Link href="/how-it-works" className="hover:text-orange-600 transition-colors">How It Works</Link>
+          <Link href="/how-it-works" prefetch={false} className="hover:text-orange-600 transition-colors">How It Works</Link>
 
           {/* JOIN US DROPDOWN */}
           <div className="relative group">
@@ -81,14 +81,14 @@ export default function Navbar() {
             </span>
             <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-48 py-3 flex flex-col">
-                <Link href="/about" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">📖</span> Our Story</Link>
+                <Link href="/about" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">📖</span> Our Story</Link>
                 <Link href="/investors" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">💼</span> Investors</Link>
                 <Link href="/contact" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">✉️</span> Contact Us</Link>
               </div>
             </div>
           </div>
 
-          <Link href="/shop" className="hover:text-orange-600 transition-colors">Shop</Link>
+          <Link href="/shop" prefetch={false} className="hover:text-orange-600 transition-colors">Shop</Link>
         </nav>
 
         {/* RIGHT SIDE: PROFILE, APP CTA, & MOBILE MENU BUTTON */}
@@ -129,6 +129,7 @@ export default function Navbar() {
           {/* GET APP BUTTON (Hidden on very small screens to save space) */}
           <Link
             href="/download"
+            prefetch={false}
             className="hidden sm:block bg-slate-900 text-white px-5 md:px-6 py-2.5 rounded-full text-sm font-bold hover:bg-orange-600 shadow-md hover:-translate-y-0.5 transition-all"
           >
             Get the App
@@ -174,7 +175,7 @@ export default function Navbar() {
             <div className="flex flex-col gap-2 pl-2">
               <Link onClick={() => setIsMobileMenuOpen(false)} href="/about" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">📖 Our Story</Link>
               <Link onClick={() => setIsMobileMenuOpen(false)} href="/investors" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">💼 Investors</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/contact" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">✉️ Contact Us</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} prefetch={false} href="/contact" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">✉️ Contact Us</Link>
             </div>
           </div>
 
@@ -182,6 +183,7 @@ export default function Navbar() {
           <Link
             onClick={() => setIsMobileMenuOpen(false)}
             href="/download"
+            prefetch={false}
             className="sm:hidden mt-6 bg-orange-600 text-white text-center py-3.5 rounded-2xl font-bold shadow-md"
           >
             Download the App
