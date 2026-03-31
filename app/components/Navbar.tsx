@@ -68,7 +68,7 @@ export default function Navbar() {
               <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-56 py-3 flex flex-col">
                 <Link href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
                 <Link href="/onboarding" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
-                <Link href="/vets" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
+                <Link href="/vets" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
               </div>
             </div>
           </div>
@@ -82,7 +82,7 @@ export default function Navbar() {
             <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-48 py-3 flex flex-col">
                 <Link href="/about" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">📖</span> Our Story</Link>
-                <Link href="/investors" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">💼</span> Investors</Link>
+                <Link href="/investors" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">💼</span> Investors</Link>
                 <Link href="/contact" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">✉️</span> Contact Us</Link>
               </div>
             </div>
@@ -172,8 +172,8 @@ export default function Navbar() {
           <div className="py-3 border-b border-slate-50">
             <p className="text-xs font-black text-orange-500 uppercase tracking-wider mb-2">About Us</p>
             <div className="flex flex-col gap-2 pl-2">
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/about" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">📖 Our Story</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/investors" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">💼 Investors</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/about" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">📖 Our Story</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/investors" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">💼 Investors</Link>
               <Link onClick={() => setIsMobileMenuOpen(false)} href="/contact" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">✉️ Contact Us</Link>
             </div>
           </div>
