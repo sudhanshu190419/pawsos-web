@@ -66,7 +66,7 @@ export default function Navbar() {
             </span>
             <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-56 py-3 flex flex-col">
-                <Link href={user ? "/volunteer-form" : "/auth"} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
+                <Link href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
                 <Link href="/onboarding" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
                 <Link href="/vets" className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
               </div>
