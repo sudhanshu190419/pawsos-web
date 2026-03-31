@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { auth } from "../lib/firebase";
+
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -16,21 +16,64 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const router = useRouter();
+const loadFirebaseAuth = async () => {
+  const firebase = await import("../lib/firebase");
+  return firebase.auth;
+};
 
+useEffect(() => {
+  const storedUser = localStorage.getItem("user");
+
+  if (storedUser) {
+    const parsed = JSON.parse(storedUser);
+    setUser({
+      displayName: parsed.name,
+      email: parsed.email,
+      photoURL: parsed.photo,
+    } as any);
+
+    setLoading(false);
+  }
+}, []);
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
+  let unsub: (() => void) | undefined;
+
+  const initAuth = async () => {
+    const authInstance = await loadFirebaseAuth();
+
+    unsub = onAuthStateChanged(authInstance, (currentUser) => {
       setUser(currentUser);
+
+if (currentUser) {
+  localStorage.setItem("user", JSON.stringify({
+    name: currentUser.displayName,
+    email: currentUser.email,
+    photo: currentUser.photoURL,
+  }));
+} else {
+  localStorage.removeItem("user");
+}
       setLoading(false);
     });
-    return () => unsub();
-  }, []);
+  };
+
+ setTimeout(() => {
+  initAuth();
+}, 1000);
+
+  return () => {
+    if (unsub) unsub();
+  };
+}, []);
 
   const handleLogout = async () => {
-    await signOut(auth);
-    setUser(null);
-    setIsMobileMenuOpen(false); // Close menu on logout
-    router.refresh();
-  };
+  const authInstance = await loadFirebaseAuth();
+  await signOut(authInstance);
+
+  setUser(null);
+  setIsMobileMenuOpen(false);
+  router.refresh();
+};
 
   return (
     <header className="w-full sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-orange-100 shadow-sm">
