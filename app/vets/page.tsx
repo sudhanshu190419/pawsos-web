@@ -322,7 +322,7 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
     });
   };
 
-  const handleCheckboxChange = (e?: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   if (!e) return;
 
   setFormData((prev) => ({
@@ -839,7 +839,7 @@ function CheckboxField({
 }: {
   label: string;
   checked: boolean;
-  onChange: (e?: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer">
