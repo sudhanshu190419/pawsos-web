@@ -4,6 +4,7 @@ import "./globals.css";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import BottomNav from "./components/BottomNav"; // 🔥 Add this
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,6 +20,10 @@ export const metadata: Metadata = {
   title: "AnimalSathi | Community-Powered Animal Rescue",
   description:
     "AnimalSathi (PawSOS) helps report animal emergencies and connect volunteers, NGOs, and rescuers.",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1", // Prevent auto-zoom on mobile inputs
+  icons: {
+    icon: "/logo.png", // Sets your logo as the browser tab icon
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="scroll-smooth">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}
       >
@@ -35,10 +40,17 @@ export default function RootLayout({
         <Navbar />
 
         {/* Page Content */}
-        <main className="relative z-10">{children}</main>
+        {/* Added min-h-screen to ensure footer stays at bottom on short pages */}
+        <main className="relative z-10 min-h-screen">
+          {children}
+        </main>
 
         {/* Footer */}
         <Footer />
+
+        {/* 🔥 Mobile Bottom Navigation */}
+        {/* This will only show on mobile devices (md:hidden is inside the component) */}
+        <BottomNav />
       </body>
     </html>
   );
