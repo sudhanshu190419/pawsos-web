@@ -246,6 +246,7 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      console.log("Logged in UID:", currentUser?.uid);
       if (currentUser) {
         try {
           const vetDocRef = doc(db, "vets_web", currentUser.uid);
@@ -355,15 +356,29 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
       const geohash = encodeGeohash(location.latitude, location.longitude);
 
       await setDoc(doc(db, "vets_web", user.uid), {
-        uid: user.uid,
-        ...formData,
-        profilePhotoURL,
-        documentURL,
-        location: new GeoPoint(location.latitude, location.longitude),
-        geohash, latitude: location.latitude, longitude: location.longitude,
-        status: "pending", verificationStatus: "pending_review",
-        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
-      });
+  uid: user.uid,
+  fullName: formData.fullName,
+  email: formData.email,
+  phone: formData.phone,
+  city: formData.city,
+  clinicAddress: formData.clinicAddress,
+  serviceArea: formData.serviceArea,
+  availability: formData.availability,
+  willingToTravel: formData.willingToTravel,
+
+  profilePhotoURL,
+  documentURL,
+
+  location: new GeoPoint(location.latitude, location.longitude),
+  geohash,
+  latitude: location.latitude,
+  longitude: location.longitude,
+
+  status: "pending",
+  verificationStatus: "pending_review",
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+});
 
       setSubmitStatus("✅ Application submitted successfully!");
       setTimeout(() => {
