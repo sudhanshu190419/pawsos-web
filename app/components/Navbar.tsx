@@ -2,97 +2,95 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // 🔥 NEW STATE: Controls whether the mobile menu is open or closed
+  // Controls whether the mobile menu is open or closed
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const router = useRouter();
-const loadFirebaseAuth = async () => {
-  const firebase = await import("../lib/firebase");
-  return firebase.auth;
-};
 
-useEffect(() => {
-  const storedUser = localStorage.getItem("user");
+  const loadFirebaseAuth = async () => {
+    const firebase = await import("../lib/firebase");
+    return firebase.auth;
+  };
 
-  if (storedUser) {
-    const parsed = JSON.parse(storedUser);
-    setUser({
-      displayName: parsed.name,
-      email: parsed.email,
-      photoURL: parsed.photo,
-    } as any);
-
-    setLoading(false);
-  }
-}, []);
   useEffect(() => {
-  let unsub: (() => void) | undefined;
+    const storedUser = localStorage.getItem("user");
 
-  const initAuth = async () => {
-    const authInstance = await loadFirebaseAuth();
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      setUser({
+        displayName: parsed.name,
+        email: parsed.email,
+        photoURL: parsed.photo,
+      } as any);
 
-    unsub = onAuthStateChanged(authInstance, (currentUser) => {
-      setUser(currentUser);
-
-if (currentUser) {
-  localStorage.setItem("user", JSON.stringify({
-    name: currentUser.displayName,
-    email: currentUser.email,
-    photo: currentUser.photoURL,
-  }));
-} else {
-  localStorage.removeItem("user");
-}
       setLoading(false);
-    });
-  };
+    }
+  }, []);
 
- setTimeout(() => {
-  initAuth();
-}, 1000);
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
 
-  return () => {
-    if (unsub) unsub();
-  };
-}, []);
+    const initAuth = async () => {
+      const authInstance = await loadFirebaseAuth();
+
+      unsub = onAuthStateChanged(authInstance, (currentUser) => {
+        setUser(currentUser);
+
+        if (currentUser) {
+          localStorage.setItem("user", JSON.stringify({
+            name: currentUser.displayName,
+            email: currentUser.email,
+            photo: currentUser.photoURL,
+          }));
+        } else {
+          localStorage.removeItem("user");
+        }
+        setLoading(false);
+      });
+    };
+
+    setTimeout(() => {
+      initAuth();
+    }, 1000);
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
 
   const handleLogout = async () => {
-  const authInstance = await loadFirebaseAuth();
-  await signOut(authInstance);
+    const authInstance = await loadFirebaseAuth();
+    await signOut(authInstance);
 
-  setUser(null);
-  setIsMobileMenuOpen(false);
-  router.refresh();
-};
+    setUser(null);
+    setIsMobileMenuOpen(false);
+    router.refresh();
+  };
 
   return (
     <header className="w-full sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-orange-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
         
         {/* LOGO */}
-        {/* LOGO */}
         <Link
           href="/"
-          className="hover:scale-105 transition-transform flex items-center ml-14 md:ml-0"
+          className="hover:scale-105 transition-transform flex items-center"
           onClick={() => setIsMobileMenuOpen(false)}
         >
-          {/* 🔥 NEW: Optimized Next.js Image Component */}
           <Image 
             src="/logo.png" 
             alt="AnimalSathi Logo" 
             width={180} 
             height={60} 
-            priority={true} // Tells Vercel: "Load this instantly!"
+            priority={true}
             className="h-10 md:h-14 w-auto object-contain" 
           />
         </Link>
@@ -138,30 +136,40 @@ if (currentUser) {
         <div className="flex items-center gap-3 md:gap-4">
           
           {!loading && user ? (
-            /* PROFILE MENU (Desktop & Mobile) */
-            <div className="relative group">
-              <img
-                src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
-                alt="User Profile"
-                className="w-10 h-10 md:w-11 md:h-11 rounded-full cursor-pointer border-2 border-slate-100 hover:border-orange-300 transition-colors object-cover shadow-sm"
-              />
-              <div className="absolute right-0 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-60 flex flex-col overflow-hidden">
-                  <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                    <p className="text-sm font-bold text-slate-800 truncate">{user.displayName || "Animal Lover"}</p>
-                    <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
-                  </div>
-                  <div className="py-2 flex flex-col">
-                    <Link href="/dashboard?tab=profile" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
-                    <Link href="/dashboard?tab=reports"  prefetch={false}className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">📋</span> My SOS Reports</Link>
-                    <Link href="/dashboard?tab=settings" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">⚙️</span> Settings</Link>
-                  </div>
-                  <div className="py-2 border-t border-slate-100 bg-white">
-                    <button onClick={handleLogout} className="w-full text-left px-5 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3"><span className="text-lg">🚪</span> Sign Out</button>
+            <>
+              {/* DESKTOP PROFILE MENU (Hidden on Mobile) */}
+              <div className="hidden md:block relative group">
+                <img
+                  src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
+                  alt="User Profile"
+                  className="w-11 h-11 rounded-full cursor-pointer border-2 border-slate-100 hover:border-orange-300 transition-colors object-cover shadow-sm"
+                />
+                <div className="absolute right-0 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-60 flex flex-col overflow-hidden">
+                    <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                      <p className="text-sm font-bold text-slate-800 truncate">{user.displayName || "Animal Lover"}</p>
+                      <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
+                    </div>
+                    <div className="py-2 flex flex-col">
+                      <Link href="/dashboard?tab=profile" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
+                      <Link href="/dashboard?tab=reports" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">📋</span> My SOS Reports</Link>
+                      <Link href="/dashboard?tab=settings" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">⚙️</span> Settings</Link>
+                    </div>
+                    <div className="py-2 border-t border-slate-100 bg-white">
+                      <button onClick={handleLogout} className="w-full text-left px-5 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3"><span className="text-lg">🚪</span> Sign Out</button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+
+              {/* MOBILE AVATAR (Triggers Hamburger Menu) */}
+              <img
+                src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
+                alt="User Profile"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden w-9 h-9 rounded-full cursor-pointer border-2 border-slate-100 object-cover shadow-sm"
+              />
+            </>
           ) : (
             /* SIGN IN BUTTON */
             <Link href="/auth" className="text-slate-600 px-3 md:px-4 py-2 rounded-full text-sm font-bold hover:text-orange-600 transition-colors">
@@ -178,27 +186,47 @@ if (currentUser) {
             Get the App
           </Link>
 
-          {/* 🔥 MOBILE HAMBURGER BUTTON */}
+          {/* MOBILE HAMBURGER BUTTON */}
           <button 
-            className="md:hidden text-slate-800 p-2 hover:bg-orange-50 rounded-lg transition-colors"
+            className="md:hidden text-slate-800 p-1.5 hover:bg-orange-50 rounded-lg transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
-              // X Icon
               <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
             ) : (
-              // Hamburger Icon
               <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
             )}
           </button>
-
         </div>
       </div>
 
-      {/* 🔥 MOBILE DROPDOWN MENU */}
+      {/* MOBILE DROPDOWN MENU */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-orange-100 shadow-2xl flex flex-col py-4 px-6 animate-in slide-in-from-top-2 duration-200">
+        <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-orange-100 shadow-2xl flex flex-col py-4 px-6 animate-in slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
           
+          {/* USER ACCOUNT SECTION (Visible only if logged in) */}
+          {user && (
+            <div className="py-4 border-b border-slate-100 bg-slate-50/50 -mx-6 px-6 mb-2">
+              <div className="flex items-center gap-3 mb-4">
+                <img
+                  src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
+                  alt="User Profile"
+                  className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover"
+                />
+                <div>
+                  <p className="text-sm font-bold text-slate-800">{user.displayName || "Animal Lover"}</p>
+                  <p className="text-xs font-medium text-slate-500">{user.email}</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=profile" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">👤 My Profile</Link>
+                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=reports" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">📋 My SOS Reports</Link>
+                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=settings" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">⚙️ Settings</Link>
+                <button onClick={handleLogout} className="text-left py-2.5 text-sm font-bold text-red-600 flex items-center gap-2 mt-1">🚪 Sign Out</button>
+              </div>
+            </div>
+          )}
+
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/how-it-works" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">How It Works</Link>
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/shop" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">Shop Marketplace</Link>
           
@@ -222,7 +250,7 @@ if (currentUser) {
             </div>
           </div>
 
-          {/* Mobile App Button (Visible only if screen is very small) */}
+          {/* Mobile App Button */}
           <Link
             onClick={() => setIsMobileMenuOpen(false)}
             href="/download"
@@ -231,7 +259,6 @@ if (currentUser) {
           >
             Download the App
           </Link>
-
         </div>
       )}
     </header>
