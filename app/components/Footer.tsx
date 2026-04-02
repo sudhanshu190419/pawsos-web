@@ -116,15 +116,3 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
   );
 }
 
-function SocialIcon({ href, icon }: { href: string; icon: string }) {
-  return (
-    <a 
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all shadow-sm hover:shadow-md font-bold text-sm shrink-0"
-    >
-      {icon}
-    </a>
-  );
-}
