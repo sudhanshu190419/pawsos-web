@@ -36,7 +36,7 @@ export default function HomePage() {
       <div className="relative z-20">
         <Reveal>
           {/* 🔥 FIX: Changed -mt-24 to -mt-12 on mobile to prevent buttons from covering the banner image */}
-          <section className="relative -mt-20 sm:-mt-24 md:-mt-32 px-4 sm:px-6">
+          <section className="relative -mt-28 sm:-mt-24 md:-mt-32 px-4 sm:px-6">
             
             {/* 🔥 NEW BUTTONS SITTING ON THE BANNER */}
             <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center md:items-start justify-center md:justify-start gap-3 sm:gap-4 mb-6 sm:mb-8 md:pl-4">
