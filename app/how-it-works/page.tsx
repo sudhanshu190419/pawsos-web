@@ -9,7 +9,7 @@ export default function HowItWorksPage() {
     <main className="min-h-screen bg-slate-50 text-slate-900 overflow-hidden pb-16 sm:pb-24 selection:bg-orange-200 selection:text-orange-900">
       
       {/* PAGE HERO */}
-      <section className="relative px-4 sm:px-6 pt-16 sm:pt-24 pb-16 sm:pb-20 md:pt-32 md:pb-32 text-center max-w-5xl mx-auto flex flex-col items-center">
+      <section className="relative px-4 sm:px-6 pt-8 sm:pt-12 pb-16 sm:pb-20 md:pt-32 md:pb-16 text-center max-w-5xl mx-auto flex flex-col items-center">
         
         {/* Ambient Background Glows */}
         <div className="absolute top-0 w-full h-[400px] sm:h-[600px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-300/20 via-slate-50/0 to-transparent -z-10 pointer-events-none"></div>
@@ -26,11 +26,11 @@ export default function HowItWorksPage() {
         </Reveal>
 
         <Reveal>
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight mb-4 sm:mb-8 text-slate-900 leading-tight sm:leading-[1.1]">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold md:font-bold tracking-tight mb-4 sm:mb-8 text-slate-900 leading-tight sm:leading-[1.1]">
             How <GradientText>AnimalSathi</GradientText> Works
           </h1>
           
-          <p className="text-base sm:text-lg md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-medium mb-8 sm:mb-12 px-2 sm:px-0">
+          <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed font-normal mb-6 sm:mb-10 px-2 sm:px-0">
             We seamlessly connect compassionate citizens, dedicated volunteers, and verified NGOs to ensure distressed animals receive help instantly.
           </p>
         </Reveal>
@@ -106,7 +106,7 @@ export default function HowItWorksPage() {
               <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-6 sm:mb-8 tracking-tight leading-tight">
                 A single report can <br className="hidden sm:block" /> <span className="text-orange-500">save a life.</span>
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-slate-400 mb-8 sm:mb-12 max-w-2xl mx-auto font-light leading-relaxed">
+              <p className="text-base sm:text-lg md:text-xl text-slate-400 mb-4 sm:mb-6 max-w-2xl mx-auto font-light leading-relaxed">
                 Join AnimalSathi today. Be the voice for the voiceless and help us build a safer world for animals across India.
               </p>
 

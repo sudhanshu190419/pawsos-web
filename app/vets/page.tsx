@@ -1,583 +1,904 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import Reveal from "../components/Reveal";
-import GradientText from "../components/GradientText";
 import { auth, db, storage } from "../lib/firebase";
-import { doc, setDoc, serverTimestamp, GeoPoint, getDoc } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+  GeoPoint,
+  getDoc,
+} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
+
+/* ─────────────────────────── Types ─────────────────────────── */
+
+interface VetFormData {
+  fullName: string;
+  email: string;
+  phone: string;
+  city: string;
+  clinicAddress: string;
+  serviceArea: string;
+  availability: string[];
+  willingToTravel: boolean;
+  profilePhoto: File | null;
+  document: File | null;
+}
+
+interface ExistingApplication {
+  verificationStatus: "pending_review" | "approved" | "rejected";
+  fullName: string;
+  email: string;
+}
+
+interface Coords {
+  latitude: number;
+  longitude: number;
+}
+
+/* ─────────────────────── Geohash utility ─────────────────────── */
+
+function encodeGeohash(lat: number, lon: number, precision = 6): string {
+  const CHARS = "0123456789bcdefghjkmnpqrstuvwxyz";
+  let idx = 0, bit = 0, evenBit = true, geohash = "";
+  let latMin = -90, latMax = 90, lonMin = -180, lonMax = 180;
+  while (geohash.length < precision) {
+    if (evenBit) {
+      const mid = (lonMin + lonMax) / 2;
+      if (lon >= mid) { idx = (idx << 1) + 1; lonMin = mid; } else { idx <<= 1; lonMax = mid; }
+    } else {
+      const mid = (latMin + latMax) / 2;
+      if (lat >= mid) { idx = (idx << 1) + 1; latMin = mid; } else { idx <<= 1; latMax = mid; }
+    }
+    evenBit = !evenBit;
+    if (bit < 4) bit++;
+    else { geohash += CHARS[idx]; bit = 0; idx = 0; }
+  }
+  return geohash;
+}
+
+/* ─────────────────────── Font Injection ─────────────────────── */
+
+function FontLoader() {
+  useEffect(() => {
+    const existing = document.getElementById("vet-font-link");
+    if (existing) return;
+    const link = document.createElement("link");
+    link.id = "vet-font-link";
+    link.rel = "stylesheet";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap";
+    document.head.appendChild(link);
+    return () => { document.head.removeChild(link); };
+  }, []);
+  return null;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════════════════════════════ */
+
+const INITIAL_FORM: VetFormData = {
+  fullName: "", email: "", phone: "", city: "",
+  clinicAddress: "", serviceArea: "",
+  availability: [], willingToTravel: false,
+  profilePhoto: null, document: null,
+};
+
+const BENEFITS = [
+  {
+    emoji: "🚑",
+    tag: "Emergency",
+    title: "Save Critical Lives",
+    desc: "Receive geo-targeted SOS alerts for animals in your area. Provide on-site care or remote triage instantly.",
+  },
+  {
+    emoji: "🤝",
+    tag: "Ecosystem",
+    title: "Unified Coordination",
+    desc: "Work seamlessly with verified NGOs, first-responders, and rescue volunteers in one structured platform.",
+  },
+  {
+    emoji: "📊",
+    tag: "Insights",
+    title: "Transparent Impact",
+    desc: "Track every consultation and rescue with verified outcome data — perfect for professional portfolios.",
+  },
+  {
+    emoji: "💼",
+    tag: "Network",
+    title: "Peer Community",
+    desc: "Join India's fastest-growing veterinary professional network focused on animal welfare.",
+  },
+  {
+    emoji: "📱",
+    tag: "Telemedicine",
+    title: "Remote Consultations",
+    desc: "Extend your reach beyond your clinic. Guide rescuers in real-time from anywhere in India.",
+  },
+  {
+    emoji: "🎓",
+    tag: "Learning",
+    title: "CME Resources",
+    desc: "Access curated wildlife, emergency care, and disaster response training materials.",
+  },
+];
+
+const REQUIREMENTS = [
+  "Licensed veterinarian — BVSc or equivalent qualification",
+  "Valid practice license (RCVS, PCI, or national equivalent)",
+  "Emergency or wildlife rescue experience (preferred)",
+  "Commitment to pro-bono triage for critical cases",
+  "Willingness to mentor and guide rescue volunteers",
+  "Reliable internet access for remote consultations",
+];
+
+const VERIFICATION_STEPS = [
+  { n: "01", title: "Apply Online", desc: "Submit your credentials and experience via our encrypted partner form." },
+  { n: "02", title: "License Check", desc: "We validate your registration through official veterinary boards and government registries." },
+  { n: "03", title: "Profile Approval", desc: "You receive a verified badge and full access to the emergency coordination dashboard." },
+  { n: "04", title: "Onboarding", desc: "Platform training on emergency protocols, SOS routing, and volunteer coordination tools." },
+];
+
+const AVAILABILITY_OPTIONS = ["Weekdays", "Weekends", "24/7 Emergency"];
+const TOTAL_STEPS = 4;
+const STEP_LABELS = ["Basic Info", "Photo", "Documents", "Availability"];
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE
+══════════════════════════════════════════════════════════════ */
 
 export default function VetsPage() {
   const [showForm, setShowForm] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
+
+  const openForm = useCallback(() => setShowForm(true), []);
+  const closeForm = useCallback(() => setShowForm(false), []);
 
   return (
     <>
-      <main className="min-h-screen bg-slate-50 text-slate-900 pb-16 sm:pb-24 overflow-hidden selection:bg-orange-200 selection:text-orange-900">
+      <FontLoader />
 
-        {/* HERO SECTION */}
-        <section className="relative px-4 sm:px-6 pt-24 sm:pt-32 pb-16 sm:pb-20 md:pt-40 md:pb-28 text-center max-w-5xl mx-auto flex flex-col items-center">
-          
-          {/* Ambient Background Glows */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[500px] md:w-[700px] h-[300px] sm:h-[500px] md:h-[700px] bg-orange-300/15 rounded-full blur-[80px] sm:blur-[120px] -z-10 pointer-events-none"></div>
+      <style>{`
+        .sora { font-family: 'Sora', sans-serif; }
+        .dm-sans { font-family: 'DM Sans', sans-serif; }
+        body { font-family: 'DM Sans', sans-serif; }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(28px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95) translateY(16px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes shimmer {
+          0%   { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-8px); }
+        }
+        .animate-fadeUp  { animation: fadeUp  0.65s cubic-bezier(.22,.68,0,1.2) both; }
+        .animate-scaleIn { animation: scaleIn 0.4s  cubic-bezier(.22,.68,0,1.2) both; }
+        .animate-float   { animation: float   4s ease-in-out infinite; }
+        .delay-100 { animation-delay: 0.10s; }
+        .delay-200 { animation-delay: 0.20s; }
+        .delay-300 { animation-delay: 0.30s; }
+        .delay-400 { animation-delay: 0.40s; }
+        .shimmer-btn {
+          background: linear-gradient(90deg, #ea580c 0%, #f97316 40%, #fb923c 50%, #f97316 60%, #ea580c 100%);
+          background-size: 200%;
+          animation: shimmer 2.8s infinite linear;
+        }
+        .glass {
+          background: rgba(255,255,255,0.75);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+        .input-field:focus {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(234,88,12,0.15);
+          border-color: #ea580c;
+        }
+        .card-hover {
+          transition: transform 0.3s cubic-bezier(.22,.68,0,1.2), box-shadow 0.3s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 20px 40px -12px rgba(0,0,0,0.10);
+        }
+      `}</style>
 
-          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-slate-900 text-white text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-6 sm:mb-8 shadow-md border border-slate-700">
-            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-            Verified Veterinarians
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight mb-5 sm:mb-8 text-slate-900 leading-[1.1]">
-            Be Part of India's <br className="hidden sm:block" />
-            <span className="text-orange-600">Emergency Network</span>
-          </h1>
-
-          <p className="text-base sm:text-lg md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-medium mb-8 sm:mb-10 px-2 sm:px-0">
-            Join verified veterinarians providing critical care, remote consultations, and life-saving treatment coordination across India.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full sm:w-auto">
-            <button
-              onClick={() => setShowForm(true)}
-              className="w-full sm:w-auto bg-orange-500 text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:bg-orange-600 transition-all duration-300 shadow-xl hover:-translate-y-1 hover:shadow-orange-500/30 flex items-center justify-center gap-2 group"
-            >
-              Register as Veterinarian
-              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-            </button>
-            <a href="#benefits" className="w-full sm:w-auto bg-white border-2 border-slate-200 text-slate-700 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center">
-              Learn More
-            </a>
-          </div>
-        </section>
-
-        {/* WHY JOIN SECTION */}
-        <Reveal>
-          <section id="benefits" className="max-w-7xl mx-auto px-4 sm:px-6 mb-20 md:mb-32 relative z-10">
-            <div className="text-center mb-10 sm:mb-16">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight">Why Join AnimalSathi?</h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
-              <BenefitCard icon="🚑" title="Save Lives" description="Provide emergency care and consultations for animals in critical condition across India." />
-              <BenefitCard icon="🤝" title="Collaboration" description="Work with NGOs, volunteers, and rescue teams in a coordinated emergency response ecosystem." />
-              <BenefitCard icon="📊" title="Impact Tracking" description="Monitor your impact with transparent data dashboards showing lives saved and treatments provided." />
-              <BenefitCard icon="💼" title="Professional Network" description="Connect with verified veterinarians and build a professional network in animal welfare." />
-              <BenefitCard icon="📱" title="Telemedicine" description="Provide remote consultations to areas lacking immediate veterinary care." />
-              <BenefitCard icon="🎓" title="Continuing Education" description="Access resources and learning materials for wildlife and emergency animal care." />
-            </div>
-          </section>
-        </Reveal>
-
-        {/* WHAT WE NEED SECTION */}
-        <Reveal>
-          <section className="max-w-6xl mx-auto px-4 sm:px-6 mb-20 md:mb-32">
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-24 items-center">
-
-              <div className="order-2 lg:order-1">
-                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-6 tracking-tight">
-                  What We're Looking For
-                </h2>
-                <ul className="space-y-4">
-                  <RequirementItem text="Licensed veterinarian (BVSc or equivalent qualification)" />
-                  <RequirementItem text="Valid practice license (RCVS, PCI, or national equivalent)" />
-                  <RequirementItem text="Experience in emergency care or wildlife rescue (preferred)" />
-                  <RequirementItem text="Commitment to pro-bono consultations for critical cases" />
-                  <RequirementItem text="Willingness to mentor and train rescue volunteers" />
-                  <RequirementItem text="Access to basic medical equipment for remote consultations" />
-                </ul>
-              </div>
-
-              <div className="order-1 lg:order-2 bg-slate-50 border border-slate-200 rounded-[2rem] p-6 sm:p-8 md:p-12 shadow-sm relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-b from-orange-50/0 to-orange-50/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div className="relative z-10">
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-6">Verification Process</h3>
-                  <div className="space-y-6">
-                    <VerificationStep number="1" title="Application" desc="Submit your credentials and experience details. We review all submissions carefully." />
-                    <VerificationStep number="2" title="Verification" desc="We validate your license through official veterinary boards and government registries." />
-                    <VerificationStep number="3" title="Approval" desc="Upon verification, you'll receive a verified badge and full access to the platform." />
-                    <VerificationStep number="4" title="Training" desc="Onboarding training on platform tools, emergency protocols, and coordination systems." />
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </section>
-        </Reveal>
-
-        {/* REGISTRATION CTA */}
-        <Reveal>
-          <section id="registration" className="max-w-5xl mx-auto px-4 sm:px-6 mb-10 md:mb-20">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-12 md:p-20 text-center relative overflow-hidden shadow-2xl border border-slate-700">
-              <div className="absolute -top-24 -right-24 w-64 h-64 sm:w-96 sm:h-96 bg-orange-500/20 rounded-full blur-3xl pointer-events-none"></div>
-
-              <div className="relative z-10">
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4 sm:mb-6 tracking-tight">
-                  Ready to Make an Impact?
-                </h2>
-                <p className="text-base sm:text-lg md:text-xl text-slate-400 mb-8 sm:mb-10 max-w-2xl mx-auto font-light leading-relaxed">
-                  Join hundreds of veterinarians already helping save animal lives through AnimalSathi's emergency response network.
-                </p>
-
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-5">
-                  <button
-                    onClick={() => setShowForm(true)}
-                    className="w-full sm:w-auto bg-orange-500 text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:bg-orange-600 transition shadow-lg hover:-translate-y-1"
-                  >
-                    Apply Now
-                  </button>
-                  <Link
-                    href="/"
-                    className="w-full sm:w-auto bg-slate-800 border border-slate-600 text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:bg-slate-700 transition hover:-translate-y-1 block text-center"
-                  >
-                    Return Home
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </section>
-        </Reveal>
-
+      <main className="min-h-screen bg-[#FAFAF8] text-slate-900 overflow-hidden selection:bg-orange-100 selection:text-orange-900 dm-sans">
+        <HeroSection onApply={openForm} />
+        <BenefitsSection />
+        <RequirementsSection />
+        <BottomCTA onApply={openForm} />
       </main>
 
-      {/* REGISTRATION MODAL (Using Portal for better mobile stacking) */}
-      {mounted && showForm && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 md:p-6">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setShowForm(false)}></div>
-
-          <div className="relative bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto z-[1000000] animate-in fade-in zoom-in duration-300">
-            
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white/90 backdrop-blur-xl px-5 sm:px-8 md:px-12 py-4 sm:py-6 border-b border-slate-100 z-20 flex justify-between items-start">
-              <div className="pr-4">
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-tight">Veterinarian Application</h2>
-                <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1 flex items-center gap-1.5 sm:gap-2">
-                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500"></span>
-                  Secure & Encrypted
-                </p>
-              </div>
-              <button onClick={() => setShowForm(false)} className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full flex shrink-0 items-center justify-center transition-colors">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 sm:p-8 md:p-12 pt-6 sm:pt-8">
-              <VetRegistrationForm onClose={() => setShowForm(false)} />
-            </div>
-            
-          </div>
-        </div>,
-        document.body
-      )}
+      {mounted && showForm && typeof document !== "undefined" &&
+        createPortal(<RegistrationModal onClose={closeForm} />, document.body)}
     </>
   );
 }
 
-/* ---------- HELPER COMPONENTS ---------- */
+/* ══════════════════════════════════════════════════════════════
+   HERO
+══════════════════════════════════════════════════════════════ */
 
-function BenefitCard({ icon, title, description }: { icon: string; title: string; description: string }) {
+function HeroSection({ onApply }: { onApply: () => void }) {
   return (
-    <div className="bg-white p-6 sm:p-8 md:p-10 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-2 transition-all duration-300 group">
-      <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl sm:rounded-2xl flex items-center justify-center text-2xl sm:text-3xl mb-5 sm:mb-6 border border-orange-200 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300 shadow-sm">
-        {icon}
+    <section className="relative pt-12 pb-20 md:pt-8 md:pb-28 overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-orange-100/50 rounded-full blur-[140px]" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-amber-50/80 rounded-full blur-[120px]" />
+        <svg className="absolute inset-0 w-full h-full opacity-[0.025]" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="vdots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.5" fill="#64748b" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#vdots)" />
+        </svg>
       </div>
-      <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-3 sm:mb-4">{title}</h3>
-      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-medium">{description}</p>
-    </div>
+
+      <div className="max-w-7xl mx-auto px-5 sm:px-8">
+
+        {/* Eyebrow */}
+        <div className="flex justify-center lg:justify-start mb-3 md:mb-4 animate-fadeUp">
+          <span className="inline-flex items-center gap-2.5 bg-white border border-slate-200 rounded-full px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm tracking-wide">
+            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+            Verified Veterinarian Portal · India
+          </span>
+        </div>
+
+        <div className="grid lg:grid-cols-[1fr_460px] xl:grid-cols-[1fr_520px] gap-14 lg:gap-16 items-center">
+
+         {/* Left: Copy */}
+          <div className="max-w-2xl mx-auto lg:mx-0 text-center lg:text-left">
+            <h1 className="sora text-[2.4rem] sm:text-5xl md:text-6xl lg:text-[4rem] font-bold leading-[1.15] tracking-tight text-slate-800 mb-6 animate-fadeUp delay-100">
+              Your expertise.<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 font-extrabold drop-shadow-sm">
+                Their second chance.
+              </span>
+            </h1>
+            <p className="text-base sm:text-lg text-slate-600 font-normal leading-[1.7] max-w-xl mx-auto lg:mx-0 mb-9 animate-fadeUp delay-200">
+              Join India's first structured emergency veterinary network. Receive geo-targeted SOS alerts, coordinate with NGOs, and provide life-saving care remotely or on-site.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 animate-fadeUp delay-300">
+              <button
+                onClick={onApply}
+                className="shimmer-btn w-full sm:w-auto text-white px-8 py-4 rounded-xl font-semibold text-base shadow-lg shadow-orange-500/25 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-200 flex items-center justify-center gap-2 group"
+              >
+                Register as Veterinarian
+                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </button>
+              <a
+                href="#requirements"
+                className="w-full sm:w-auto px-8 py-4 rounded-xl font-semibold text-base text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 text-center shadow-sm"
+              >
+                View Requirements
+              </a>
+            </div>
+
+            <p className="mt-5 text-sm text-slate-400 font-medium animate-fadeUp delay-400">
+              <span className="text-emerald-500 mr-1.5">✓</span>
+              100% free · Verified within 48 hours
+            </p>
+          </div>
+
+          {/* Right: Stacked card visual */}
+          <div className="hidden lg:block relative animate-fadeUp delay-200">
+            {/* Main image */}
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-slate-900/15 border border-white/60 aspect-[4/5]">
+              <img
+  src="/vet-hero.jpg"
+  alt="Veterinarian treating a dog"
+  className="absolute inset-0 w-full h-full object-cover"
+/>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/5 to-transparent" />
+
+              
+            </div>
+
+            {/* Floating stat chips */}
+            <div className="absolute -top-4 -left-4 glass rounded-xl px-4 py-3 border border-white/50 shadow-lg animate-float">
+              <p className="text-xs font-bold text-slate-900">🏥 340 Vets</p>
+              <p className="text-[10px] text-slate-500">Across 22 states</p>
+            </div>
+            
+
+            <div className="absolute -bottom-6 -right-6 w-44 h-44 bg-orange-200/40 rounded-full blur-2xl -z-10" />
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
-function RequirementItem({ text }: { text: string }) {
+
+
+/* ── Benefits Section ── */
+
+function BenefitsSection() {
   return (
-    <li className="flex items-start gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-      <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0 font-bold text-sm mt-0.5">✓</span>
-      <span className="text-slate-700 font-medium text-sm sm:text-base">{text}</span>
-    </li>
+    <section className="py-20 md:py-28 max-w-7xl mx-auto px-5 sm:px-8">
+      <div className="text-center mb-14">
+        <p className="text-sm font-semibold text-orange-600 tracking-widest uppercase mb-3">Why Join</p>
+        <h2 className="sora text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-950 tracking-tight max-w-2xl mx-auto leading-tight">
+          Built for veterinarians who care deeply
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {BENEFITS.map(({ emoji, tag, title, desc }) => (
+          <div
+            key={title}
+            className="card-hover group relative bg-white rounded-2xl p-7 border border-slate-100 shadow-sm"
+          >
+            <div className="absolute top-0 left-7 h-0.5 w-10 bg-orange-500 rounded-full" />
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-300">
+                {emoji}
+              </div>
+              <span className="mt-3 text-xs font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-full border border-orange-100">
+                {tag}
+              </span>
+            </div>
+            <h3 className="sora text-lg font-bold text-slate-900 mb-2.5">{title}</h3>
+            <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
-function VerificationStep({ number, title, desc }: { number: string; title: string; desc: string }) {
+/* ── Requirements + Verification Section ── */
+
+function RequirementsSection() {
   return (
-    <div className="flex gap-4 group">
-      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-black text-lg sm:text-xl flex-shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors duration-300">
-        {number}
+    <section id="requirements" className="py-20 md:py-28 bg-white">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8">
+
+        {/* Header */}
+        <div className="text-center mb-14">
+          <p className="text-sm font-semibold text-orange-600 tracking-widest uppercase mb-3">Eligibility</p>
+          <h2 className="sora text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-950 tracking-tight">
+            What we look for
+          </h2>
+        </div>
+
+        {/* Two-column: Requirements + Process */}
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+
+          {/* Requirements */}
+          <div>
+            <h3 className="sora text-xl font-bold text-slate-900 mb-6">Eligibility Requirements</h3>
+            <ul className="space-y-3">
+              {REQUIREMENTS.map((text) => (
+                <li
+                  key={text}
+                  className="flex items-start gap-3.5 bg-[#FAFAF8] border border-slate-100 rounded-xl p-4 hover:border-orange-200 transition-colors duration-200"
+                >
+                  <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 font-bold text-xs mt-0.5">
+                    ✓
+                  </span>
+                  <span className="text-slate-700 text-sm leading-relaxed">{text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Verification Process */}
+          <div className="bg-[#FAFAF8] border border-slate-100 rounded-2xl p-7 sm:p-9">
+            <h3 className="sora text-xl font-bold text-slate-900 mb-7">Verification Process</h3>
+            <div className="space-y-6">
+              {VERIFICATION_STEPS.map(({ n, title, desc }, i) => (
+                <div key={n} className="flex gap-4 group">
+                  {/* Step number + vertical connector */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-white border-2 border-slate-200 text-slate-700 flex items-center justify-center sora font-extrabold text-sm shrink-0 group-hover:bg-orange-500 group-hover:border-orange-500 group-hover:text-white transition-all duration-300">
+                      {n}
+                    </div>
+                    {i < VERIFICATION_STEPS.length - 1 && (
+                      <div className="w-px flex-1 bg-slate-200 mt-2 mb-0 min-h-[20px]" />
+                    )}
+                  </div>
+                  <div className="pb-2">
+                    <h4 className="font-bold text-slate-900 text-sm mb-1">{title}</h4>
+                    <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-      <div>
-        <h4 className="font-bold text-slate-900 mb-1 text-base sm:text-lg">{title}</h4>
-        <p className="text-slate-600 text-sm font-medium leading-relaxed">{desc}</p>
-      </div>
-    </div>
+    </section>
   );
 }
 
-/* ---------- THE FORM COMPONENT ---------- */
+/* ── Bottom CTA ── */
 
-function VetRegistrationForm({ onClose }: { onClose: () => void }) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4;
+function BottomCTA({ onApply }: { onApply: () => void }) {
+  return (
+    <section className="py-16 md:py-24 px-5 sm:px-8">
+      <div className="max-w-5xl mx-auto">
+        <div className="relative bg-slate-950 rounded-3xl px-8 sm:px-14 md:px-20 py-14 md:py-20 text-center overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-80 h-80 bg-orange-600/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10">
+            <p className="text-orange-400 text-sm font-semibold tracking-widest uppercase mb-4">Ready to Join?</p>
+            <h2 className="sora text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-5 leading-tight">
+              Hundreds of lives are waiting<br className="hidden sm:block" /> for your expertise.
+            </h2>
+            <p className="text-slate-400 text-lg font-light max-w-xl mx-auto mb-10 leading-relaxed">
+              Join India's growing network of verified veterinarians saving animal lives through coordinated emergency response.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <button
+                onClick={onApply}
+                className="shimmer-btn text-white px-9 py-4 rounded-xl font-semibold text-base shadow-xl shadow-orange-600/30 hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Apply Now — It's Free
+              </button>
+              <Link
+                href="/"
+                className="bg-white/5 border border-white/10 text-white/80 px-9 py-4 rounded-xl font-semibold text-base hover:bg-white/10 transition-all duration-200 text-center"
+              >
+                Return Home
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
-  const [user, setUser] = useState<any>(null);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [hasApplied, setHasApplied] = useState(false);
-  const [existingApplication, setExistingApplication] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    city: "",
-    clinicAddress: "",
-    profilePhoto: null as File | null,
-    document: null as File | null,
-    serviceArea: "",
-    availability: [] as string[],
-    willingToTravel: false,
-  });
+/* ══════════════════════════════════════════════════════════════
+   MODAL
+══════════════════════════════════════════════════════════════ */
 
-  const [submitStatus, setSubmitStatus] = useState<string | null>(null);
-
+function RegistrationModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      console.log("Logged in UID:", currentUser?.uid);
-      if (currentUser) {
-        try {
-          const vetDocRef = doc(db, "vets_web", currentUser.uid);
-          const vetDoc = await getDoc(vetDocRef);
-
-          if (vetDoc.exists()) {
-            setHasApplied(true);
-            setExistingApplication(vetDoc.data());
-          } else {
-            setFormData((prev) => ({ ...prev, email: currentUser.email || "" }));
-          }
-        } catch (error) {
-          console.error("Error checking existing application:", error);
-        } finally {
-          setIsLoading(false); 
-        }
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-        },
-        (error) => console.warn("Geolocation error:", error)
-      );
-    }
-    
-    return () => unsub();
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
-    const file = e.target.files?.[0] || null;
-    setFormData((prev) => ({ ...prev, [fieldName]: file }));
-  };
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center dm-sans">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div className="relative bg-white w-full sm:max-w-2xl rounded-t-[2rem] sm:rounded-2xl shadow-2xl max-h-[96vh] sm:max-h-[88vh] flex flex-col animate-scaleIn z-10 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 sm:px-8 py-5 border-b border-slate-100 shrink-0">
+          <div>
+            <h2 className="sora text-xl sm:text-2xl font-extrabold text-slate-950 tracking-tight">
+              Veterinarian Application
+            </h2>
+            <p className="text-xs text-slate-400 font-medium mt-0.5 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              256-bit encrypted · Secure submission
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors"
+            aria-label="Close"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 sm:py-8">
+          <VetRegistrationForm onClose={onClose} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const handleAvailabilityChange = (option: string) => {
-    setFormData((prev) => {
-      const updated = prev.availability.includes(option)
-        ? prev.availability.filter((item) => item !== option)
-        : [...prev.availability, option];
-      return { ...prev, availability: updated };
+/* ══════════════════════════════════════════════════════════════
+   FORM
+══════════════════════════════════════════════════════════════ */
+
+function VetRegistrationForm({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(1);
+  const [user, setUser] = useState<User | null>(null);
+  const [location, setLocation] = useState<Coords | null>(null);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [existingApp, setExistingApp] = useState<ExistingApplication | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [form, setForm] = useState<VetFormData>(INITIAL_FORM);
+  const [submitStatus, setSubmitStatus] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<keyof VetFormData, string>>>({});
+
+  /* ── Setup ── */
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        try {
+          const snap = await getDoc(doc(db, "vets_web", u.uid));
+          if (snap.exists()) {
+            setHasApplied(true);
+            setExistingApp(snap.data() as ExistingApplication);
+          } else {
+            setForm((prev) => ({ ...prev, email: u.email ?? "" }));
+          }
+        } catch (err) {
+          console.error("Vet status check failed:", err);
+        }
+      }
+      setIsLoading(false);
     });
-  };
 
-  const validateStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        if (!formData.fullName || !formData.email || !formData.phone || !formData.clinicAddress) {
-          alert("Please fill all required fields in this section."); return false;
-        }
-        return true;
-      case 2:
-        if (!formData.profilePhoto) {
-          alert("Please upload a profile photo."); return false;
-        }
-        return true;
-      case 3:
-        if (!formData.document) {
-          alert("Please upload a document."); return false;
-        }
-        return true;
-      case 4:
-        if (!formData.serviceArea || formData.availability.length === 0) {
-          alert("Please fill all required fields in this section."); return false;
-        }
-        return true;
-      default:
-        return true;
+    navigator.geolocation?.getCurrentPosition(
+      ({ coords }) => setLocation({ latitude: coords.latitude, longitude: coords.longitude }),
+      (err) => console.warn("Geolocation denied:", err)
+    );
+
+    return unsub;
+  }, []);
+
+  /* ── Typed setters ── */
+
+  const set = useCallback(
+    <K extends keyof VetFormData>(key: K, value: VetFormData[K]) =>
+      setForm((prev) => ({ ...prev, [key]: value })),
+    []
+  );
+
+  const handleInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      set(e.target.name as keyof VetFormData, e.target.value as never),
+    [set]
+  );
+
+  const handleFile = useCallback(
+    (key: "profilePhoto" | "document") =>
+      (e: React.ChangeEvent<HTMLInputElement>) =>
+        set(key, (e.target.files?.[0] ?? null) as never),
+    [set]
+  );
+
+  const toggleAvailability = useCallback(
+    (opt: string) =>
+      setForm((prev) => ({
+        ...prev,
+        availability: prev.availability.includes(opt)
+          ? prev.availability.filter((o) => o !== opt)
+          : [...prev.availability, opt],
+      })),
+    []
+  );
+
+  /* ── Validation ── */
+
+  const validate = (s: number): boolean => {
+    const errs: typeof errors = {};
+    if (s === 1) {
+      if (!form.fullName.trim()) errs.fullName = "Required";
+      if (!form.email.trim()) errs.email = "Required";
+      if (!form.phone.trim()) errs.phone = "Required";
+      if (!form.city.trim()) errs.city = "Required";
+      if (!form.clinicAddress.trim()) errs.clinicAddress = "Required";
     }
+    if (s === 2 && !form.profilePhoto) errs.profilePhoto = "Profile photo is required";
+    if (s === 3 && !form.document) errs.document = "License / degree certificate is required";
+    if (s === 4) {
+      if (!form.serviceArea.trim()) errs.serviceArea = "Required";
+      if (form.availability.length === 0) errs.availability = "Select at least one option";
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  const handleNext = () => { if (validateStep(currentStep)) setCurrentStep((prev) => prev + 1); };
-  const handleBack = () => setCurrentStep((prev) => prev - 1);
+  const next = () => validate(step) && setStep((s) => s + 1);
+  const back = () => setStep((s) => s - 1);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  /* ── Submit ── */
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateStep(4)) return;
-    if (!user) { alert("Please login first to apply."); return; }
-    if (!location) { alert("Please enable location services to continue."); return; }
+    if (!validate(4)) return;
+    if (!user) { alert("Please sign in to apply."); return; }
+    if (!location) { alert("Location access is required. Please enable it and retry."); return; }
 
-    setSubmitStatus("📸 Uploading documents securely...");
+    const uploadFile = async (file: File, path: string) => {
+      const r = ref(storage, path);
+      await uploadBytes(r, file);
+      return getDownloadURL(r);
+    };
+
     try {
-      let profilePhotoURL = "";
-      let documentURL = "";
+      setSubmitStatus("Uploading documents…");
+      const ts = Date.now();
+      const [profilePhotoURL, documentURL] = await Promise.all([
+        form.profilePhoto ? uploadFile(form.profilePhoto, `vets/profilePhotos/${user.uid}_${ts}`) : Promise.resolve(""),
+        form.document ? uploadFile(form.document, `vets/documents/${user.uid}_${ts}`) : Promise.resolve(""),
+      ]);
 
-      if (formData.profilePhoto) {
-        const photoRef = ref(storage, `vets/profilePhotos/${user.uid}_${Date.now()}_${formData.profilePhoto.name}`);
-        await uploadBytes(photoRef, formData.profilePhoto);
-        profilePhotoURL = await getDownloadURL(photoRef);
-      }
-
-      if (formData.document) {
-        const docRef = ref(storage, `vets/documents/${user.uid}_${Date.now()}_${formData.document.name}`);
-        await uploadBytes(docRef, formData.document);
-        documentURL = await getDownloadURL(docRef);
-      }
-
-      setSubmitStatus("🔐 Saving your profile...");
-      const geohash = encodeGeohash(location.latitude, location.longitude);
-
+      setSubmitStatus("Saving your profile…");
       await setDoc(doc(db, "vets_web", user.uid), {
-  uid: user.uid,
-  fullName: formData.fullName,
-  email: formData.email,
-  phone: formData.phone,
-  city: formData.city,
-  clinicAddress: formData.clinicAddress,
-  serviceArea: formData.serviceArea,
-  availability: formData.availability,
-  willingToTravel: formData.willingToTravel,
+        uid: user.uid,
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        city: form.city,
+        clinicAddress: form.clinicAddress,
+        serviceArea: form.serviceArea,
+        availability: form.availability,
+        willingToTravel: form.willingToTravel,
+        profilePhotoURL,
+        documentURL,
+        location: new GeoPoint(location.latitude, location.longitude),
+        geohash: encodeGeohash(location.latitude, location.longitude),
+        latitude: location.latitude,
+        longitude: location.longitude,
+        status: "pending",
+        verificationStatus: "pending_review",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
 
-  profilePhotoURL,
-  documentURL,
-
-  location: new GeoPoint(location.latitude, location.longitude),
-  geohash,
-  latitude: location.latitude,
-  longitude: location.longitude,
-
-  status: "pending",
-  verificationStatus: "pending_review",
-  createdAt: serverTimestamp(),
-  updatedAt: serverTimestamp(),
-});
-
-      setSubmitStatus("✅ Application submitted successfully!");
+      setSubmitStatus("Done!");
       setTimeout(() => {
         setHasApplied(true);
-        setExistingApplication({ verificationStatus: "pending_review", fullName: formData.fullName, email: formData.email });
+        setExistingApp({ verificationStatus: "pending_review", fullName: form.fullName, email: form.email });
         setSubmitStatus(null);
-      }, 1500);
-    } catch (error) {
-      console.error("Error submitting form:", error); alert("Error submitting form. Please try again."); setSubmitStatus(null);
+      }, 800);
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Submission failed. Please check your connection and try again.");
+      setSubmitStatus(null);
     }
   };
 
+  /* ── States ── */
+
   if (isLoading) return (
-    <div className="py-20 text-center">
-      <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-slate-100 border-t-orange-600 rounded-full animate-spin mx-auto"></div>
-      <p className="mt-4 text-sm sm:text-base text-slate-500 font-medium animate-pulse">Checking credentials...</p>
+    <div className="py-16 flex flex-col items-center gap-4">
+      <div className="w-10 h-10 border-[3px] border-slate-100 border-t-orange-500 rounded-full animate-spin" />
+      <p className="text-sm text-slate-500 font-medium">Verifying your session…</p>
     </div>
   );
 
-  // 🔥 Authentication Required Screen
-  if (!user) {
+  if (!user) return (
+    <div className="py-10 text-center">
+      <div className="w-20 h-20 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-4xl mx-auto mb-6">🔐</div>
+      <h3 className="sora text-2xl font-extrabold text-slate-950 mb-3">Sign in Required</h3>
+      <p className="text-slate-500 max-w-sm mx-auto mb-8 text-sm leading-relaxed">
+        You need to be signed in to submit your veterinarian application.
+      </p>
+      <Link href="/auth" className="inline-block bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors shadow-lg">
+        Sign In / Create Account
+      </Link>
+    </div>
+  );
+
+  if (hasApplied && existingApp) {
+    const cfg = {
+      pending_review: { emoji: "⏳", title: "Application Under Review", color: "text-amber-700", bg: "bg-amber-50 border-amber-100", msg: "Our medical review board is verifying your credentials. This typically takes 24–48 hours." },
+      approved: { emoji: "✅", title: "Application Approved!", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-100", msg: "Your profile is verified. Access your Veterinarian Dashboard to start coordinating cases." },
+      rejected: { emoji: "❌", title: "Application Rejected", color: "text-red-700", bg: "bg-red-50 border-red-100", msg: "We couldn't verify your documents. Please contact support to appeal this decision." },
+    }[existingApp.verificationStatus];
+
     return (
-      <div className="text-center py-8 sm:py-12">
-        <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 bg-red-50 rounded-full mb-6 sm:mb-8">
-          <span className="text-4xl sm:text-5xl">⚠️</span>
+      <div className={`rounded-2xl border p-8 text-center ${cfg.bg}`}>
+        <div className="text-5xl mb-4">{cfg.emoji}</div>
+        <h3 className={`sora text-2xl font-extrabold mb-2 ${cfg.color}`}>{cfg.title}</h3>
+        <p className="text-sm text-slate-600 max-w-sm mx-auto mb-8 leading-relaxed">{cfg.msg}</p>
+        <div className="bg-white/70 rounded-xl p-4 text-left space-y-2 border border-white/60 max-w-xs mx-auto mb-8">
+          <Detail label="Name" value={existingApp.fullName} />
+          <Detail label="Email" value={existingApp.email} />
         </div>
-        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3 sm:mb-4">Authentication Required</h3>
-        <p className="text-sm sm:text-base text-slate-600 font-medium max-w-sm mx-auto mb-8 sm:mb-10 px-4">
-          You must be logged into an account to submit an application. Please sign in to continue.
-        </p>
-        <Link 
-          href="/auth" 
-          className="inline-block bg-slate-900 text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:bg-slate-800 transition shadow-lg w-full sm:w-auto"
-        >
-          Sign In / Register
-        </Link>
-      </div>
-    );
-  }
-
-  // Already Applied Screen
-  if (hasApplied && existingApplication) {
-    return (
-      <div className="rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-8 md:p-12 text-center border bg-slate-50 shadow-inner">
-        {existingApplication.verificationStatus === "pending_review" && (
-          <>
-            <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">⏳</div>
-            <h3 className="text-2xl sm:text-3xl font-black text-slate-800 mb-2 sm:mb-3">Application Under Review</h3>
-            <p className="text-sm sm:text-base text-slate-600 font-medium mb-6 sm:mb-8">Our medical review board is currently verifying your credentials. This usually takes 24-48 hours.</p>
-          </>
-        )}
-        {existingApplication.verificationStatus === "approved" && (
-          <>
-            <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">✅</div>
-            <h3 className="text-2xl sm:text-3xl font-black text-green-700 mb-2 sm:mb-3">Partnership Approved!</h3>
-            <p className="text-sm sm:text-base text-slate-600 font-medium mb-6 sm:mb-8">Congratulations! Your profile has been verified. You can now access your Veterinarian Dashboard.</p>
-          </>
-        )}
-        {existingApplication.verificationStatus === "rejected" && (
-          <>
-            <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">❌</div>
-            <h3 className="text-2xl sm:text-3xl font-black text-red-600 mb-2 sm:mb-3">Application Rejected</h3>
-            <p className="text-sm sm:text-base text-slate-600 font-medium mb-6 sm:mb-8">Unfortunately, we could not verify your license. Please contact support to appeal this decision.</p>
-          </>
-        )}
-
-        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 text-left space-y-2 sm:space-y-3 border border-slate-200 shadow-sm max-w-md mx-auto">
-          <p className="text-xs sm:text-sm font-bold text-slate-800 flex flex-col sm:flex-row sm:justify-between gap-1">
-            <span className="text-slate-500">Name:</span> <span>{existingApplication.fullName}</span>
-          </p>
-          <p className="text-xs sm:text-sm font-bold text-slate-800 flex flex-col sm:flex-row sm:justify-between gap-1">
-            <span className="text-slate-500">Contact Email:</span> <span className="break-all">{existingApplication.email}</span>
-          </p>
-        </div>
-
-        <button onClick={onClose} className="mt-8 sm:mt-10 w-full sm:w-auto px-8 sm:px-10 bg-slate-900 text-white py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:bg-slate-800 transition shadow-lg">
-          Close Window
+        <button onClick={onClose} className="bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors">
+          Close
         </button>
       </div>
     );
   }
 
+  /* ── Multi-step form ── */
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
-      {/* Modern Progress Bar */}
-      <div className="mb-8 sm:mb-12">
-        <div className="flex justify-between items-end mb-2 sm:mb-3">
-          <span className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">Step {currentStep} of {totalSteps}</span>
-          <span className="text-[10px] sm:text-xs font-bold text-orange-600 bg-orange-50 px-2 sm:px-3 py-1 rounded-full">
-            {currentStep === 1 ? "Basic Info" : currentStep === 2 ? "Photo" : currentStep === 3 ? "Documents" : "Location"}
+    <form onSubmit={handleSubmit} noValidate>
+      {/* Progress */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {STEP_LABELS.map((label, i) => (
+              <div key={label} className="flex items-center gap-1.5 sm:gap-2">
+                <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center transition-all duration-300 ${
+                  i + 1 < step ? "bg-emerald-500 text-white" :
+                  i + 1 === step ? "bg-orange-500 text-white" :
+                  "bg-slate-100 text-slate-400"
+                }`}>
+                  {i + 1 < step ? "✓" : i + 1}
+                </div>
+                {i < STEP_LABELS.length - 1 && (
+                  <div className={`w-4 sm:w-6 h-px ${i + 1 < step ? "bg-emerald-300" : "bg-slate-200"}`} />
+                )}
+              </div>
+            ))}
+          </div>
+          <span className="text-xs font-semibold text-slate-400 bg-slate-50 border border-slate-100 px-3 py-1 rounded-full shrink-0 ml-2">
+            {STEP_LABELS[step - 1]}
           </span>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-2 sm:h-3 overflow-hidden shadow-inner">
-          <div className="bg-gradient-to-r from-orange-400 to-orange-600 h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${(currentStep / totalSteps) * 100}%` }}></div>
+        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+          />
         </div>
       </div>
 
-      {currentStep === 1 && (
-        <div className="space-y-5 sm:space-y-6 animate-in fade-in slide-in-from-right-4">
-          <FormInput label="Veterinarian Name *" name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Dr. John Doe" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            <FormInput label="Email Address *" name="email" type="email" value={formData.email} onChange={handleInputChange} readOnly={!!user?.email} />
-            <FormInput label="Phone Number *" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="+91 XXXXX XXXXX" />
+      {/* ── Step 1: Basic Info ── */}
+      {step === 1 && (
+        <div className="space-y-4 sm:space-y-5">
+          <FormField label="Full Name *" name="fullName" value={form.fullName} onChange={handleInput} placeholder="Dr. Priya Sharma" error={errors.fullName} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Email Address *" name="email" type="email" value={form.email} onChange={handleInput} readOnly={!!user?.email} error={errors.email} />
+            <FormField label="Phone Number *" name="phone" value={form.phone} onChange={handleInput} placeholder="+91 98765 43210" error={errors.phone} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            <FormInput label="City / State *" name="city" value={formData.city} onChange={handleInputChange} placeholder="e.g. Delhi" />
-            <FormInput label="Clinic Address *" name="clinicAddress" value={formData.clinicAddress} onChange={handleInputChange} placeholder="Full address" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="City / State *" name="city" value={form.city} onChange={handleInput} placeholder="e.g. New Delhi" error={errors.city} />
+            <FormField label="Clinic Address *" name="clinicAddress" value={form.clinicAddress} onChange={handleInput} placeholder="Full address" error={errors.clinicAddress} />
           </div>
         </div>
       )}
 
-      {currentStep === 2 && (
-        <div className="space-y-5 sm:space-y-6 animate-in fade-in slide-in-from-right-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6">
-            <p className="text-amber-800 text-xs sm:text-sm font-medium">This photo will be displayed to users in need of emergency consultations.</p>
+      {/* ── Step 2: Profile Photo ── */}
+      {step === 2 && (
+        <div className="space-y-5">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3 items-start">
+            <span className="text-blue-400 text-lg shrink-0 mt-0.5">ℹ</span>
+            <p className="text-blue-800 text-xs sm:text-sm font-medium leading-relaxed">
+              This photo will appear to users requesting emergency consultations. Use a clear, professional headshot.
+            </p>
           </div>
-          <FileUpload label="Upload Profile Photo *" accept="image/*" onChange={(e:any) => handleFileChange(e, "profilePhoto")} fileName={formData.profilePhoto?.name} />
+          <FileDropzone
+            label="Profile Photo *"
+            accept="image/*"
+            onChange={handleFile("profilePhoto")}
+            file={form.profilePhoto}
+            error={errors.profilePhoto}
+            hint="JPG, PNG · Max 5 MB"
+          />
         </div>
       )}
 
-      {currentStep === 3 && (
-        <div className="space-y-5 sm:space-y-6 animate-in fade-in slide-in-from-right-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6">
-            <p className="text-amber-800 text-xs sm:text-sm font-medium">Upload your Veterinary License or Degree Certificate to verify your medical credentials.</p>
+      {/* ── Step 3: Documents ── */}
+      {step === 3 && (
+        <div className="space-y-5">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">
+            <span className="text-amber-500 text-lg shrink-0 mt-0.5">⚠</span>
+            <p className="text-amber-800 text-xs sm:text-sm font-medium leading-relaxed">
+              Upload a clear scan of your Veterinary License or Degree Certificate. This is mandatory for verification.
+            </p>
           </div>
-          <FileUpload label="Upload License/Degree *" accept=".pdf,.jpg,.jpeg,.png" onChange={(e:any) => handleFileChange(e, "document")} fileName={formData.document?.name} />
+          <FileDropzone
+            label="Veterinary License / Degree *"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={handleFile("document")}
+            file={form.document}
+            error={errors.document}
+            hint="PDF, JPG, PNG · Max 5 MB"
+          />
         </div>
       )}
 
-      {currentStep === 4 && (
-        <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-right-4">
-          {/* Location Status */}
-          {location ? (
-            <div className="bg-green-50 border border-green-200 rounded-xl sm:rounded-2xl p-4 flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-green-200 text-green-700 flex items-center justify-center font-bold">✓</span>
-              <div>
-                <p className="text-sm font-bold text-green-800">Location Locked</p>
-                <p className="text-xs text-green-700 font-medium">Coordinates saved securely.</p>
-              </div>
+      {/* ── Step 4: Availability ── */}
+      {step === 4 && (
+        <div className="space-y-5">
+          {/* Location status */}
+          <div className={`rounded-xl p-4 flex items-center gap-3 border ${location
+            ? "bg-emerald-50 border-emerald-200"
+            : "bg-amber-50 border-amber-200"
+          }`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${location
+              ? "bg-emerald-100 text-emerald-700"
+              : "bg-amber-100 text-amber-700"
+            }`}>
+              {location ? "✓" : "⚠"}
             </div>
-          ) : (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-4 flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center font-bold">⚠</span>
-              <div>
-                <p className="text-sm font-bold text-amber-800">Location Required</p>
-                <p className="text-xs text-amber-700 font-medium">Please allow location access to continue.</p>
-              </div>
+            <div>
+              <p className={`text-sm font-bold ${location ? "text-emerald-800" : "text-amber-800"}`}>
+                {location ? "Location Confirmed" : "Location Required"}
+              </p>
+              <p className={`text-xs font-medium ${location ? "text-emerald-600" : "text-amber-600"}`}>
+                {location ? "GPS coordinates locked securely." : "Please allow location access in your browser."}
+              </p>
             </div>
-          )}
+          </div>
 
-          <FormInput label="Service Area (City/District) *" name="serviceArea" value={formData.serviceArea} onChange={handleInputChange} placeholder="e.g. South Delhi" />
+          <FormField
+            label="Service Area (City / District) *"
+            name="serviceArea"
+            value={form.serviceArea}
+            onChange={handleInput}
+            placeholder="e.g. South Delhi, Gurgaon"
+            error={errors.serviceArea}
+          />
 
-          <div className="bg-slate-50 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-100">
-            <label className="block text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider mb-3 sm:mb-4">Standard Availability *</label>
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3">
-              {['Weekdays', 'Weekends', '24/7 Emergency'].map(type => (
-                <TogglePill key={type} label={type} active={formData.availability.includes(type)} onClick={() => handleAvailabilityChange(type)} />
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+              Availability *
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              {AVAILABILITY_OPTIONS.map((opt) => (
+                <ToggleChip
+                  key={opt}
+                  label={opt}
+                  active={form.availability.includes(opt)}
+                  onClick={() => toggleAvailability(opt)}
+                />
               ))}
             </div>
+            {errors.availability && (
+              <p className="mt-1.5 text-xs text-red-500">{errors.availability}</p>
+            )}
           </div>
 
-          <div className="bg-slate-50 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-100">
-            <label className="block text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider mb-3 sm:mb-4">Field Work</label>
-            <TogglePill 
-              label={formData.willingToTravel ? "🚗 Yes, willing to travel for emergencies" : "🏥 No, clinic/remote only"} 
-              active={formData.willingToTravel} 
-              onClick={() => setFormData(prev => ({...prev, willingToTravel: !prev.willingToTravel}))} 
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+              Field Work
+            </p>
+            <ToggleCard
+              emoji={form.willingToTravel ? "🚗" : "🏥"}
+              label={form.willingToTravel ? "Yes, I can travel for emergencies" : "No — clinic or remote only"}
+              active={form.willingToTravel}
+              onClick={() => set("willingToTravel", !form.willingToTravel)}
             />
           </div>
         </div>
       )}
 
-      {/* Form Navigation */}
-      <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 pt-6 sm:pt-8 border-t border-slate-100 mt-8 sm:mt-10">
-        <button 
-          type="button" 
-          onClick={handleBack} 
-          className={`w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold text-base sm:text-lg transition-all ${currentStep === 1 || submitStatus ? "opacity-0 pointer-events-none hidden" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-        >
-          Back
-        </button>
-        
-        {currentStep < totalSteps ? (
-          <button 
-            type="button" 
-            onClick={handleNext} 
-            disabled={!user} 
-            className="w-full sm:flex-1 bg-slate-900 text-white py-3.5 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:bg-orange-600 shadow-lg hover:shadow-orange-500/30 transition-all disabled:opacity-50 disabled:hover:bg-slate-900"
-          >
-            Continue to Next Step
+      {/* Navigation */}
+      <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-100">
+        {step > 1 && !submitStatus && (
+          <button type="button" onClick={back} className="px-5 py-3 rounded-xl font-semibold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+            Back
+          </button>
+        )}
+        {step < TOTAL_STEPS ? (
+          <button type="button" onClick={next} className="flex-1 bg-slate-950 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors duration-200 shadow-sm">
+            Continue
           </button>
         ) : (
-          <button 
-            type="submit" 
-            disabled={!!submitStatus || !user || !location} 
-            className="w-full sm:flex-1 bg-orange-600 text-white py-3.5 sm:py-4 rounded-full font-bold text-base sm:text-lg flex items-center justify-center gap-2 sm:gap-3 hover:bg-orange-700 transition-all shadow-xl hover:shadow-orange-500/30 disabled:opacity-50"
+          <button
+            type="submit"
+            disabled={!!submitStatus || !location}
+            className="flex-1 shimmer-btn text-white py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitStatus ? (
-              <><span className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span><span className="truncate">{submitStatus}</span></>
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                {submitStatus}
+              </>
             ) : "Submit Application"}
           </button>
         )}
@@ -586,85 +907,133 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ---------- SLEEK UI INPUT COMPONENTS ---------- */
+/* ══════════════════════════════════════════════════════════════
+   FORM SUB-COMPONENTS
+══════════════════════════════════════════════════════════════ */
 
-function FormInput({ label, name, type = "text", value, onChange, readOnly = false, required = true, placeholder }: any) {
-  return (
-    <div className="relative">
-      <label className="block text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1 flex items-center gap-2">
-        {label} 
-        {readOnly && <span className="text-[9px] sm:text-[10px] bg-slate-200 text-slate-600 px-1.5 sm:px-2 py-0.5 rounded-full">LOCKED</span>}
-      </label>
-      <input 
-        type={type} 
-        name={name} 
-        value={value} 
-        onChange={onChange} 
-        readOnly={readOnly} 
-        required={required} 
-        placeholder={placeholder}
-        className={`w-full rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 text-sm sm:text-base font-medium outline-none transition-all duration-300 border ${
-          readOnly 
-            ? "bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed" 
-            : "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder:text-slate-400"
-        }`} 
-      />
-    </div>
-  );
+interface FormFieldProps {
+  label: string;
+  name: string;
+  type?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  readOnly?: boolean;
+  required?: boolean;
+  error?: string;
 }
 
-function FileUpload({ label, accept, onChange, fileName }: any) {
+function FormField({ label, name, type = "text", value, onChange, placeholder, readOnly = false, required = true, error }: FormFieldProps) {
   return (
     <div>
-      <label className="block text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">{label}</label>
-      <label className={`relative overflow-hidden flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed rounded-[1.5rem] sm:rounded-[2rem] cursor-pointer transition-all duration-300 group ${
-        fileName 
-          ? "border-green-400 bg-green-50" 
-          : "border-slate-300 bg-slate-50 hover:bg-orange-50 hover:border-orange-300"
-      }`}>
-        <div className="absolute inset-0 bg-gradient-to-b from-white/0 to-white/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        
-        <div className={`text-3xl sm:text-4xl mb-2 sm:mb-3 transition-transform duration-300 group-hover:-translate-y-1 ${fileName ? "text-green-500" : "text-slate-400"}`}>
-          {fileName ? "✅" : "📄"}
-        </div>
-        <p className={`font-bold text-sm sm:text-base text-center z-10 truncate w-full px-2 ${fileName ? "text-green-800" : "text-slate-600 group-hover:text-orange-600"}`}>
-          {fileName || "Tap to upload file"}
-        </p>
-        {!fileName && <p className="text-[10px] sm:text-xs font-medium text-slate-400 mt-1 sm:mt-2 z-10">Supports {accept}</p>}
-        <input type="file" accept={accept} onChange={onChange} className="hidden" />
+      <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-2">
+        {label}
+        {readOnly && <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full tracking-normal normal-case font-semibold">locked</span>}
       </label>
+      <input
+        type={type} name={name} value={value} onChange={onChange}
+        readOnly={readOnly} required={required} placeholder={placeholder}
+        className={`input-field w-full rounded-xl px-4 py-3 text-sm font-medium border transition-all duration-200 ${
+          error
+            ? "bg-red-50 border-red-300 text-slate-900"
+            : readOnly
+            ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed"
+            : "bg-slate-50 border-slate-200 text-slate-900 hover:border-slate-300 focus:bg-white placeholder:text-slate-300"
+        }`}
+      />
+      {error && <p className="mt-1 text-xs text-red-500 font-medium">{error}</p>}
     </div>
   );
 }
 
-function TogglePill({ label, active, onClick }: any) {
+interface FileDropzoneProps {
+  label: string;
+  accept: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  file: File | null;
+  error?: string;
+  hint?: string;
+}
+
+function FileDropzone({ label, accept, onChange, file, error, hint }: FileDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <div 
-      onClick={onClick} 
-      className={`cursor-pointer rounded-xl sm:rounded-full px-4 py-3 sm:px-5 sm:py-3 font-bold text-xs sm:text-sm transition-all duration-200 select-none flex-1 text-center border-2 ${
-        active 
-          ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/20" 
-          : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+    <div>
+      <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">{label}</label>
+      <div
+        onClick={() => inputRef.current?.click()}
+        className={`flex items-center gap-4 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 group ${
+          file ? "border-emerald-300 bg-emerald-50" :
+          error ? "border-red-300 bg-red-50" :
+          "border-slate-200 bg-slate-50 hover:border-orange-300 hover:bg-orange-50/40"
+        }`}
+      >
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0 ${
+          file ? "bg-emerald-100" : "bg-white border border-slate-200 group-hover:border-orange-200"
+        }`}>
+          {file ? "✅" : "📄"}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm font-semibold truncate ${file ? "text-emerald-700" : "text-slate-500 group-hover:text-orange-600"}`}>
+            {file ? file.name : "Click to upload"}
+          </p>
+          {!file && hint && <p className="text-xs text-slate-400 mt-0.5">{hint}</p>}
+        </div>
+        {file && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onChange({ target: { files: null } } as never); }}
+            className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors shrink-0 text-lg leading-none"
+          >
+            ×
+          </button>
+        )}
+        <input ref={inputRef} type="file" accept={accept} onChange={onChange} className="hidden" />
+      </div>
+      {error && <p className="mt-1 text-xs text-red-500 font-medium">{error}</p>}
+    </div>
+  );
+}
+
+function ToggleCard({ emoji, label, active, onClick }: { emoji: string; label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button" onClick={onClick}
+      className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-200 ${
+        active ? "bg-slate-950 border-slate-950 text-white" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+      }`}
+    >
+      <span className="text-xl">{emoji}</span>
+      <span className="text-sm font-semibold">{label}</span>
+      <span className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${active ? "bg-white border-white" : "border-slate-300"}`}>
+        {active && (
+          <svg className="w-3 h-3 text-slate-950" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        )}
+      </span>
+    </button>
+  );
+}
+
+function ToggleChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button" onClick={onClick}
+      className={`flex-1 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all duration-200 text-center ${
+        active ? "bg-slate-950 border-slate-950 text-white" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
       }`}
     >
       {label}
-    </div>
+    </button>
   );
 }
 
-function encodeGeohash(lat: number, lon: number, precision = 6) {
-  const chars = "0123456789bcdefghjkmnpqrstuvwxyz";
-  let idx = 0, bit = 0, evenBit = true, geohash = "";
-  let latMin = -90, latMax = 90, lonMin = -180, lonMax = 180;
-  while (geohash.length < precision) {
-    if (evenBit) {
-      const lonMid = (lonMin + lonMax) / 2;
-      if (lon >= lonMid) { idx = (idx << 1) + 1; lonMin = lonMid; } else { idx = idx << 1; lonMax = lonMid; }
-    } else {
-      const latMid = (latMin + latMax) / 2;
-      if (lat >= latMid) { idx = (idx << 1) + 1; latMin = latMid; } else { idx = idx << 1; latMax = latMid; }
-    }
-    evenBit = !evenBit; if (bit < 4) bit++; else { geohash += chars[idx]; bit = 0; idx = 0; }
-  }
-  return geohash;
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-2 text-sm">
+      <span className="text-slate-400 font-medium shrink-0">{label}</span>
+      <span className="font-semibold text-slate-800 text-right break-all">{value}</span>
+    </div>
+  );
 }

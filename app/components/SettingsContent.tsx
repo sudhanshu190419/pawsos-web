@@ -1,0 +1,153 @@
+"use client";
+
+import { useState, useCallback, useMemo } from "react";
+import { User, signOut, GoogleAuthProvider, reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider, deleteUser } from "firebase/auth";
+import { doc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "@/app/lib/firebase";
+import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
+
+type Toast = {
+  message: string;
+  type: "success" | "error";
+};
+
+export default function SettingsContent({
+  user,
+  showToast,
+}: {
+  user: User;
+  showToast: (message: string, type?: Toast["type"]) => void;
+}) {
+  const router = useRouter();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isGoogleUser = useMemo(
+    () => user.providerData.some((p) => p.providerId === "google.com"),
+    [user]
+  );
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await signOut(auth);
+      router.push("/auth");
+    } catch {
+      showToast("Failed to log out.", "error");
+    }
+  }, [router, showToast]);
+
+  const executeGoogleDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      await reauthenticateWithPopup(user, provider);
+      await deleteDoc(doc(db, "users", user.uid));
+      await deleteUser(user);
+      router.push("/auth");
+    } catch {
+      showToast("Failed to delete account. Log out and back in, then try again.", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [user, router, showToast]);
+
+  const executePasswordDelete = useCallback(async () => {
+    if (!password) return;
+    setIsDeleting(true);
+    try {
+      const credential = EmailAuthProvider.credential(user.email!, password);
+      await reauthenticateWithCredential(user, credential);
+      await deleteDoc(doc(db, "users", user.uid));
+      await deleteUser(user);
+      router.push("/auth");
+    } catch {
+      showToast("Incorrect password or failed to delete account.", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [user, password, router, showToast]);
+
+  const handleDeleteClick = useCallback(() => {
+    if (isGoogleUser) {
+      if (confirm("This will permanently delete your account and all data. Proceed?")) {
+        executeGoogleDelete();
+      }
+    } else {
+      setShowDeleteModal(true);
+    }
+  }, [isGoogleUser, executeGoogleDelete]);
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+          <span>⚙️</span> Account Actions
+        </h2>
+        <button
+          onClick={handleLogout}
+          className="w-full group flex justify-between items-center px-6 py-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-red-200 hover:bg-red-50 transition-all font-bold text-slate-700 hover:text-red-600 shadow-sm"
+        >
+          <span className="flex items-center gap-4">
+            <div className="w-8 h-8 rounded-full bg-slate-200 group-hover:bg-red-200 flex items-center justify-center transition-colors">
+              <svg className="w-4 h-4 text-slate-500 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            Log Out
+          </span>
+          <span className="text-slate-400 group-hover:text-red-400 transition-colors transform group-hover:translate-x-1">→</span>
+        </button>
+      </div>
+
+      <div className="bg-red-50/50 rounded-3xl p-8 border border-red-100">
+        <h2 className="text-xl font-bold text-red-600 mb-2">Danger Zone</h2>
+        <p className="text-sm text-slate-600 mb-6">
+          Once you delete your account, there is no going back. All your SOS reports and data will be permanently removed.
+        </p>
+        <button
+          onClick={handleDeleteClick}
+          disabled={isDeleting}
+          className="bg-white border-2 border-red-200 text-red-600 px-6 py-2.5 rounded-full font-bold text-sm hover:bg-red-600 hover:text-white transition-colors disabled:opacity-50"
+        >
+          {isDeleting ? "Deleting…" : "Delete Account"}
+        </button>
+      </div>
+
+      {showDeleteModal &&
+        createPortal(
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
+              <h3 className="text-2xl font-black text-red-600 mb-2">Confirm Deletion</h3>
+              <p className="text-slate-500 text-sm mb-6">Enter your password to permanently delete your account.</p>
+              <input
+                type="password"
+                placeholder="Enter your password"
+                className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-3 outline-none focus:border-red-500 transition-colors text-slate-900 font-bold mb-8"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowDeleteModal(false); setPassword(""); }}
+                  disabled={isDeleting}
+                  className="flex-1 px-6 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executePasswordDelete}
+                  disabled={isDeleting || !password}
+                  className="flex-1 bg-red-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all disabled:opacity-50"
+                >
+                  {isDeleting ? "Deleting…" : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+}
