@@ -204,7 +204,7 @@ export default function NGOOnboardingPage() {
 function HeroSection({ onApply }: { onApply: () => void }) {
   return (
     // 1. Reduced top padding (pt-10 to pt-4, md:pt-16 to md:pt-8) to remove extra top space
-    <section className="relative pt-4 pb-20 md:pt-8 md:pb-28 overflow-hidden">
+    <section className="relative pt-12 pb-20 md:pt-8 md:pb-28 overflow-hidden">
       {/* Background mesh */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-orange-100/60 rounded-full blur-[120px]" />
