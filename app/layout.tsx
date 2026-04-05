@@ -20,9 +20,11 @@ export const metadata: Metadata = {
   title: "AnimalSathi | Community-Powered Animal Rescue",
   description:
     "AnimalSathi (PawSOS) helps report animal emergencies and connect volunteers, NGOs, and rescuers.",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1", // Prevent auto-zoom on mobile inputs
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
   icons: {
-    icon: "/logo.png", // Sets your logo as the browser tab icon
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/logo.png",
   },
 };
 
