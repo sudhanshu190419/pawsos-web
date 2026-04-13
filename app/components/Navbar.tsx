@@ -19,6 +19,15 @@ export default function Navbar() {
     const firebase = await import("../lib/firebase");
     return firebase.auth;
   };
+  const [scrolled, setScrolled] = useState(false);
+
+useEffect(() => {
+  const handleScroll = () => {
+    setScrolled(window.scrollY > 10);
+  };
+  window.addEventListener("scroll", handleScroll);
+  return () => window.removeEventListener("scroll", handleScroll);
+}, []);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -76,7 +85,9 @@ export default function Navbar() {
   };
 
   return (
-    <header className="w-full sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-orange-100 shadow-sm">
+    <header className={`sticky top-0 z-50 backdrop-blur-xl transition-all duration-300
+${scrolled ? "bg-white/80 shadow-md" : "bg-white/60"}
+`}>
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
         
         {/* LOGO */}
@@ -97,39 +108,105 @@ export default function Navbar() {
 
         {/* CENTER NAV LINKS (DESKTOP ONLY) */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
-          <Link href="/how-it-works" prefetch={false} className="hover:text-orange-600 transition-colors">How It Works</Link>
+          <Link href="/how-it-works" prefetch={false} className="relative group text-slate-600
+
+after:absolute after:left-0 after:-bottom-1 
+after:h-[2px] after:w-0 
+after:bg-blue-600 
+after:transition-all after:duration-300 
+group-hover:after:w-full transition-colors">How It Works</Link>
 
           {/* JOIN US DROPDOWN */}
-          <div className="relative group">
-            <span className="cursor-pointer hover:text-orange-600 py-2 transition-colors flex items-center gap-1">
+          <div className="relative group transition-all duration-300">
+            <span className="cursor-pointer relative group text-slate-600
+
+after:absolute after:left-0 after:-bottom-1 
+after:h-[2px] after:w-0 
+after:bg-blue-600 
+after:transition-all after:duration-300 
+group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
               Join Us
-              <svg className="w-4 h-4 text-slate-400 group-hover:text-orange-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+              <svg className="w-4 h-4 text-slate-400 transition-transform duration-300 group-hover:rotate-180"fill="none"
+  stroke="currentColor"
+  viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
             </span>
-            <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-              <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-56 py-3 flex flex-col">
-                <Link href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
-                <Link href="/onboarding" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
-                <Link href="/vets" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
+            <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
+opacity-0 translate-y-3 scale-95 
+group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
+transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+pointer-events-none group-hover:pointer-events-auto">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
+backdrop-blur-sm w-56 py-3 flex flex-col">
+                <Link href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
+hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
+                <Link href="/onboarding" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
+hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
+                <Link href="/vets" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
+hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
               </div>
             </div>
           </div>
 
           {/* ABOUT US DROPDOWN */}
-          <div className="relative group">
-            <span className="cursor-pointer hover:text-orange-600 py-2 transition-colors flex items-center gap-1">
+          <div className="relative group transition-all duration-300">
+            <span className="cursor-pointer relative group text-slate-600
+
+after:absolute after:left-0 after:-bottom-1 
+after:h-[2px] after:w-0 
+after:bg-blue-600 
+after:transition-all after:duration-300 
+group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
               About Us
-              <svg className="w-4 h-4 text-slate-400 group-hover:text-orange-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+              <svg 
+  className="w-4 h-4 text-slate-400 transition-transform duration-300 group-hover:rotate-180"
+  fill="none"
+  stroke="currentColor"
+  viewBox="0 0 24 24"
+>
+  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+</svg>
             </span>
-            <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-              <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-48 py-3 flex flex-col">
-                <Link href="/about" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">📖</span> Our Story</Link>
-                <Link href="/investors" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">💼</span> Investors</Link>
-                <Link href="/contact" prefetch={false} className="px-5 py-2.5 text-sm hover:bg-orange-50 hover:text-orange-600 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">✉️</span> Contact Us</Link>
+            <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
+opacity-0 translate-y-3 scale-95 
+group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
+transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+pointer-events-none group-hover:pointer-events-auto">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
+backdrop-blur-sm w-48 py-3 flex flex-col">
+                <Link href="/about" className="px-4 py-3 flex items-start gap-3 rounded-lg hover:bg-orange-50 transition-all group">
+  <span className="text-lg group-hover:scale-110 transition">📖</span>
+  <div>
+    <p className="text-sm font-semibold text-slate-800 group-hover:text-orange-600">Our Story</p>
+    <p className="text-xs text-slate-500">How AnimalSathi started</p>
+  </div>
+</Link>
+
+<Link href="/investors" className="px-4 py-3 flex items-start gap-3 rounded-lg hover:bg-orange-50 transition-all group">
+  <span className="text-lg group-hover:scale-110 transition">💼</span>
+  <div>
+    <p className="text-sm font-semibold text-slate-800 group-hover:text-orange-600">Investors</p>
+    <p className="text-xs text-slate-500">Funding & growth details</p>
+  </div>
+</Link>
+
+<Link href="/contact" className="px-4 py-3 flex items-start gap-3 rounded-lg hover:bg-orange-50 transition-all group">
+  <span className="text-lg group-hover:scale-110 transition">✉️</span>
+  <div>
+    <p className="text-sm font-semibold text-slate-800 group-hover:text-orange-600">Contact Us</p>
+    <p className="text-xs text-slate-500">Reach out to our team</p>
+  </div>
+</Link>
               </div>
             </div>
           </div>
 
-          <Link href="/shop" prefetch={false} className="hover:text-orange-600 transition-colors">Shop</Link>
+          <Link href="/shop" prefetch={false} className="relative group text-slate-600
+
+after:absolute after:left-0 after:-bottom-1 
+after:h-[2px] after:w-0 
+after:bg-blue-600 
+after:transition-all after:duration-300 
+group-hover:after:w-full transition-colors">Shop</Link>
         </nav>
 
         {/* RIGHT SIDE: PROFILE, APP CTA, & MOBILE MENU BUTTON */}
@@ -142,18 +219,23 @@ export default function Navbar() {
                 <img
                   src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
                   alt="User Profile"
-                  className="w-11 h-11 rounded-full cursor-pointer border-2 border-slate-100 hover:border-orange-300 transition-colors object-cover shadow-sm"
+                  className="w-11 h-11 rounded-full cursor-pointer border-2 border-slate-100 hover:scale-105 hover:ring-2 hover:ring-blue-500/30 transition-all duration-200 transition-colors object-cover shadow-sm"
                 />
-                <div className="absolute right-0 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-60 flex flex-col overflow-hidden">
+                <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
+opacity-0 translate-y-3 scale-95 
+group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
+transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+pointer-events-none group-hover:pointer-events-auto">
+                  <div className="bg-white border border-slate-200 rounded-xl shadow-lg
+backdrop-blur-sm w-60 flex flex-col overflow-hidden">
                     <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
                       <p className="text-sm font-bold text-slate-800 truncate">{user.displayName || "Animal Lover"}</p>
                       <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
                     </div>
                     <div className="py-2 flex flex-col">
-                      <Link href="/dashboard?tab=profile" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
-                      <Link href="/dashboard?tab=reports" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">📋</span> My SOS Reports</Link>
-                      <Link href="/dashboard?tab=settings" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3"><span className="text-lg">⚙️</span> Settings</Link>
+                      <Link href="/dashboard?tab=profile" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
+                      <Link href="/dashboard?tab=reports" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">📋</span> My SOS Reports</Link>
+                      <Link href="/dashboard?tab=settings" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">⚙️</span> Settings</Link>
                     </div>
                     <div className="py-2 border-t border-slate-100 bg-white">
                       <button onClick={handleLogout} className="w-full text-left px-5 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3"><span className="text-lg">🚪</span> Sign Out</button>
@@ -172,7 +254,13 @@ export default function Navbar() {
             </>
           ) : (
             /* SIGN IN BUTTON */
-            <Link href="/auth" className="text-slate-600 px-3 md:px-4 py-2 rounded-full text-sm font-bold hover:text-orange-600 transition-colors">
+            <Link href="/auth" className="text-slate-600 px-3 md:px-4 py-2 rounded-full text-sm font-bold relative group text-slate-600
+
+after:absolute after:left-0 after:-bottom-1 
+after:h-[2px] after:w-0 
+after:bg-blue-600 
+after:transition-all after:duration-300 
+group-hover:after:w-full transition-colors">
               Log In
             </Link>
           )}
@@ -181,14 +269,18 @@ export default function Navbar() {
           <Link
             href="/download"
             prefetch={false}
-            className="hidden sm:block bg-slate-900 text-white px-5 md:px-6 py-2.5 rounded-full text-sm font-bold hover:bg-orange-600 shadow-md hover:-translate-y-0.5 transition-all"
+            className="hidden sm:flex items-center gap-2
+bg-orange-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold
+shadow-lg shadow-orange-500/25
+hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/30
+transition-all duration-200 shimmer-btn"
           >
             Get the App
           </Link>
 
           {/* MOBILE HAMBURGER BUTTON */}
           <button 
-            className="md:hidden text-slate-800 p-1.5 hover:bg-orange-50 rounded-lg transition-colors"
+            className="md:hidden text-slate-800 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -202,7 +294,7 @@ export default function Navbar() {
 
       {/* MOBILE DROPDOWN MENU */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-orange-100 shadow-2xl flex flex-col py-4 px-6 animate-in slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
+        <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-2xl flex flex-col py-4 px-6 animate-in slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
           
           {/* USER ACCOUNT SECTION (Visible only if logged in) */}
           {user && (
