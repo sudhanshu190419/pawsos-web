@@ -5,6 +5,7 @@ import ParallaxHero from "./components/ParallaxHero";
 import Reveal from "./components/Reveal";
 import Counter from "./components/Counter";
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 
 // ─── Design Tokens ──────────────────────────────────────────────────────────
 const ACCENT = {
@@ -24,11 +25,11 @@ export default function HomePage() {
         <ParallaxHero>
           <section className="w-full px-2 sm:px-4 md:px-8 lg:px-16 mt-4 md:mt-6">
             <div className="relative w-full h-auto">
-              <img
+              <Image
                 src="/banner.png"
                 alt="AnimalSathi Banner"
                 className="hidden md:block w-full h-auto object-contain scale-110"
-                priority="true"
+                priority
               />
               <img
                 src="/banner-mobile.png"
