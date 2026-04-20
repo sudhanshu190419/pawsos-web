@@ -28,6 +28,8 @@ export default function HomePage() {
               <Image
                 src="/banner.png"
                 alt="AnimalSathi Banner"
+                width={1200}
+  height={600}
                 className="hidden md:block w-full h-auto object-contain scale-110"
                 priority
               />
