@@ -82,7 +82,7 @@ const GlobalStyles = () => (
 /* ═══════════════════════════════════════════════════
    IMAGE COMPRESSION
    ═══════════════════════════════════════════════════ */
-const compressImage = (file: File, maxSize = 500, quality = 0.7): Promise<Blob> =>
+const compressImage = (file: File, maxSize = 300, quality = 0.5): Promise<Blob> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -197,11 +197,13 @@ const ProductImage = memo(
         {!error && (
           <img
             src={src}
-            alt={alt}
-            loading={isEager ? "eager" : "lazy"}
-            decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={() => setError(true)}
+  alt={alt}
+  loading="lazy"
+  decoding="async"
+  width="300"
+  height="300"
+  onLoad={() => setLoaded(true)}
+  onError={() => setError(true)}
             className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
               loaded ? "opacity-100" : "opacity-0"
             }`}
@@ -457,6 +459,7 @@ const AddProductModal = memo(
         document.body.style.overflow = "";
       };
     }, [onClose]);
+    
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] || null;
@@ -715,6 +718,7 @@ export default function ShopPage() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(8);
 
   // Toast system
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -763,6 +767,10 @@ useEffect(() => {
     });
     return () => unsub();
   }, []);
+  // Reset visible products when filters change
+useEffect(() => {
+  setVisibleCount(8);
+}, [activeCategory, activeAnimal, searchQuery]);
 
   // Utility
   const normalize = useCallback(
@@ -772,6 +780,7 @@ useEffect(() => {
 
   // Filtered products (memoized)
   const filteredProducts = useMemo(() => {
+    
     let result = products.filter(
       (p) =>
         (p.animal ? normalize(p.animal) === normalize(activeAnimal) : true) &&
@@ -788,6 +797,11 @@ useEffect(() => {
     }
     return result;
   }, [products, activeAnimal, activeCategory, searchQuery, normalize]);
+
+  
+  const visibleProducts = useMemo(() => {
+  return filteredProducts.slice(0, visibleCount);
+}, [filteredProducts, visibleCount]);
 
   // Add product handler
   const handleAddProduct = useCallback(
@@ -1114,7 +1128,7 @@ useEffect(() => {
                 ref={productRailRef}
                 className="flex gap-4 overflow-x-auto pb-4 px-2 md:px-14 scrollbar-hide scroll-smooth"
               >
-                {filteredProducts.map((product, idx) => (
+                {visibleProducts.map((product, idx) => (
                   <div
                     key={product.id}
                     style={{ animation: `fade-up 400ms ease-out ${Math.min(idx * 60, 400)}ms both` }}
@@ -1124,6 +1138,17 @@ useEffect(() => {
                   </div>
                 ))}
               </div>
+
+              {visibleCount < filteredProducts.length && (
+  <div className="flex justify-center mt-6">
+    <button
+      onClick={() => setVisibleCount(prev => prev + 8)}
+      className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition"
+    >
+      Load More
+    </button>
+  </div>
+)}
             </div>
           )}
 
