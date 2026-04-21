@@ -1,13 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import { ShoppingCart } from "lucide-react";
 
 export default function ProductCard({
 product,
 onAddToCart,
+priority = false,
 }: {
 product: any;
 onAddToCart: (product: any) => void;
+priority?: boolean;
 }) {
 const price = Number(product.price) || 0;
 const originalPrice = price + 50; // fake MRP for UI
@@ -18,9 +21,13 @@ return ( <div className="group w-[190px] sm:w-[210px] flex-shrink-0 bg-white rou
 ```
   {/* IMAGE */}
   <div className="relative w-full h-40 overflow-hidden">
-    <img
+    <Image
       src={product.imageUrl}
       alt={product.name}
+      fill
+      sizes="(max-width: 640px) 190px, 210px"
+      priority={priority}
+      loading={priority ? "eager" : "lazy"}
       className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
     />
 

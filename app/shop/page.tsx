@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
+import Image from "next/image";
 import { auth, db, storage } from "../lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import {
@@ -87,7 +88,7 @@ const compressImage = (file: File, maxSize = 300, quality = 0.5): Promise<Blob> 
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
-      const img = new Image();
+      const img = new window.Image();
       img.src = event.target?.result as string;
       img.onload = () => {
         let { width, height } = img;
@@ -341,11 +342,14 @@ const CartDrawer = memo(
                 >
                   <div className="flex gap-3">
                     <div className="w-[72px] h-[72px] rounded-xl overflow-hidden bg-slate-50 flex-shrink-0">
-                      <img
+                      <Image
                         src={item.imageUrl}
                         alt={item.name}
-                        className="w-full h-full object-cover"
+                        width={72}
+                        height={72}
+                        sizes="72px"
                         loading="lazy"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -828,7 +832,10 @@ useEffect(() => {
       try {
         const compressed = await compressImage(formData.image);
         const storageRef = ref(storage, `shop_images/${user.uid}_${Date.now()}.webp`);
-        await uploadBytes(storageRef, compressed);
+        await uploadBytes(storageRef, compressed, {
+          contentType: "image/webp",
+          cacheControl: "public,max-age=31536000,immutable",
+        });
         const imageUrl = await getDownloadURL(storageRef);
 
         await addDoc(collection(db, "shop_products"), {
@@ -1141,7 +1148,11 @@ useEffect(() => {
                     style={{ animation: `fade-up 400ms ease-out ${Math.min(idx * 60, 400)}ms both` }}
                     className="flex-shrink-0"
                   >
-                    <ProductCard product={product} onAddToCart={handleAddToCart} />
+                    <ProductCard
+                      product={product}
+                      onAddToCart={handleAddToCart}
+                      priority={idx < 2}
+                    />
                   </div>
                 ))}
               </div>
