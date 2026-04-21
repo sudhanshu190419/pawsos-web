@@ -177,9 +177,10 @@ const ToastContainer = ({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
    ═══════════════════════════════════════════════════ */
 const ProductImage = memo(
   ({ src, alt, index }: { src: string; alt: string; index: number }) => {
+    const optimizedSrc = `${src}?alt=media&width=300`;
     const [loaded, setLoaded] = useState(false);
     const [error, setError] = useState(false);
-    const isEager = index < 4;
+    const isEager = false;
 
     return (
       <div className="w-full h-36 sm:h-40 rounded-xl mb-2 overflow-hidden relative bg-slate-50">
@@ -195,20 +196,26 @@ const ProductImage = memo(
           </div>
         )}
         {!error && (
-          <img
-            src={src}
-  alt={alt}
-  loading="lazy"
-  decoding="async"
-  width="300"
-  height="300"
-  onLoad={() => setLoaded(true)}
-  onError={() => setError(true)}
-            className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
-              loaded ? "opacity-100" : "opacity-0"
-            }`}
-          />
-        )}
+  <>
+    {index === 0 && (
+      <link rel="preload" as="image" href={optimizedSrc} />
+    )}
+
+    <img
+      src={optimizedSrc}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      width="300"
+      height="300"
+      onLoad={() => setLoaded(true)}
+      onError={() => setError(true)}
+      className={`w-full h-full object-cover transition-all duration-500 ${
+        loaded ? "opacity-100" : "opacity-0"
+      }`}
+    />
+  </>
+)}
       </div>
     );
   }
