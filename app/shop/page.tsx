@@ -610,16 +610,29 @@ const AddProductModal = memo(
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   Category *
                 </label>
-                <select
-                  value={form.category}
-                  onChange={(e) => update("category", e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 font-medium cursor-pointer text-sm transition-all appearance-none"
-                >
-                  <option>Medicine</option>
-                  <option>Food</option>
-                  <option>Toys</option>
-                  <option>Bandages</option>
-                </select>
+                <div className="group relative">
+                  <select
+                    value={form.category}
+                    onChange={(e) => update("category", e.target.value)}
+                    className="w-full cursor-pointer appearance-none rounded-2xl border border-orange-100/80 bg-gradient-to-r from-white via-orange-50/45 to-white px-4 pr-10 py-3 text-sm font-semibold text-slate-700 shadow-[0_10px_26px_-20px_rgba(249,115,22,0.55)] outline-none transition-all duration-200 hover:border-orange-300 hover:shadow-[0_14px_28px_-20px_rgba(249,115,22,0.6)] focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20"
+                  >
+                    <option>Medicine</option>
+                    <option>Food</option>
+                    <option>Toys</option>
+                    <option>Bandages</option>
+                  </select>
+                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition-colors duration-200 group-hover:text-orange-500 group-focus-within:text-orange-500">
+                    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <path
+                        d="M5.5 7.5L10 12l4.5-4.5"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -717,7 +730,8 @@ export default function ShopPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
-  const [activeAnimal, setActiveAnimal] = useState("Dog");
+  const [activeAnimal, setActiveAnimal] = useState("");
+  const [selectedAnimalCard, setSelectedAnimalCard] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   const productRailRef = useRef<HTMLDivElement>(null);
@@ -794,7 +808,7 @@ useEffect(() => {
     
     let result = products.filter(
       (p) =>
-        (p.animal ? normalize(p.animal) === normalize(activeAnimal) : true) &&
+        (!activeAnimal || (p.animal ? normalize(p.animal) === normalize(activeAnimal) : true)) &&
         (normalize(activeCategory) === "all" || normalize(p.category) === normalize(activeCategory))
     );
     if (searchQuery.trim()) {
@@ -977,7 +991,7 @@ useEffect(() => {
                 aria-label="Animal profile selector"
               >
                 {ANIMALS.map((a, index) => {
-                  const isSelected = activeAnimal === a.filterValue && (a.name !== "Pet parent" || activeAnimal === "Dog");
+                  const isSelected = selectedAnimalCard === a.name;
 
                   return (
                     <button
@@ -988,6 +1002,7 @@ useEffect(() => {
                       aria-label={`Shop for ${a.name}`}
                       onClick={() => {
                         setActiveAnimal(a.filterValue);
+                        setSelectedAnimalCard(a.name);
                         setActiveCategory("All");
                         setSearchQuery("");
                       }}

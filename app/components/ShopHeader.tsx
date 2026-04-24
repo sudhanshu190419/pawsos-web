@@ -299,12 +299,12 @@ const SearchOverlay = memo(
 
     return (
       <div
-        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[200000] bg-black/40 backdrop-blur-sm"
         onClick={onClose}
         style={{ animation: "megaFadeIn 200ms ease-out" }}
       >
         <div
-          className="w-full max-w-2xl mx-auto mt-4 sm:mt-20 px-4"
+          className="w-full max-w-2xl mx-auto pt-4 sm:pt-20 px-4"
           onClick={(e) => e.stopPropagation()}
           style={{ animation: "searchSlideIn 300ms cubic-bezier(0.16,1,0.3,1)" }}
         >
@@ -418,11 +418,17 @@ const MobileDrawer = memo(
     onClose,
     cartCount,
     onCartClick,
+    locationLabel,
+    onRefreshLocation,
+    isLocating,
   }: {
     isOpen: boolean;
     onClose: () => void;
     cartCount: number;
     onCartClick?: () => void;
+    locationLabel: string;
+    onRefreshLocation: () => void;
+    isLocating: boolean;
   }) => {
     useEffect(() => {
       if (isOpen) document.body.style.overflow = "hidden";
@@ -540,8 +546,15 @@ const MobileDrawer = memo(
           <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <MapPin className="w-3.5 h-3.5" />
-              <span>Delivering to <strong className="text-slate-600">Delhi, India</strong></span>
-              <button className="ml-auto text-orange-500 font-semibold text-[11px]">Change</button>
+              <span>Delivering to <strong className="text-slate-600">{locationLabel}</strong></span>
+              <button
+                type="button"
+                onClick={onRefreshLocation}
+                className="ml-auto text-orange-500 font-semibold text-[11px] disabled:opacity-60"
+                disabled={isLocating}
+              >
+                {isLocating ? "Locating..." : "Refresh"}
+              </button>
             </div>
           </div>
         </aside>
@@ -560,7 +573,56 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [locationLabel, setLocationLabel] = useState("Finding location...");
+  const [isLocating, setIsLocating] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resolveLocationFromCoords = useCallback(async (lat: number, lon: number) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`
+      );
+      if (!res.ok) throw new Error("Reverse geocoding failed");
+      const data = await res.json();
+      const city =
+        data?.address?.city ||
+        data?.address?.town ||
+        data?.address?.village ||
+        data?.address?.county ||
+        "";
+      const state = data?.address?.state || "";
+      const country = data?.address?.country || "";
+      const parts = [city, state, country].filter(Boolean);
+      if (parts.length > 0) {
+        setLocationLabel(parts.slice(0, 2).join(", "));
+      } else {
+        setLocationLabel("Current location");
+      }
+    } catch {
+      setLocationLabel("Location unavailable");
+    }
+  }, []);
+
+  const detectLocation = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationLabel("Location unavailable");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        await resolveLocationFromCoords(latitude, longitude);
+        setIsLocating(false);
+      },
+      () => {
+        setLocationLabel("Location access denied");
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+    );
+  }, [resolveLocationFromCoords]);
 
   // Scroll listener for sticky shadow
   useEffect(() => {
@@ -597,13 +659,35 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
     []
   );
   const closeMenu = useCallback(() => setOpenMenu(null), []);
+  const openMenuHover = useCallback((id: string) => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setOpenMenu(id);
+  }, []);
+  const scheduleCloseMenu = useCallback(() => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      setOpenMenu(null);
+      closeTimerRef.current = null;
+    }, 180);
+  }, []);
   const closeSearch = useCallback(() => {
     setIsSearchOpen(false);
     setSearchQuery("");
   }, []);
   const closeMobile = useCallback(() => setIsMobileOpen(false), []);
 
-  const activeMenuData = MENU_DATA.find((m) => m.id === openMenu);
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    detectLocation();
+  }, [detectLocation]);
 
   return (
     <div className="w-full">
@@ -654,9 +738,14 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-1 flex-shrink-0">
-            <button className="flex items-center gap-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150">
+            <button
+              type="button"
+              onClick={detectLocation}
+              disabled={isLocating}
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 disabled:opacity-60"
+            >
               <MapPin className="w-4 h-4 text-orange-500" strokeWidth={1.8} />
-              <span className="max-w-[80px] truncate">Delhi</span>
+              <span className="max-w-[140px] truncate">{locationLabel}</span>
             </button>
 
             <div className="w-px h-6 bg-slate-100 mx-1" />
@@ -706,53 +795,86 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
       </div>
 
       {/* ═══ CATEGORY NAV (desktop) ═══ */}
-      <div className="hidden md:block bg-white border-b border-slate-100" ref={navRef}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-0.5">
+      <div
+        className="relative z-[90] hidden md:block border-b border-orange-100/70 bg-gradient-to-r from-white via-orange-50/40 to-white"
+        ref={navRef}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2">
+          <div className="flex items-center gap-1 rounded-2xl border border-orange-100/80 bg-white/90 px-2 shadow-[0_10px_30px_-20px_rgba(249,115,22,0.55)] backdrop-blur-sm">
           {MENU_DATA.map((menu) => (
-            <div key={menu.id} className="relative flex-shrink-0">
+            <div
+              key={menu.id}
+              className="relative flex-shrink-0"
+              onMouseEnter={() => openMenuHover(menu.id)}
+              onMouseLeave={scheduleCloseMenu}
+            >
               <button
                 onClick={() => toggleMenu(menu.id)}
-                onMouseEnter={() => setOpenMenu(menu.id)}
-                className={`flex items-center gap-1.5 px-4 py-3 text-[13px] font-semibold border-b-2 transition-all duration-200 whitespace-nowrap ${
+                onMouseEnter={() => openMenuHover(menu.id)}
+                className={`group flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm lg:text-base font-bold transition-all duration-200 whitespace-nowrap ${
                   openMenu === menu.id
-                    ? "text-orange-600 border-orange-500"
-                    : "text-slate-600 border-transparent hover:text-slate-800 hover:border-slate-300"
+                    ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-orange-50"
                 }`}
                 aria-expanded={openMenu === menu.id}
                 aria-haspopup="true"
               >
-                <span className="text-base">{menu.emoji}</span>
+                <span className={`text-lg lg:text-xl transition-transform duration-200 ${openMenu === menu.id ? "scale-110" : "group-hover:scale-110"}`}>
+                  {menu.emoji}
+                </span>
                 {menu.label}
                 <ChevronDown
-                  className={`w-3 h-3 transition-transform duration-200 ${
-                    openMenu === menu.id ? "rotate-180 text-orange-500" : "text-slate-400"
+                  className={`w-3.5 h-3.5 lg:w-4 lg:h-4 transition-transform duration-200 ${
+                    openMenu === menu.id ? "rotate-180 text-white/90" : "text-slate-400 group-hover:text-orange-500"
                   }`}
                   strokeWidth={2.5}
                 />
               </button>
+
+              {openMenu === menu.id && (
+                <div
+                  className="absolute left-0 top-full z-[120] w-72 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
+                  role="menu"
+                  aria-label={menu.title}
+                >
+                  {menu.items.map((item) => (
+                    <a
+                      key={item.label}
+                      href="#"
+                      role="menuitem"
+                      onClick={closeMenu}
+                      className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-orange-50"
+                    >
+                      <span className="mt-0.5 text-base leading-none">{item.icon}</span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-slate-800">{item.label}</span>
+                        <span className="block truncate text-xs text-slate-500">{item.desc}</span>
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
           {/* Spacer + Quick links */}
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-2 pl-2">
             {QUICK_LINKS.slice(0, 2).map((link) => (
               <a
                 key={link.label}
                 href="#"
-                className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-slate-400 hover:text-slate-600 transition-colors whitespace-nowrap"
+                className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm lg:text-base font-semibold text-slate-600 transition-all duration-200 whitespace-nowrap hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 hover:shadow-sm"
               >
-                <link.icon className="w-3.5 h-3.5" strokeWidth={1.8} />
+                <span className="inline-flex h-6 w-6 lg:h-7 lg:w-7 items-center justify-center rounded-md bg-slate-100 text-slate-500 transition-colors duration-200 group-hover:bg-orange-100 group-hover:text-orange-600">
+                  <link.icon className="w-4 h-4 lg:w-[18px] lg:h-[18px]" strokeWidth={1.9} />
+                </span>
                 {link.label}
               </a>
             ))}
           </div>
         </div>
+        </div>
       </div>
-
-      {/* ═══ MEGA MENU PANEL ═══ */}
-      {activeMenuData && (
-        <MegaMenuPanel menu={activeMenuData} isOpen={!!openMenu} onClose={closeMenu} />
-      )}
 
       {/* ═══ SEARCH OVERLAY ═══ */}
       <SearchOverlay
@@ -768,6 +890,9 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
         onClose={closeMobile}
         cartCount={cartCount}
         onCartClick={onCartClick}
+        locationLabel={locationLabel}
+        onRefreshLocation={detectLocation}
+        isLocating={isLocating}
       />
 
       {/* ═══ KEYFRAMES ═══ */}
