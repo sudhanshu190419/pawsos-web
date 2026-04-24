@@ -214,47 +214,55 @@ export default function ReportPage() {
   }, [subscribeToAlerts]);
 
   const roleFilteredAlerts = useMemo(() => {
-    return alerts.filter((alert) => {
-      const hasUserLocation =
-        !!currentLocation &&
-        typeof currentLocation.latitude === "number" &&
-        typeof currentLocation.longitude === "number";
-      const hasAlertLocation =
-        typeof alert.latitude === "number" &&
-        typeof alert.longitude === "number";
+  return alerts.filter((alert) => {
+    const hasUserLocation =
+      !!currentLocation &&
+      typeof currentLocation.latitude === "number" &&
+      typeof currentLocation.longitude === "number";
 
-      if (isResponder) {
-        if (alert.acceptedBy === currentUser?.uid) return true;
+    const hasAlertLocation =
+      typeof alert.latitude === "number" &&
+      typeof alert.longitude === "number";
 
-        if (alert.status === "active") {
-          if (!hasUserLocation || !hasAlertLocation) return false;
-          const distance = getDistanceKm(
-            currentLocation.latitude,
-            currentLocation.longitude,
-            alert.latitude,
-            alert.longitude
-          );
-          return distance <= MAX_DISTANCE_KM;
-        }
-        return false;
-      }
+    // ✅ RESPONDER LOGIC
+    if (isResponder) {
+      if (alert.acceptedBy === currentUser?.uid) return true;
 
-      if (alert.createdBy === currentUser?.uid) return true;
-
-      if (alert.status === "active") {
+      if ((alert.status || "active") === "active") {
         if (!hasUserLocation || !hasAlertLocation) return false;
+
         const distance = getDistanceKm(
-          currentLocation.latitude,
-          currentLocation.longitude,
-          alert.latitude,
-          alert.longitude
+          currentLocation!.latitude,
+          currentLocation!.longitude,
+          alert.latitude!,
+          alert.longitude!
         );
+
         return distance <= MAX_DISTANCE_KM;
       }
 
       return false;
-    });
-  }, [alerts, currentLocation, currentUser?.uid, isResponder]);
+    }
+
+    // ✅ NORMAL USER LOGIC
+    if (alert.createdBy === currentUser?.uid) return true;
+
+    if ((alert.status || "active") === "active") {
+      if (!hasUserLocation || !hasAlertLocation) return false;
+
+      const distance = getDistanceKm(
+        currentLocation!.latitude,
+        currentLocation!.longitude,
+        alert.latitude!,
+        alert.longitude!
+      );
+
+      return distance <= MAX_DISTANCE_KM;
+    }
+
+    return false;
+  });
+}, [alerts, currentLocation, currentUser?.uid, isResponder]);
 
   const filteredAlerts = useMemo(() => {
     if (selectedFilter === "All") return roleFilteredAlerts;
