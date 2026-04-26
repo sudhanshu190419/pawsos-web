@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   collection,
   doc,
@@ -17,9 +17,25 @@ import {
 import { onAuthStateChanged, User } from "firebase/auth";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { auth, db, storage } from "../lib/firebase";
+import {
+  Filter,
+  Dog,
+  AlertTriangle,
+  Stethoscope,
+  Info,
+  CheckCircle,
+  Clock,
+  Zap,
+  Activity,
+  ShieldCheck,
+  RefreshCw,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const LiveMap = dynamic(() => import("../components/LiveMap"), { ssr: false });
 
 type AlertStatus = "active" | "responding" | "resolved";
-type FilterValue = "All" | "Critical" | "High" | "Medium" | "Low";
+type FilterValue = "All" | "Critical" | "High Priority" | "Medical";
 type Role = "user" | "volunteer" | "ngo" | "vet" | "admin" | null;
 
 type SosAlert = {
@@ -40,6 +56,7 @@ type SosAlert = {
   location?: GeoPoint | { latitude?: number; longitude?: number };
   latitude?: number | null;
   longitude?: number | null;
+  distance?: number;
 };
 
 type UserMeta = {
@@ -49,7 +66,7 @@ type UserMeta = {
   name: string;
 };
 
-const MAX_DISTANCE_KM = 10;
+const MAX_DISTANCE_KM = 20;
 
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371;
@@ -61,37 +78,14 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-function urgencyColor(urgency?: string) {
-  switch ((urgency || "").toLowerCase()) {
-    case "critical":
-      return "bg-red-600";
-    case "high":
-      return "bg-amber-500";
-    case "medium":
-      return "bg-yellow-400";
-    case "low":
-      return "bg-emerald-500";
-    default:
-      return "bg-slate-400";
-  }
-}
-
-function statusBadgeClass(status?: AlertStatus) {
-  if (status === "responding") return "bg-cyan-100 text-cyan-700";
-  if (status === "resolved") return "bg-emerald-100 text-emerald-700";
-  return "bg-orange-100 text-orange-700";
-}
-
 function getReadableTime(time?: Timestamp | Date | string) {
   if (!time) return "Just now";
-
   let date: Date;
   if (typeof (time as Timestamp).toDate === "function") {
     date = (time as Timestamp).toDate();
   } else {
     date = new Date(time as Date | string);
   }
-
   const ms = Date.now() - date.getTime();
   const mins = Math.floor(ms / 60000);
   if (mins < 1) return "Just now";
@@ -102,13 +96,24 @@ function getReadableTime(time?: Timestamp | Date | string) {
   return `${days}d ago`;
 }
 
+function getUrgencyProps(urgency?: string) {
+  const u = (urgency || "").toLowerCase();
+  if (u === "critical") return { color: "error", icon: <AlertTriangle className="w-4 h-4" /> };
+  if (u === "high") return { color: "primary", icon: <Stethoscope className="w-4 h-4" /> };
+  return { color: "secondary", icon: <Info className="w-4 h-4" /> };
+}
+
 export default function ReportPage() {
   const [alerts, setAlerts] = useState<SosAlert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const [selectedFilter, setSelectedFilter] = useState<FilterValue>("All");
-  const [selectedAlert, setSelectedAlert] = useState<SosAlert | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterValue>("All");
+  const [activeCase, setActiveCase] = useState<string | null>(null);
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userMeta, setUserMeta] = useState<UserMeta>({
@@ -123,8 +128,7 @@ export default function ReportPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isResponder =
-    (userMeta.role === "volunteer" && userMeta.volunteerApproved) || userMeta.ngoApproved;
+  const isResponder = (userMeta.role === "volunteer" && userMeta.volunteerApproved) || userMeta.ngoApproved;
 
   const hydrateUserMeta = useCallback(async (user: User) => {
     try {
@@ -140,6 +144,11 @@ export default function ReportPage() {
     } catch {
       setUserMeta((prev) => ({ ...prev }));
     }
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 800);
   }, []);
 
   useEffect(() => {
@@ -163,11 +172,17 @@ export default function ReportPage() {
           longitude: position.coords.longitude,
         });
       },
-      () => {
-        setCurrentLocation(null);
-      },
+      () => setCurrentLocation(null),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    handleResize(); // Set initial value
+    setIsLayoutReady(true);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const subscribeToAlerts = useCallback(() => {
@@ -188,23 +203,14 @@ export default function ReportPage() {
               longitude = typeof raw.location.longitude === "number" ? raw.location.longitude : null;
             }
 
-            return {
-              id: item.id,
-              ...raw,
-              latitude,
-              longitude,
-            } as SosAlert;
+            return { id: item.id, ...raw, latitude, longitude } as SosAlert;
           })
           .filter((row) => row.time || row.location || row.latitude || row.longitude);
 
         setAlerts(data);
         setLoading(false);
-        setRefreshing(false);
       },
-      () => {
-        setLoading(false);
-        setRefreshing(false);
-      }
+      () => setLoading(false)
     );
   }, []);
 
@@ -214,85 +220,65 @@ export default function ReportPage() {
   }, [subscribeToAlerts]);
 
   const roleFilteredAlerts = useMemo(() => {
-  return alerts.filter((alert) => {
-    const hasUserLocation =
-      !!currentLocation &&
-      typeof currentLocation.latitude === "number" &&
-      typeof currentLocation.longitude === "number";
+    const results = alerts.map((alert) => {
+      let distance: number | undefined = undefined;
+      const hasUserLocation = !!currentLocation;
+      const hasAlertLocation = typeof alert.latitude === "number" && typeof alert.longitude === "number";
+      
+      if (hasUserLocation && hasAlertLocation) {
+        distance = getDistanceKm(currentLocation.latitude, currentLocation.longitude, alert.latitude!, alert.longitude!);
+      }
+      return { ...alert, distance };
+    }).filter((alert) => {
+      const hasUserLocation = !!currentLocation;
+      const hasAlertLocation = typeof alert.latitude === "number" && typeof alert.longitude === "number";
 
-    const hasAlertLocation =
-      typeof alert.latitude === "number" &&
-      typeof alert.longitude === "number";
-
-    // ✅ RESPONDER LOGIC
-    if (isResponder) {
-      if (alert.acceptedBy === currentUser?.uid) return true;
-
-      if ((alert.status || "active") === "active") {
-        if (!hasUserLocation || !hasAlertLocation) return false;
-
-        const distance = getDistanceKm(
-          currentLocation!.latitude,
-          currentLocation!.longitude,
-          alert.latitude!,
-          alert.longitude!
-        );
-
-        return distance <= MAX_DISTANCE_KM;
+      if (isResponder) {
+        if (alert.acceptedBy === currentUser?.uid) return true;
+        if ((alert.status || "active") === "active") {
+          if (!hasUserLocation || !hasAlertLocation) return false;
+          return alert.distance! <= MAX_DISTANCE_KM;
+        }
+        return false;
       }
 
+      if (alert.createdBy === currentUser?.uid) return true;
+      if ((alert.status || "active") === "active") {
+        if (!hasUserLocation || !hasAlertLocation) return false;
+        return alert.distance! <= MAX_DISTANCE_KM;
+      }
       return false;
-    }
+    });
 
-    // ✅ NORMAL USER LOGIC
-    if (alert.createdBy === currentUser?.uid) return true;
-
-    if ((alert.status || "active") === "active") {
-      if (!hasUserLocation || !hasAlertLocation) return false;
-
-      const distance = getDistanceKm(
-        currentLocation!.latitude,
-        currentLocation!.longitude,
-        alert.latitude!,
-        alert.longitude!
-      );
-
-      return distance <= MAX_DISTANCE_KM;
-    }
-
-    return false;
-  });
-}, [alerts, currentLocation, currentUser?.uid, isResponder]);
+    return results.sort((a, b) => {
+      if (a.distance !== undefined && b.distance !== undefined) {
+        return a.distance - b.distance;
+      }
+      return 0;
+    });
+  }, [alerts, currentLocation, currentUser?.uid, isResponder]);
 
   const filteredAlerts = useMemo(() => {
-    if (selectedFilter === "All") return roleFilteredAlerts;
-    return roleFilteredAlerts.filter(
-      (alert) => (alert.urgency || "").toLowerCase() === selectedFilter.toLowerCase()
-    );
-  }, [roleFilteredAlerts, selectedFilter]);
+    let filtered = roleFilteredAlerts;
+    if (activeFilter === "Critical") filtered = roleFilteredAlerts.filter((a) => (a.urgency || "").toLowerCase() === "critical");
+    else if (activeFilter === "High Priority") filtered = roleFilteredAlerts.filter((a) => (a.urgency || "").toLowerCase() === "high");
+    else if (activeFilter === "Medical") filtered = roleFilteredAlerts.filter((a) => ["critical", "high"].includes((a.urgency || "").toLowerCase()));
+    
+    return filtered;
+  }, [roleFilteredAlerts, activeFilter]);
 
-  const counts = useMemo(() => {
-    return {
-      critical: roleFilteredAlerts.filter((a) => (a.urgency || "").toLowerCase() === "critical").length,
-      active: roleFilteredAlerts.filter((a) => a.status === "active").length,
-      responding: roleFilteredAlerts.filter((a) => a.status === "responding").length,
-    };
-  }, [roleFilteredAlerts]);
-
-  const openDirections = useCallback((latitude?: number | null, longitude?: number | null) => {
-    if (typeof latitude !== "number" || typeof longitude !== "number") return;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }, []);
+  const paginatedAlerts = useMemo(() => {
+    return filteredAlerts.slice(0, visibleCount);
+  }, [filteredAlerts, visibleCount]);
 
   const markAsResponding = useCallback(
-    async (alertId: string) => {
+    async (alertId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
       if (!currentUser?.uid) return;
       setActionBusy(true);
       try {
         const profileDoc = await getDoc(doc(db, "users", currentUser.uid));
-        const volunteerName =
-          profileDoc.exists() && profileDoc.data().name ? profileDoc.data().name : userMeta.name || "Volunteer";
+        const volunteerName = profileDoc.exists() && profileDoc.data().name ? profileDoc.data().name : userMeta.name || "Volunteer";
 
         await updateDoc(doc(db, "sos_alerts", alertId), {
           status: "responding",
@@ -307,21 +293,20 @@ export default function ReportPage() {
     [currentUser?.uid, userMeta.name]
   );
 
-  const startResolveFlow = useCallback(() => {
-    if (!selectedAlert || actionBusy) return;
+  const startResolveFlow = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (actionBusy) return;
     fileInputRef.current?.click();
-  }, [selectedAlert, actionBusy]);
+  }, [actionBusy]);
 
   const handleAfterImagePicked = useCallback(
     async (file: File | null) => {
-      if (!file || !selectedAlert || !currentUser) return;
+      if (!file || !activeCase || !currentUser) return;
+      const selectedAlert = roleFilteredAlerts.find(a => a.id === activeCase);
+      if (!selectedAlert) return;
 
-      const authorizedResponder =
-        (userMeta.role === "volunteer" && userMeta.volunteerApproved) || userMeta.ngoApproved;
-
-      if (!authorizedResponder || selectedAlert.acceptedBy !== currentUser.uid) {
-        return;
-      }
+      const authorizedResponder = (userMeta.role === "volunteer" && userMeta.volunteerApproved) || userMeta.ngoApproved;
+      if (!authorizedResponder || selectedAlert.acceptedBy !== currentUser.uid) return;
 
       setActionBusy(true);
       try {
@@ -340,223 +325,251 @@ export default function ReportPage() {
         setActionBusy(false);
       }
     },
-    [selectedAlert, currentUser, userMeta]
+    [activeCase, currentUser, userMeta, roleFilteredAlerts]
   );
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    const unsub = subscribeToAlerts();
-    setTimeout(() => {
-      unsub();
-      setRefreshing(false);
-    }, 900);
-  }, [subscribeToAlerts]);
+  const stats = useMemo(() => {
+    return {
+      critical: alerts.filter(a => (a.urgency || "").toLowerCase() === "critical").length,
+      active: alerts.filter(a => (a.status || "active") === "active").length,
+      accepted: alerts.filter(a => a.status === "responding").length,
+    };
+  }, [alerts]);
+
+  const getAlertDistance = (alert: SosAlert) => {
+    if (alert.distance !== undefined) {
+      return `${alert.distance.toFixed(1)} km away`;
+    }
+    return "Distance unknown";
+  };
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 pb-16">
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-10">
-        <div className="rounded-3xl border border-orange-100 bg-white shadow-sm p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">Active Alerts</h1>
-              <p className="text-sm text-slate-500 mt-1">Real-time emergency alerts in your area</p>
-              {!currentLocation && (
-                <p className="text-xs text-amber-600 mt-1">
-                  Turn on location access to view nearby SOS alerts.
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onRefresh}
-              className="px-4 py-2 rounded-xl border border-orange-200 text-orange-600 font-semibold text-sm hover:bg-orange-50 transition-colors"
-            >
-              {refreshing ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
+    <div className="bg-slate-50/50 text-slate-900 font-sans antialiased h-[100dvh] flex flex-col overflow-hidden">
+      <GlobalStyles />
 
-          <div className="mt-5 grid grid-cols-3 gap-3">
-            <CountCard label="Critical" value={counts.critical} icon="⚡" tone="text-red-600" />
-            <CountCard label="Active" value={counts.active} icon="🚨" tone="text-amber-600" />
-            <CountCard label="Accepted" value={counts.responding} icon="🦸" tone="text-cyan-600" />
+      {/* Modern Header Bar */}
+      <header className="sticky top-0 z-[60] bg-white border-b border-slate-200/60 shadow-sm px-4 sm:px-6 h-[64px] sm:h-[72px] flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+            <Zap className="w-6 h-6 animate-pulse" />
           </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {["All", "Critical", "High", "Medium", "Low"].map((label) => {
-              const selected = selectedFilter === label;
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setSelectedFilter(label as FilterValue)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                    selected
-                      ? "bg-orange-500 border-orange-500 text-white"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-orange-50 hover:border-orange-200"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-black text-slate-900 leading-none tracking-tight">Active SOS</h1>
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-1 font-medium flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Real-time priority dispatch
+            </p>
           </div>
         </div>
 
-        {loading ? (
-          <div className="py-20 text-center text-slate-500">Loading active alerts...</div>
-        ) : filteredAlerts.length === 0 ? (
-          <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-12 text-center">
-            <p className="text-lg font-semibold text-slate-700">No alerts found</p>
-            <p className="text-sm text-slate-500 mt-1">Try changing the urgency filter.</p>
+        {/* Action Controls & Stats */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="px-3 py-1.5 rounded-full bg-red-50 border border-red-100 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+              <span className="text-[11px] font-bold text-red-600 uppercase tracking-wider">{stats.critical} Critical</span>
+            </div>
+            <div className="px-3 py-1.5 rounded-full bg-orange-50 border border-orange-100 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+              <span className="text-[11px] font-bold text-orange-600 uppercase tracking-wider">{stats.active} Active</span>
+            </div>
           </div>
-        ) : (
-          <div className="mt-6 max-w-2xl mx-auto space-y-3">
-            {filteredAlerts.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setSelectedAlert(item)}
-                className="w-full text-left rounded-2xl border border-slate-200 bg-white p-3 hover:shadow-sm hover:border-orange-200 transition-all"
-              >
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className="inline-flex items-center gap-2">
-                    <span className={`w-2.5 h-2.5 rounded-full ${urgencyColor(item.urgency)}`} />
-                    <span className="text-xs font-bold text-slate-600 uppercase">{(item.urgency || "medium").toUpperCase()}</span>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold capitalize ${statusBadgeClass(item.status)}`}>
-                    {item.status || "active"}
-                  </span>
-                </div>
 
-                <div className="flex gap-3">
-                  <img
-                    src={item.photoURL || "/sos-dog.png"}
-                    alt="SOS"
-                    className="w-16 h-16 rounded-xl object-cover border border-slate-200"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-[15px] text-slate-900 line-clamp-2">{item.description || "Emergency alert"}</p>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-1">{item.address || "Location not specified"}</p>
-                    <p className="text-[11px] text-slate-400 mt-1.5">{getReadableTime(item.time)}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+          <button
+            onClick={handleRefresh}
+            className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all active:scale-95 shadow-sm"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-primary" : ""}`} />
+          </button>
+        </div>
+      </header>
+      
+      {/* Centered Content Layout (Reverted Layout) */}
+      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 flex-1 min-h-0 flex flex-col gap-5 py-6">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 lg:max-h-[78vh]">
+          
+          {/* Map — Left Column */}
+          <section className="lg:col-span-7 h-[35vh] lg:h-full relative rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm">
+            <LiveMap 
+              alerts={roleFilteredAlerts} 
+              activeCase={activeCase} 
+              setActiveCase={setActiveCase} 
+              isExpanded={isMapExpanded}
+              setIsExpanded={setIsMapExpanded}
+              currentLocation={currentLocation}
+            />
+            {!currentLocation && (
+              <div className="absolute top-4 left-4 right-4 z-[100] p-3 bg-red-600/90 backdrop-blur-md rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg animate-fade-in">
+                <AlertTriangle className="w-4 h-4" />
+                Enable Location for Nearby Alerts
+              </div>
+            )}
+          </section>
 
-      {selectedAlert && (
-        <div className="fixed inset-0 z-[200000] bg-black/45 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-6">
-          <div className="w-[92%] sm:w-full max-w-xl sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-2xl mb-2 sm:mb-0">
-            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-100 px-4 py-3 flex items-center justify-between">
-              <div className="inline-flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${urgencyColor(selectedAlert.urgency)}`} />
-                <span className="text-xs font-black text-slate-600 uppercase">
-                  {(selectedAlert.urgency || "medium").toUpperCase()}
+          {/* Alert List — Right Column */}
+          <section className="lg:col-span-5 flex flex-col min-h-0 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-black text-slate-900 uppercase tracking-[0.15em]">Nearby Alerts</h2>
+                <span className="px-2 py-1 bg-slate-50 border border-slate-100 rounded text-[10px] font-black text-slate-400 uppercase">
+                  {filteredAlerts.length} Total
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedAlert(null)}
-                className="w-9 h-9 rounded-full hover:bg-slate-100 text-slate-500"
-                aria-label="Close details"
-              >
-                ✕
-              </button>
+
+              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                {["All", "Critical", "High Priority", "Medical"].map((filter) => (
+                  <button 
+                    key={filter}
+                    onClick={() => {
+                      setActiveFilter(filter as FilterValue);
+                      setVisibleCount(10);
+                    }}
+                    className={`px-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider whitespace-nowrap transition-all duration-200 ${
+                      activeFilter === filter 
+                        ? "bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]" 
+                        : "bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200/60"
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="p-3.5 sm:p-5 space-y-3.5 sm:space-y-5">
-              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                <div>
-                  <img
-                    src={selectedAlert.photoURL || "/sos-dog.png"}
-                    alt="Before rescue"
-                    className="w-full h-28 sm:h-44 rounded-xl sm:rounded-2xl object-cover border border-slate-200"
-                  />
-                  <p className="text-xs font-semibold text-slate-500 mt-1.5">Before Rescue</p>
+            <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4 bg-slate-50/30">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-50">
+                  <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Syncing live data...</p>
                 </div>
-                <div>
-                  {selectedAlert.afterImageURL ? (
-                    <>
-                      <img
-                        src={selectedAlert.afterImageURL}
-                        alt="After rescue"
-                        className="w-full h-28 sm:h-44 rounded-xl sm:rounded-2xl object-cover border border-slate-200"
-                      />
-                      <p className="text-xs font-semibold text-slate-500 mt-1.5">After Rescue</p>
-                    </>
-                  ) : (
-                    <div className="w-full h-28 sm:h-44 rounded-xl sm:rounded-2xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-center px-4">
-                      <p className="text-xs text-slate-400">After image will appear once case is resolved</p>
+              ) : filteredAlerts.length === 0 ? (
+                <div className="py-20 text-center flex flex-col items-center">
+                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
+                    <Dog className="w-10 h-10 text-slate-200" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-800">No alerts found</h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-[180px] mx-auto">Try expanding your search radius or changing filters.</p>
+                </div>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {paginatedAlerts.map((alert, idx) => {
+                    const { color, icon } = getUrgencyProps(alert.urgency);
+                    const isActive = activeCase === alert.id;
+                    const distanceStr = getAlertDistance(alert);
+                    
+                    return (
+                      <motion.article 
+                        key={alert.id}
+                        layout
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3, delay: idx * 0.05 }}
+                        onClick={() => setActiveCase(isActive ? null : alert.id)}
+                        className={`group relative bg-white rounded-2xl border transition-all duration-300 cursor-pointer p-4 ${
+                          isActive 
+                            ? "border-primary/30 shadow-xl shadow-primary/5 bg-primary/[0.01]" 
+                            : "border-slate-100 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-100/30"
+                        }`}
+                      >
+                        <div className={`absolute left-0 top-6 bottom-6 w-1 rounded-r-full transition-colors ${
+                          color === "error" ? "bg-red-500" : color === "primary" ? "bg-orange-500" : "bg-slate-400"
+                        }`} />
+
+                        <div className="flex gap-4">
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 shrink-0 relative">
+                            <img src={alert.photoURL || "/sos-dog.png"} alt="SOS" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                            <div className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${
+                              color === "error" ? "bg-red-500" : color === "primary" ? "bg-orange-500" : "bg-slate-400"
+                            }`} />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${
+                                color === "error" ? "text-red-600" : "text-orange-600"
+                              }`}>
+                                {icon} {alert.urgency || "NORMAL"}
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{getReadableTime(alert.time)}</span>
+                            </div>
+
+                            <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-1 mb-1 tracking-tight group-hover:text-primary transition-colors">
+                              {alert.description || "Emergency Alert"}
+                            </h3>
+                            
+                            <div className="flex items-center gap-1.5 text-slate-400 mb-3">
+                              <MapPinIcon className="w-3 h-3" />
+                              <p className="text-[11px] font-medium truncate">{alert.address || "Unknown Location"}</p>
+                              <span className="text-[10px] font-bold text-slate-300 ml-auto whitespace-nowrap">{distanceStr}</span>
+                            </div>
+
+                            <AnimatePresence>
+                              {isActive && (
+                                <motion.div 
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  {alert.status === "active" && isResponder ? (
+                                    <button 
+                                      onClick={(e) => markAsResponding(alert.id, e)}
+                                      disabled={actionBusy}
+                                      className="w-full py-3 mt-2 rounded-xl bg-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-container transition-all active:scale-[0.97]"
+                                    >
+                                      {actionBusy ? "Processing..." : "Accept Alert"}
+                                    </button>
+                                  ) : alert.status === "responding" && isResponder && alert.acceptedBy === currentUser?.uid ? (
+                                    <button 
+                                      onClick={(e) => startResolveFlow(e)}
+                                      disabled={actionBusy}
+                                      className="w-full py-3 mt-2 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-[0.97]"
+                                    >
+                                      {actionBusy ? "Uploading..." : "Complete Rescue"}
+                                    </button>
+                                  ) : null}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {alert.status === "responding" && (
+                              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold">
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                                RESPONDING: {alert.acceptedByName || "Volunteer"}
+                              </div>
+                            )}
+                            {alert.status === "resolved" && (
+                              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+                                <CheckCircle className="w-3 h-3" />
+                                RESOLVED: {alert.resolvedByName || "Hero"}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.article>
+                    );
+                  })}
+
+                  {filteredAlerts.length > visibleCount && (
+                    <div className="py-4 flex justify-center">
+                      <button
+                        onClick={() => setVisibleCount(prev => prev + 10)}
+                        className="px-8 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                      >
+                        Load More Alerts
+                      </button>
                     </div>
                   )}
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-base sm:text-xl font-bold sm:font-extrabold text-slate-900 leading-snug">{selectedAlert.description || "Emergency Alert"}</h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Alert Level: {(selectedAlert.urgency || "medium").charAt(0).toUpperCase() + (selectedAlert.urgency || "medium").slice(1)}
-                </p>
-                <p className="mt-2 text-xs sm:text-sm text-slate-600">📍 {selectedAlert.address || "Location not specified"}</p>
-                <p className="mt-1 text-xs sm:text-sm text-slate-600">🕒 Reported {getReadableTime(selectedAlert.time)}</p>
-
-                <p className="mt-2 text-xs sm:text-sm text-slate-500">
-                  {selectedAlert.status === "resolved"
-                    ? `Case resolved by ${selectedAlert.resolvedByName || "Volunteer"}`
-                    : selectedAlert.acceptedBy
-                    ? `Case accepted by ${selectedAlert.acceptedByName || "Volunteer"}`
-                    : `Reported by ${selectedAlert.reportedByName || "Community User"}`}
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => openDirections(selectedAlert.latitude, selectedAlert.longitude)}
-                  className="w-full border border-orange-300 bg-white text-orange-700 rounded-xl py-2.5 font-semibold text-sm hover:bg-orange-50 transition-colors"
-                >
-                  Get Directions
-                </button>
-
-                {selectedAlert.status === "active" && !isResponder && (
-                  <Link
-                    href="/volunteer-form"
-                    className="block w-full text-center rounded-xl py-2.5 font-semibold text-sm bg-[#00BFA5] text-white hover:bg-[#00a896] transition-colors"
-                  >
-                    Become a volunteer to accept this case
-                  </Link>
-                )}
-
-                {selectedAlert.status === "active" && isResponder && (
-                  <button
-                    type="button"
-                    disabled={actionBusy}
-                    onClick={() => markAsResponding(selectedAlert.id)}
-                    className="w-full rounded-xl py-2.5 font-semibold text-sm bg-[#00BFA5] text-white hover:bg-[#00a896] transition-colors disabled:opacity-60"
-                  >
-                    {actionBusy ? "Please wait..." : "Accept This Case"}
-                  </button>
-                )}
-
-                {selectedAlert.status === "responding" &&
-                  isResponder &&
-                  selectedAlert.acceptedBy === currentUser?.uid && (
-                    <button
-                      type="button"
-                      disabled={actionBusy}
-                      onClick={startResolveFlow}
-                      className="w-full rounded-xl py-2.5 font-semibold text-sm bg-[#00BFA5] text-white hover:bg-[#00a896] transition-colors disabled:opacity-60"
-                    >
-                      {actionBusy ? "Uploading..." : "Mark as Resolved"}
-                    </button>
-                  )}
-              </div>
+                </AnimatePresence>
+              )}
             </div>
-          </div>
+          </section>
         </div>
-      )}
+      </main>
 
       <input
         ref={fileInputRef}
@@ -569,16 +582,28 @@ export default function ReportPage() {
           e.currentTarget.value = "";
         }}
       />
-    </main>
-  );
-}
-
-function CountCard({ label, value, icon, tone }: { label: string; value: number; icon: string; tone: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3 text-center">
-      <p className="text-lg">{icon}</p>
-      <p className={`text-xl font-black ${tone}`}>{value}</p>
-      <p className="text-xs font-semibold text-slate-500">{label}</p>
     </div>
   );
 }
+
+// ─── Local Components & Icons ────────────────────────────────────────────────
+function MapPinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+    </svg>
+  );
+}
+
+const GlobalStyles = () => (
+  <style jsx global>{`
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
+  `}</style>
+);

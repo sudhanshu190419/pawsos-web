@@ -4,15 +4,24 @@ import Link from "next/link";
 import ParallaxHero from "./components/ParallaxHero";
 import Reveal from "./components/Reveal";
 import Counter from "./components/Counter";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { 
+  AlertCircle, 
+  HeartPulse, 
+  Users, 
+  ShoppingBag,
+  Camera,
+  Bell,
+  Heart
+} from "lucide-react";
 
 // ─── Design Tokens ──────────────────────────────────────────────────────────
 const ACCENT = {
-  red:   { dot: "#f87171", shadow: "rgba(248,113,113,0.15)", border: "rgba(248,113,113,0.25)", hover: "#ef4444" },
-  blue:  { dot: "#60a5fa", shadow: "rgba(96,165,250,0.15)",  border: "rgba(96,165,250,0.25)",  hover: "#3b82f6" },
-  green: { dot: "#4ade80", shadow: "rgba(74,222,128,0.15)",  border: "rgba(74,222,128,0.25)",  hover: "#22c55e" },
-  amber: { dot: "#fb923c", shadow: "rgba(251,146,60,0.15)",  border: "rgba(251,146,60,0.25)",  hover: "#f97316" },
+  red:   { dot: "#f87171", shadow: "rgba(248,113,113,0.15)", border: "rgba(248,113,113,0.25)", bg: "bg-red-50", text: "text-red-600", borderClass: "border-red-100" },
+  blue:  { dot: "#60a5fa", shadow: "rgba(96,165,250,0.15)",  border: "rgba(96,165,250,0.25)",  bg: "bg-blue-50", text: "text-blue-600", borderClass: "border-blue-100" },
+  green: { dot: "#4ade80", shadow: "rgba(74,222,128,0.15)",  border: "rgba(74,222,128,0.25)",  bg: "bg-green-50", text: "text-green-600", borderClass: "border-green-100" },
+  amber: { dot: "#fb923c", shadow: "rgba(251,146,60,0.15)",  border: "rgba(251,146,60,0.25)",  bg: "bg-orange-50", text: "text-orange-600", borderClass: "border-orange-100" },
 } as const;
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
@@ -21,7 +30,7 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-orange-100 overflow-hidden">
 
       {/* ── Hero ─────────────────────────────────────────────── */}
-      <div className="relative z-0">
+      <div className="relative z-10">
         <ParallaxHero>
           <section className="w-full px-2 sm:px-4 md:px-8 lg:px-16 mt-4 md:mt-6">
             <div className="relative w-full h-auto">
@@ -29,7 +38,7 @@ export default function HomePage() {
                 src="/banner.png"
                 alt="AnimalSathi Banner"
                 width={1200}
-  height={600}
+                height={600}
                 className="hidden md:block w-full h-auto object-contain scale-110"
                 priority
               />
@@ -38,6 +47,23 @@ export default function HomePage() {
                 alt="AnimalSathi Mobile Banner"
                 className="block md:hidden w-full h-auto object-contain scale-105 origin-center"
               />
+              {/* Hero CTA Buttons — overlaid on image, bottom-center */}
+              <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-0 right-0 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-6 z-10">
+                <Link
+                  href="/report"
+                  className="inline-flex items-center justify-center gap-2.5 bg-primary text-on-primary px-7 sm:px-10 py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-lg hover:bg-primary-container active:scale-[0.97] transition-all duration-300 shadow-[0_20px_50px_rgba(156,62,35,0.3)] hover:shadow-[0_25px_60px_rgba(156,62,35,0.4)] hover:-translate-y-1 w-full sm:w-auto backdrop-blur-md"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  Report an SOS
+                </Link>
+                <Link
+                  href="/volunteer-form"
+                  className="inline-flex items-center justify-center gap-2.5 bg-white/95 text-slate-800 border border-white/50 px-7 sm:px-10 py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-lg hover:bg-white active:scale-[0.97] transition-all duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] hover:-translate-y-1 w-full sm:w-auto backdrop-blur-md"
+                >
+                  <Users className="w-5 h-5" />
+                  Become a Volunteer
+                </Link>
+              </div>
             </div>
           </section>
         </ParallaxHero>
@@ -46,13 +72,13 @@ export default function HomePage() {
       {/* ── Category Cards ───────────────────────────────────── */}
       <div className="relative z-20">
         <Reveal>
-          <section className="relative -mt-10 sm:-mt-20 md:-mt-32 px-4 sm:px-6">
+          <section className="relative mt-8 sm:mt-12 md:mt-16 px-4 sm:px-6">
             <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
               <CategoryCard
                 title="SOS Alerts"
                 subtitle="Report instantly"
                 stat="Real-time"
-                icon="🚨"
+                icon={<AlertCircle className="w-5 h-5" />}
                 link="/report"
                 tag="Live"
                 accent="red"
@@ -62,7 +88,7 @@ export default function HomePage() {
                 title="Nearby Vets"
                 subtitle="Find clinics"
                 stat="Within 10km"
-                icon="🏥"
+                icon={<HeartPulse className="w-5 h-5" />}
                 link="/vets"
                 tag="Fast"
                 accent="blue"
@@ -72,7 +98,7 @@ export default function HomePage() {
                 title="Volunteers"
                 subtitle="Join network"
                 stat="10k+ members"
-                icon="🦸"
+                icon={<Users className="w-5 h-5" />}
                 link="/volunteer-form"
                 tag="Join"
                 accent="green"
@@ -82,7 +108,7 @@ export default function HomePage() {
                 title="Pet Shop"
                 subtitle="Meds & Food"
                 stat="Delivered"
-                icon="🛒"
+                icon={<ShoppingBag className="w-5 h-5" />}
                 link="/shop"
                 tag="Deals"
                 accent="amber"
@@ -121,12 +147,12 @@ export default function HomePage() {
               <Link
                 href="/shop"
                 className="inline-flex items-center justify-center gap-2.5
-                           bg-slate-900 text-white px-8 py-3.5 rounded-xl font-semibold text-sm sm:text-base
-                           hover:bg-slate-800 active:scale-[0.97]
-                           transition-all duration-200 shadow-lg shadow-slate-900/20
-                           hover:shadow-xl hover:shadow-slate-900/30 hover:-translate-y-0.5"
+                           bg-primary text-on-primary px-8 py-3.5 rounded-xl font-semibold text-sm sm:text-base
+                           hover:bg-primary-container active:scale-[0.97]
+                           transition-all duration-200 shadow-lg shadow-primary/20
+                           hover:shadow-xl hover:-translate-y-0.5"
               >
-                <span>🛒</span> Explore the Shop
+                <ShoppingBag className="w-5 h-5" /> Explore the Shop
               </Link>
             </div>
 
@@ -136,10 +162,12 @@ export default function HomePage() {
               <div className="absolute -bottom-5 -left-3 sm:-bottom-6 sm:-left-6
                               bg-white px-4 py-3 rounded-2xl shadow-xl border border-slate-100 z-20
                               flex items-center gap-3">
-                <div className="flex">
-                  {["⭐", "⭐", "⭐", "⭐", "⭐"].map((s, i) => (
-                    <span key={i} className="text-amber-400 text-xs leading-none">{s}</span>
-                  ))}
+                <div className="flex gap-0.5">
+                  <Heart className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <Heart className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <Heart className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <Heart className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <Heart className="w-4 h-4 text-amber-400 fill-amber-400" />
                 </div>
                 <div>
                   <p className="font-bold text-slate-800 text-sm leading-tight">4.9 / 5</p>
@@ -175,7 +203,7 @@ export default function HomePage() {
 
       {/* ── How It Works ─────────────────────────────────────── */}
       <Reveal>
-        <section className="px-4 sm:px-6 py-20 md:py-32 relative overflow-hidden border-y border-slate-100
+        <section className="px-4 sm:px-6 py-12 sm:py-16 md:py-20 relative overflow-hidden border-y border-slate-100
                             bg-gradient-to-b from-white via-orange-50/50 to-white">
 
           {/* Ambient glows */}
@@ -203,11 +231,11 @@ export default function HomePage() {
                               bg-gradient-to-r from-transparent via-orange-300 to-transparent z-0" />
 
               <div className="grid md:grid-cols-3 gap-14 md:gap-8 lg:gap-12 relative z-10 pt-4 md:pt-0">
-                <StepCard step={1} image="/my-rescue-dog.jpg"    title="Report SOS"        icon="📸"
+                <StepCard step={1} image="/my-rescue-dog.jpg"    title="Report SOS"        icon={<Camera className="w-6 h-6" />}
                   text="Spot an injured animal? Report it instantly with GPS location and live photos." />
-                <StepCard step={2} image="/alert-broadcast.jpg"  title="Alert Broadcast"   icon="🔔"
+                <StepCard step={2} image="/alert-broadcast.jpg"  title="Alert Broadcast"   icon={<Bell className="w-6 h-6" />}
                   text="Nearby verified volunteers and NGOs receive instant push notifications with your report." />
-                <StepCard step={3} image="/rescue.jpg"           title="Rescue & Care"     icon="❤️"
+                <StepCard step={3} image="/rescue.jpg"           title="Rescue & Care"     icon={<Heart className="w-6 h-6" />}
                   text="Help arrives. The animal is secured, taken to a vet if needed, and tracked on the app." />
               </div>
             </div>
@@ -254,7 +282,7 @@ export default function HomePage() {
 
               <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white
                              mb-5 tracking-tight leading-tight">
-                Ready to make an{" "}
+                Ready to make an {" "}
                 <span className="text-orange-500">impact?</span>
               </h2>
 
@@ -290,11 +318,7 @@ export default function HomePage() {
                              hover:bg-slate-700 hover:border-slate-600 active:scale-[0.97]
                              transition-all duration-200 shadow-lg hover:-translate-y-0.5 group"
                 >
-                  <svg className="w-5 h-5 text-slate-400 group-hover:text-orange-400 transition-colors duration-200"
-                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
+                  <Users className="w-5 h-5 text-slate-400 group-hover:text-orange-400 transition-colors duration-200" />
                   Become a Volunteer
                 </Link>
               </div>
@@ -320,13 +344,13 @@ function SectionBadge({ label }: { label: string }) {
 function CategoryCard({
   title, subtitle, stat, icon, link, tag, accent, image,
 }: {
-  title: string; subtitle: string; stat: string; icon: string;
+  title: string; subtitle: string; stat: string; icon: React.ReactNode;
   link: string; tag: string; accent: keyof typeof ACCENT; image: string;
 }) {
   const a = ACCENT[accent];
 
   return (
-    <Link href={link} className="group block h-full">
+    <Link href={link} className="group block h-full cursor-pointer">
       <div
         className="relative h-full rounded-2xl sm:rounded-[1.75rem] overflow-hidden bg-white/90
                    transition-all duration-300 ease-out
@@ -334,20 +358,16 @@ function CategoryCard({
                    border backdrop-blur-sm border border-orange-100"
         style={{ boxShadow: `0 2px 20px ${a.shadow}` }}
       >
-        {/* Hover tint */}
         <div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl sm:rounded-[1.75rem]"
           style={{ background: `radial-gradient(circle at bottom right, ${a.shadow} 0%, transparent 70%)` }}
         />
-
-        {/* Accent border — bottom + right */}
         <div
           className="absolute inset-0 rounded-2xl sm:rounded-[1.75rem] pointer-events-none
                      opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           style={{ boxShadow: `inset -2px -2px 0 0 ${a.border}` }}
         />
 
-        {/* Background image (faded) */}
         <div className="absolute bottom-0 right-0 w-[55%] h-[75%] z-0 pointer-events-none overflow-hidden flex items-end justify-end">
           <img
             src={image}
@@ -356,14 +376,12 @@ function CategoryCard({
                        transition-transform duration-500 group-hover:scale-110 group-hover:rotate-1 will-change-transform"
             style={{
               maskImage: "linear-gradient(to top left, black 70%, transparent 100%)",
-WebkitMaskImage: "linear-gradient(to top left, black 70%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to top left, black 70%, transparent 100%)",
             }}
           />
         </div>
 
-        {/* Content */}
         <div className="relative z-10 p-4 sm:p-5 md:p-6 flex flex-col h-full min-h-[180px] sm:min-h-[200px] md:min-h-[220px]">
-
           {/* Top row */}
           <div className="flex items-center justify-between mb-4">
             <span className="flex items-center gap-1.5">
@@ -384,10 +402,11 @@ WebkitMaskImage: "linear-gradient(to top left, black 70%, transparent 100%)",
             </span>
           </div>
 
-          {/* Icon */}
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center
-                          text-xl mb-3 bg-orange-50 border border-orange-100 text-orange-600 shadow-sm
-                          group-hover:shadow-md group-hover:-translate-y-0.5 transition-all duration-300">
+          {/* Icon container */}
+          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center
+                          mb-3 shadow-sm transition-all duration-300
+                          group-hover:shadow-md group-hover:-translate-y-0.5
+                          ${a.bg} ${a.text} ${a.borderClass} border`}>
             {icon}
           </div>
 
@@ -425,7 +444,7 @@ WebkitMaskImage: "linear-gradient(to top left, black 70%, transparent 100%)",
 function StepCard({
   step, image, title, text, icon,
 }: {
-  step: number; image: string; title: string; text: string; icon: string;
+  step: number; image: string; title: string; text: string; icon: React.ReactNode;
 }) {
   return (
     <div className="relative group mt-10 md:mt-0">
