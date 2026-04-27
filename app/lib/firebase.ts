@@ -1,15 +1,15 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, setLogLevel } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDkDijnWa_jQdphVAKuhW0JcsyVonepkAM",
-  authDomain: "pawsos-296e1.firebaseapp.com",
-  projectId: "pawsos-296e1",
-  storageBucket: "pawsos-296e1.firebasestorage.app",
-  messagingSenderId: "527397284782",
-  appId: "1:527397284782:web:f7e7168def038a6cc3b63f"
+  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 }
 const app = initializeApp(firebaseConfig);
 
@@ -21,5 +21,8 @@ export const googleProvider = new GoogleAuthProvider();
 
 // 🔹 Export Firestore
 export const db = getFirestore(app);
+
+// Silence verbose WebChannel / stream debug logs in dev
+setLogLevel("error");
 
 export const storage = getStorage(app);

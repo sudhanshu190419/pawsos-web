@@ -22,7 +22,13 @@ export default function AuthPage() {
   
   const [isVolunteer, setIsVolunteer] = useState(false);
   const [checking, setChecking] = useState(true);
-  const [loadingText, setLoadingText] = useState(""); // For UI feedback during Google Auth
+  const [loadingText, setLoadingText] = useState("");
+  const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
+
+  const showToast = (msg: string, type: "error" | "success" = "error") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const router = useRouter();
 
@@ -68,13 +74,13 @@ export default function AuthPage() {
           lastLoginAt: serverTimestamp()
         });
 
-        alert("Verification email sent. Please check your inbox before logging in.");
+        showToast("Verification email sent. Please check your inbox before logging in.", "success");
         setIsSignup(false); // Switch to login view
       } else {
         const userCred = await signInWithEmailAndPassword(auth, email, password);
 
         if (!userCred.user.emailVerified) {
-          alert("Please verify your email before logging in.");
+          showToast("Please verify your email before logging in.");
           setLoadingText("");
           return;
         }
@@ -86,7 +92,7 @@ export default function AuthPage() {
         router.push("/"); // 🔥 FIX: Next.js routing prevents hard browser reloads
       }
     } catch (err: any) {
-      alert(err.message);
+      showToast(err.message);
     } finally {
       setLoadingText("");
     }
@@ -127,7 +133,7 @@ export default function AuthPage() {
       router.push("/"); // 🔥 FIX: Use Next.js router instead of window.location
     } catch (err: any) {
       console.error(err);
-      alert("Google Sign-In Failed: " + err.message);
+      showToast("Google Sign-In Failed: " + err.message);
     } finally {
       setLoadingText("");
     }
@@ -166,6 +172,20 @@ export default function AuthPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4 sm:px-6 py-12 relative overflow-hidden selection:bg-orange-200">
       
+      {/* Inline Toast */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[99999] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold transition-all ${
+          toast.type === "success" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+        }`}>
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            {toast.type === "success"
+              ? <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              : <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />}
+          </svg>
+          {toast.msg}
+        </div>
+      )}
+      
       {/* Ambient Background Glows */}
       <div className="absolute top-1/4 -left-20 w-72 h-72 bg-orange-300/20 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
       <div className="absolute bottom-1/4 -right-20 w-72 h-72 bg-slate-400/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
@@ -173,8 +193,11 @@ export default function AuthPage() {
       <div className="bg-white rounded-[2rem] shadow-2xl p-6 sm:p-10 w-full max-w-md border border-slate-100 relative z-10">
         
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-2xl mx-auto mb-4 border border-orange-200 shadow-sm">
-            🐾
+          <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mx-auto mb-4 border border-primary/20 shadow-sm">
+            {/* Paw SVG icon */}
+            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+              <path d="M12 2C9.79 2 8 3.79 8 6s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm-5 7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm10 0c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM5.5 17c-1.38 0-2.5 1.12-2.5 2.5S4.12 22 5.5 22s2.5-1.12 2.5-2.5S6.88 17 5.5 17zm13 0c-1.38 0-2.5 1.12-2.5 2.5S17.12 22 18.5 22s2.5-1.12 2.5-2.5S19.88 17 18.5 17z"/>
+            </svg>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             {isSignup ? "Create Account" : "Welcome Back"}

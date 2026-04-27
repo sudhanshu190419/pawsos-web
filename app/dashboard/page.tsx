@@ -8,6 +8,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useProfile } from "./hooks/useProfile";
+import { User as UserIcon, ClipboardList, Award, Settings, X, Pencil } from "lucide-react";
 
 import { useSosCounts } from "./hooks/useSosCounts";
 import ProfileContent from "./components/ProfileContent";
@@ -176,8 +177,24 @@ function ProfilePageContent() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-24">
-      <div className="h-32 sm:h-40 md:h-64 bg-gradient-to-r from-orange-400 to-orange-600 w-full relative">
+      {/* Cover Banner — warm gradient + dot overlay */}
+      <div className="h-32 sm:h-40 md:h-64 bg-gradient-to-r from-primary to-primary-container w-full relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />
+        {/* Dot pattern overlay */}
+        <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="cover-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.5" fill="white" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#cover-dots)" />
+        </svg>
+        {/* Wave decoration */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 40" className="w-full fill-slate-50">
+            <path d="M0,20 C360,40 1080,0 1440,20 L1440,40 L0,40 Z" />
+          </svg>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-16 md:-mt-24 relative z-10">
@@ -202,9 +219,9 @@ function ProfilePageContent() {
                   onClick={() => document.getElementById("avatarUpload")?.click()}
                   disabled={isUploading}
                   aria-label="Change profile photo"
-                  className="absolute bottom-0 right-0 bg-orange-500 text-white w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white flex items-center justify-center hover:bg-orange-600 transition-colors shadow-sm disabled:bg-slate-400"
+                  className="absolute bottom-0 right-0 bg-primary text-on-primary w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white flex items-center justify-center hover:bg-primary-container transition-colors shadow-sm disabled:bg-slate-400"
                 >
-                  <span className="text-sm md:text-base">✏️</span>
+                  <Pencil className="w-3.5 h-3.5" />
                 </button>
               </div>
 
@@ -217,13 +234,13 @@ function ProfilePageContent() {
               </div>
 
               {/* Mobile-friendly horizontal scroll nav */}
-              <nav className="flex flex-row md:flex-col gap-2 overflow-x-auto hide-scrollbar text-left border-t border-slate-100 pt-4 md:pt-6 pb-2 md:pb-0 px-1">
-                <SidebarButton icon="👤" label="Personal Info" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
-                <SidebarButton icon="📋" label="My SOS Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
+              <nav className="flex flex-row md:flex-col gap-2 overflow-x-auto no-scrollbar text-left border-t border-slate-100 pt-4 md:pt-6 pb-2 md:pb-0 px-1">
+                <SidebarButton icon={<UserIcon className="w-4 h-4" />} label="Personal Info" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
+                <SidebarButton icon={<ClipboardList className="w-4 h-4" />} label="My SOS Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
                 {isVolunteer && (
                   <>
-                    <SidebarButton icon="🎖️" label="My Credentials" isActive={activeTab === "credentials"} onClick={() => setActiveTab("credentials")} />
-                    <SidebarButton icon="⚙️" label="Account Settings" isActive={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
+                    <SidebarButton icon={<Award className="w-4 h-4" />} label="My Credentials" isActive={activeTab === "credentials"} onClick={() => setActiveTab("credentials")} />
+                    <SidebarButton icon={<Settings className="w-4 h-4" />} label="Account Settings" isActive={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
                   </>
                 )}
               </nav>
@@ -250,7 +267,9 @@ function ProfilePageContent() {
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl sm:text-2xl font-black text-slate-800">Update Profile</h3>
-                <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-600 text-3xl leading-none" aria-label="Close">×</button>
+                <button onClick={() => setIsEditModalOpen(false)} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors" aria-label="Close">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
               <p className="text-slate-500 text-sm mb-6">Fill in your details to stay connected with the rescue team.</p>
 
@@ -334,15 +353,15 @@ function CredentialsContent({ userData }: { userData: UserData | null }) {
   );
 }
 
-function SidebarButton({ icon, label, isActive, onClick }: { icon: string; label: string; isActive: boolean; onClick: () => void }) {
+function SidebarButton({ icon, label, isActive, onClick }: { icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 md:gap-3 px-4 py-2.5 md:py-3 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 md:whitespace-normal md:w-full ${
+      className={`flex items-center gap-2 md:gap-3 px-4 py-2.5 md:py-3 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 md:whitespace-normal md:w-full cursor-pointer ${
         isActive ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-slate-600 hover:bg-slate-50 border border-transparent hover:text-slate-900"
       }`}
     >
-      <span className="text-lg">{icon}</span>
+      <span className="shrink-0">{icon}</span>
       {label}
     </button>
   );

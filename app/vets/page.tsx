@@ -5,6 +5,9 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { auth, db, storage } from "../lib/firebase";
 import {
+  AlertCircle, Users, BarChart2, Briefcase, Smartphone, GraduationCap
+} from "lucide-react";
+import {
   doc,
   setDoc,
   serverTimestamp,
@@ -61,24 +64,9 @@ function encodeGeohash(lat: number, lon: number, precision = 6): string {
   return geohash;
 }
 
-/* ─────────────────────── Font Injection ─────────────────────── */
-
-function FontLoader() {
-  useEffect(() => {
-    const existing = document.getElementById("vet-font-link");
-    if (existing) return;
-    const link = document.createElement("link");
-    link.id = "vet-font-link";
-    link.rel = "stylesheet";
-    link.href =
-      "https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap";
-    document.head.appendChild(link);
-    return () => { document.head.removeChild(link); };
-  }, []);
-  return null;
-}
 
 /* ══════════════════════════════════════════════════════════════
+
    CONSTANTS
 ══════════════════════════════════════════════════════════════ */
 
@@ -89,39 +77,39 @@ const INITIAL_FORM: VetFormData = {
   profilePhoto: null, document: null,
 };
 
-const BENEFITS = [
+const BENEFITS: { icon: React.ElementType; tag: string; title: string; desc: string }[] = [
   {
-    emoji: "🚑",
+    icon: AlertCircle,
     tag: "Emergency",
     title: "Save Critical Lives",
     desc: "Receive geo-targeted SOS alerts for animals in your area. Provide on-site care or remote triage instantly.",
   },
   {
-    emoji: "🤝",
+    icon: Users,
     tag: "Ecosystem",
     title: "Unified Coordination",
     desc: "Work seamlessly with verified NGOs, first-responders, and rescue volunteers in one structured platform.",
   },
   {
-    emoji: "📊",
+    icon: BarChart2,
     tag: "Insights",
     title: "Transparent Impact",
     desc: "Track every consultation and rescue with verified outcome data — perfect for professional portfolios.",
   },
   {
-    emoji: "💼",
+    icon: Briefcase,
     tag: "Network",
     title: "Peer Community",
     desc: "Join India's fastest-growing veterinary professional network focused on animal welfare.",
   },
   {
-    emoji: "📱",
+    icon: Smartphone,
     tag: "Telemedicine",
     title: "Remote Consultations",
     desc: "Extend your reach beyond your clinic. Guide rescuers in real-time from anywhere in India.",
   },
   {
-    emoji: "🎓",
+    icon: GraduationCap,
     tag: "Learning",
     title: "CME Resources",
     desc: "Access curated wildlife, emergency care, and disaster response training materials.",
@@ -163,12 +151,8 @@ export default function VetsPage() {
 
   return (
     <>
-      <FontLoader />
-
+      {/* Animation keyframes only */}
       <style>{`
-        .sora { font-family: 'Sora', sans-serif; }
-        .dm-sans { font-family: 'DM Sans', sans-serif; }
-        body { font-family: 'DM Sans', sans-serif; }
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(28px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -216,7 +200,8 @@ export default function VetsPage() {
         }
       `}</style>
 
-      <main className="min-h-screen bg-[#FAFAF8] text-slate-900 overflow-hidden selection:bg-orange-100 selection:text-orange-900 dm-sans">
+
+      <main className="min-h-screen bg-[#FAFAF8] text-slate-900 overflow-hidden selection:bg-orange-100 selection:text-orange-900">
         <HeroSection onApply={openForm} />
         <BenefitsSection />
         <RequirementsSection />
@@ -250,7 +235,7 @@ function HeroSection({ onApply }: { onApply: () => void }) {
         </svg>
       </div>
 
-      <div className="max-w-7xl mx-auto px-5 sm:px-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
 
         {/* Eyebrow */}
         <div className="flex justify-center lg:justify-start mb-3 md:mb-4 animate-fadeUp">
@@ -333,7 +318,7 @@ function HeroSection({ onApply }: { onApply: () => void }) {
 
 function BenefitsSection() {
   return (
-    <section className="py-20 md:py-28 max-w-7xl mx-auto px-5 sm:px-8">
+    <section className="py-20 md:py-28 max-w-6xl mx-auto px-5 sm:px-8">
       <div className="text-center mb-14">
         <p className="text-sm font-semibold text-orange-600 tracking-widest uppercase mb-3">Why Join</p>
         <h2 className="sora text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-950 tracking-tight max-w-2xl mx-auto leading-tight">
@@ -342,21 +327,21 @@ function BenefitsSection() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {BENEFITS.map(({ emoji, tag, title, desc }) => (
+        {BENEFITS.map(({ icon: Icon, tag, title, desc }) => (
           <div
             key={title}
             className="card-hover group relative bg-white rounded-2xl p-7 border border-slate-100 shadow-sm"
           >
             <div className="absolute top-0 left-7 h-0.5 w-10 bg-orange-500 rounded-full" />
             <div className="flex items-start gap-4 mb-5">
-              <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-300">
-                {emoji}
+              <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-300">
+                <Icon className="w-5 h-5 text-orange-600" />
               </div>
               <span className="mt-3 text-xs font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-full border border-orange-100">
                 {tag}
               </span>
             </div>
-            <h3 className="sora text-lg font-bold text-slate-900 mb-2.5">{title}</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-2.5">{title}</h3>
             <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
           </div>
         ))}
@@ -370,7 +355,7 @@ function BenefitsSection() {
 function RequirementsSection() {
   return (
     <section id="requirements" className="py-20 md:py-28 bg-white">
-      <div className="max-w-7xl mx-auto px-5 sm:px-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
 
         {/* Header */}
         <div className="text-center mb-14">

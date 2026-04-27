@@ -763,7 +763,7 @@ export default function ShopPage() {
       setUser(currentUser);
       if (currentUser) {
         try {
-          const vetDoc = await getDoc(doc(doc(db, "vets_web", currentUser.uid)));
+          const vetDoc = await getDoc(doc(db, "vets_web", currentUser.uid));
           if (vetDoc.exists() && vetDoc.data().verificationStatus === "approved") {
             setIsVet(true);
             setVetClinicName(vetDoc.data().clinicName || "Verified Clinic");

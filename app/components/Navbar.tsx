@@ -108,6 +108,14 @@ ${scrolled ? "bg-white/80 shadow-md" : "bg-white/60"}
 
         {/* CENTER NAV LINKS (DESKTOP ONLY) */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
+          <Link href="/" prefetch={false} className="relative group text-slate-600
+
+after:absolute after:left-0 after:-bottom-1 
+after:h-[2px] after:w-0 
+after:bg-blue-600 
+after:transition-all after:duration-300 
+group-hover:after:w-full transition-colors">Home</Link>
+
           <Link href="/how-it-works" prefetch={false} className="relative group text-slate-600
 
 after:absolute after:left-0 after:-bottom-1 
@@ -319,6 +327,7 @@ transition-all duration-200 shimmer-btn"
             </div>
           )}
 
+          <Link onClick={() => setIsMobileMenuOpen(false)} href="/" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">🏠 Home</Link>
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/how-it-works" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">How It Works</Link>
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/shop" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">Shop Marketplace</Link>
           

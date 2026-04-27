@@ -57,7 +57,7 @@ export default function ProductDetailPage() {
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
-          const data = { id: docSnap.id, ...docSnap.data() };
+          const data = { id: docSnap.id, ...docSnap.data() } as any;
           setProduct(data);
           
           // Fetch related (same category)
