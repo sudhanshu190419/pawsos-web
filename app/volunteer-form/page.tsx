@@ -1,5 +1,8 @@
 "use client";
 
+// Prevent prerendering - Firebase must initialize at runtime
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { auth, db, storage } from "../lib/firebase";
