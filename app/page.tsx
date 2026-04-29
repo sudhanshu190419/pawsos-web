@@ -26,13 +26,51 @@ const ACCENT = {
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function HomePage() {
+  useEffect(() => {
+    // Request user location on page load
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      const storedLocation = localStorage.getItem("userLocation");
+      if (!storedLocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            
+            // Try to get address from coordinates using reverse geocoding
+            try {
+              const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+              );
+              const data = await response.json();
+              
+              const location = {
+                latitude,
+                longitude,
+                address: data.address?.city || data.address?.county || `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
+              };
+              
+              localStorage.setItem("userLocation", JSON.stringify(location));
+            } catch (error) {
+              // If reverse geocoding fails, just store coordinates
+              const location = { latitude, longitude, address: undefined };
+              localStorage.setItem("userLocation", JSON.stringify(location));
+            }
+          },
+          (error) => {
+            console.warn("Location permission denied or unavailable:", error);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+      }
+    }
+  }, []);
+
   return (
     <main className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-orange-100 overflow-hidden">
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       <div className="relative z-10">
         <ParallaxHero>
-          <section className="w-full px-2 sm:px-4 md:px-8 lg:px-16 mt-4 md:mt-6">
+          <section className="w-full px-2 sm:px-4 md:px-8 lg:px-16 mt-4 md:mt-6 md:bg-[#FAFAFA] bg-[#FEF4E8]">
             <div className="relative w-full h-auto">
               <Image
                 src="/banner.png"
@@ -45,22 +83,22 @@ export default function HomePage() {
               <img
                 src="/banner-mobile.png"
                 alt="AnimalSathi Mobile Banner"
-                className="block md:hidden w-full h-auto object-contain scale-105 origin-center"
+                className="block md:hidden w-full h-auto object-contain scale-100 origin-center"
               />
               {/* Hero CTA Buttons — overlaid on image, bottom-center */}
-              <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-0 right-0 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-6 z-10">
+              <div className="absolute bottom-8 sm:bottom-6 md:bottom-8 left-0 right-0 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-6 z-10">
                 <Link
-                  href="/report"
-                  className="inline-flex items-center justify-center gap-2.5 bg-primary text-on-primary px-7 sm:px-10 py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-lg hover:bg-primary-container active:scale-[0.97] transition-all duration-300 shadow-[0_20px_50px_rgba(156,62,35,0.3)] hover:shadow-[0_25px_60px_rgba(156,62,35,0.4)] hover:-translate-y-1 w-full sm:w-auto backdrop-blur-md"
+                  href="/download"
+                  className="inline-flex items-center justify-center gap-2.5 bg-primary text-on-primary px-5 sm:px-8 py-2.5 sm:py-3 rounded-2xl font-bold text-xs sm:text-base hover:bg-primary-container active:scale-[0.97] transition-all duration-300 shadow-[0_20px_50px_rgba(156,62,35,0.3)] hover:shadow-[0_25px_60px_rgba(156,62,35,0.4)] hover:-translate-y-1 w-full sm:w-auto md:backdrop-blur-md"
                 >
-                  <AlertCircle className="w-5 h-5" />
-                  Report an SOS
+                  <AlertCircle className="w-4 h-4" />
+                  Report a SOS
                 </Link>
                 <Link
                   href="/volunteer-form"
-                  className="inline-flex items-center justify-center gap-2.5 bg-white/95 text-slate-800 border border-white/50 px-7 sm:px-10 py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-lg hover:bg-white active:scale-[0.97] transition-all duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] hover:-translate-y-1 w-full sm:w-auto backdrop-blur-md"
+                  className="inline-flex items-center justify-center gap-2.5 bg-white/95 text-slate-800 border border-white/50 px-5 sm:px-8 py-2.5 sm:py-3 rounded-2xl font-bold text-xs sm:text-base hover:bg-white active:scale-[0.97] transition-all duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] hover:-translate-y-1 w-full sm:w-auto md:backdrop-blur-md"
                 >
-                  <Users className="w-5 h-5" />
+                  <Users className="w-4 h-4" />
                   Become a Volunteer
                 </Link>
               </div>

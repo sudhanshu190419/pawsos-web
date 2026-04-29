@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Maximize2, Minimize2, MapPin } from "lucide-react";
 
 // Fix for default Leaflet icon paths in Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+const defaultIconPrototype = L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown };
+delete defaultIconPrototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -36,7 +37,7 @@ const createCustomIcon = (urgency?: string) => {
 };
 
 type LiveMapProps = {
-  alerts: any[];
+  alerts: MapAlert[];
   activeCase: string | null;
   setActiveCase: (id: string | null) => void;
   isExpanded: boolean;
@@ -44,10 +45,27 @@ type LiveMapProps = {
   currentLocation: { latitude: number; longitude: number } | null;
 };
 
+type MapAlert = {
+  id: string;
+  description?: string;
+  address?: string;
+  urgency?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
 function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    if (map) map.setView(center, zoom);
+    const currentCenter = map.getCenter();
+    const currentZoom = map.getZoom();
+    const centerChanged =
+      Math.abs(currentCenter.lat - center[0]) > 0.000001 ||
+      Math.abs(currentCenter.lng - center[1]) > 0.000001;
+
+    if (centerChanged || currentZoom !== zoom) {
+      map.setView(center, zoom, { animate: false });
+    }
   }, [center, zoom, map]);
   return null;
 }
@@ -75,7 +93,6 @@ export default function LiveMap({
 }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [mapKey, setMapKey] = useState(0);
 
   // ESC key closes fullscreen
   useEffect(() => {
@@ -94,19 +111,23 @@ export default function LiveMap({
     // Scrub stale Leaflet instance (Fast Refresh safety)
     const existing = el.querySelector(".leaflet-container") as HTMLElement & { _leaflet_id?: number };
     if (existing?._leaflet_id != null) {
+      try {
+        // Simple cleanup: just remove the element content and clear the ID
+        existing.innerHTML = '';
+    } catch {
+        // Silently fail
+      }
       delete existing._leaflet_id;
-      setMapReady(false);
-      setMapKey((k) => k + 1);
     }
 
-    if (el.offsetWidth > 0 && el.offsetHeight > 0) {
-      setMapReady(true);
-      return;
+    if (el.offsetWidth > 0 && el.offsetHeight >= 100) {
+      const frame = requestAnimationFrame(() => setMapReady(true));
+      return () => cancelAnimationFrame(frame);
     }
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+        if (entry.contentRect.width > 0 && entry.contentRect.height >= 100) {
           setMapReady(true);
           observer.disconnect();
           break;
@@ -117,30 +138,28 @@ export default function LiveMap({
     return () => observer.disconnect();
   }, []);
 
-  // Coordinates
-  let center: [number, number] = [28.6139, 77.209];
-  let zoom = 11;
-
-  if (activeCase) {
-    const activeAlert = alerts.find((a) => a.id === activeCase);
-    if (
-      activeAlert &&
-      typeof activeAlert.latitude === "number" && !isNaN(activeAlert.latitude) &&
-      typeof activeAlert.longitude === "number" && !isNaN(activeAlert.longitude)
-    ) {
-      center = [activeAlert.latitude, activeAlert.longitude];
-      zoom = 15;
+  const { center, zoom } = useMemo(() => {
+    if (activeCase) {
+      const activeAlert = alerts.find((a) => a.id === activeCase);
+      if (
+        activeAlert &&
+        typeof activeAlert.latitude === "number" && !isNaN(activeAlert.latitude) &&
+        typeof activeAlert.longitude === "number" && !isNaN(activeAlert.longitude)
+      ) {
+        return { center: [activeAlert.latitude, activeAlert.longitude] as [number, number], zoom: 15 };
+      }
     }
-  } else if (
-    currentLocation &&
-    typeof currentLocation.latitude === "number" && !isNaN(currentLocation.latitude) &&
-    typeof currentLocation.longitude === "number" && !isNaN(currentLocation.longitude)
-  ) {
-    center = [currentLocation.latitude, currentLocation.longitude];
-    zoom = 13;
-  }
 
-  if (isNaN(center[0]) || isNaN(center[1])) center = [28.6139, 77.209];
+    if (
+      currentLocation &&
+      typeof currentLocation.latitude === "number" && !isNaN(currentLocation.latitude) &&
+      typeof currentLocation.longitude === "number" && !isNaN(currentLocation.longitude)
+    ) {
+      return { center: [currentLocation.latitude, currentLocation.longitude] as [number, number], zoom: 13 };
+    }
+
+    return { center: [28.6139, 77.209] as [number, number], zoom: 11 };
+  }, [activeCase, alerts, currentLocation]);
 
   return (
     <>
@@ -157,7 +176,7 @@ export default function LiveMap({
         className={`soft-shadow border border-white/50 bg-surface-container transition-all duration-500 ${
           isExpanded
             ? "fixed z-[9999] rounded-2xl overflow-hidden shadow-2xl"
-            : "relative w-full h-full min-h-[160px] rounded-2xl overflow-hidden"
+            : "relative w-full min-h-[120px] h-full rounded-2xl overflow-hidden"
         }`}
         style={isExpanded ? { top: "76px", left: "8px", right: "8px", bottom: "8px" } : {}}
       >
@@ -171,7 +190,6 @@ export default function LiveMap({
 
         {mapReady && (
           <MapContainer
-            key={mapKey}
             center={center}
             zoom={zoom}
             style={{ width: "100%", height: "100%" }}

@@ -5,10 +5,13 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { MapPin, RefreshCw, ChevronDown } from "lucide-react";
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
   
   // Controls whether the mobile menu is open or closed
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -27,6 +30,19 @@ useEffect(() => {
   };
   window.addEventListener("scroll", handleScroll);
   return () => window.removeEventListener("scroll", handleScroll);
+}, []);
+
+// Get user location from localStorage
+useEffect(() => {
+  const storedLocation = localStorage.getItem("userLocation");
+  if (storedLocation) {
+    try {
+      const loc = JSON.parse(storedLocation);
+      setUserLocation(loc);
+    } catch (e) {
+      console.warn("Could not parse stored location");
+    }
+  }
 }, []);
 
   useEffect(() => {
@@ -84,27 +100,101 @@ useEffect(() => {
     router.refresh();
   };
 
+  const requestLocation = () => {
+    setLocationLoading(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            const data = await response.json();
+            
+            // Extract a concise address: city/town/village and district
+            let shortAddress = "";
+            if (data.address) {
+              const locality = data.address.city || data.address.town || data.address.village || "";
+              const district = data.address.state_district || data.address.county || data.address.state || "";
+              
+              if (locality && district && locality !== district) {
+                shortAddress = `${locality}, ${district}`;
+              } else if (locality || district) {
+                shortAddress = locality || district;
+              }
+            }
+            const addressToSave = shortAddress ? shortAddress : data.display_name;
+
+            const locData = { latitude, longitude, address: addressToSave };
+            setUserLocation(locData);
+            localStorage.setItem("userLocation", JSON.stringify(locData));
+          } catch (error) {
+            console.error("Geocoding failed", error);
+            const locData = { latitude, longitude };
+            setUserLocation(locData);
+            localStorage.setItem("userLocation", JSON.stringify(locData));
+          }
+          setLocationLoading(false);
+        },
+        (error) => {
+          console.error("Error getting location", error);
+          alert("Could not fetch location. Please enable location permissions.");
+          setLocationLoading(false);
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser");
+      setLocationLoading(false);
+    }
+  };
+
   return (
     <header className={`sticky top-0 z-50 backdrop-blur-xl transition-all duration-300
 ${scrolled ? "bg-white/80 shadow-md" : "bg-white/60"}
 `}>
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
         
-        {/* LOGO */}
-        <Link
-          href="/"
-          className="hover:scale-105 transition-transform flex items-center"
-          onClick={() => setIsMobileMenuOpen(false)}
-        >
-          <Image 
-            src="/logo.png" 
-            alt="AnimalSathi Logo" 
-            width={180} 
-            height={60} 
-            priority={true}
-            className="h-10 md:h-14 w-auto object-contain" 
-          />
-        </Link>
+        {/* LEFT SIDE: LOGO & LOCATION */}
+        <div className="flex items-center gap-3 md:gap-5">
+          {/* LOGO */}
+          <Link
+            href="/"
+            className="hover:scale-105 transition-transform flex items-center shrink-0"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <Image 
+              src="/logo.png" 
+              alt="AnimalSathi Logo" 
+              width={180} 
+              height={60} 
+              priority={true}
+              className="h-9 md:h-12 lg:h-14 w-auto object-contain" 
+            />
+          </Link>
+
+          {/* INLINE LOCATION */}
+          <div className="flex items-center text-slate-800 border-l border-slate-200 pl-3 md:pl-5 cursor-pointer max-w-[100px] sm:max-w-[140px] lg:max-w-[180px]" onClick={!userLocation ? requestLocation : undefined}>
+            <MapPin className="w-3.5 h-3.5 text-slate-800 mr-1 shrink-0" />
+            <span className="text-[11px] sm:text-[13px] font-medium tracking-tight truncate">
+              {locationLoading ? "Fetching..." : userLocation ? (
+                <>{userLocation.address || `${userLocation.latitude.toFixed(2)}, ${userLocation.longitude.toFixed(2)}`}</>
+              ) : (
+                "Set location"
+              )}
+            </span>
+            {userLocation && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  requestLocation();
+                }}
+                className="ml-1.5 hover:text-orange-600 transition-colors shrink-0"
+                title="Reload location"
+              >
+                <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${locationLoading ? "animate-spin" : ""}`} />
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* CENTER NAV LINKS (DESKTOP ONLY) */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
@@ -218,7 +308,7 @@ group-hover:after:w-full transition-colors">Shop</Link>
         </nav>
 
         {/* RIGHT SIDE: PROFILE, APP CTA, & MOBILE MENU BUTTON */}
-        <div className="flex items-center gap-3 md:gap-4">
+        <div className="flex items-center gap-3 md:gap-4 lg:gap-6 ml-auto md:ml-0 shrink-0">
           
           {!loading && user ? (
             <>

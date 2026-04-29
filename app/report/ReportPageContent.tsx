@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
   collection,
   doc,
@@ -392,7 +393,7 @@ export default function ReportPageContent() {
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 lg:max-h-[78vh]">
           
           {/* Map — Left Column */}
-          <section className="lg:col-span-7 h-[35vh] lg:h-full relative rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm">
+          <section className="lg:col-span-7 h-[20vh] lg:h-full relative rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm">
             <LiveMap 
               alerts={roleFilteredAlerts} 
               activeCase={activeCase} 
@@ -410,7 +411,7 @@ export default function ReportPageContent() {
           </section>
 
           {/* Alert List — Right Column */}
-          <section className="lg:col-span-5 flex flex-col min-h-0 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+          <section className="lg:col-span-5 flex flex-col min-h-0 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden max-h-[calc(100vh-180px)] lg:max-h-none">
             <div className="p-5 border-b border-slate-100 flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-black text-slate-900 uppercase tracking-[0.15em]">Nearby Alerts</h2>
@@ -523,6 +524,13 @@ export default function ReportPageContent() {
                                     >
                                       {actionBusy ? "Processing..." : "Accept Alert"}
                                     </button>
+                                  ) : alert.status === "active" && !isResponder ? (
+                                    <Link 
+                                      href="/download"
+                                      className="w-full block text-center py-3 mt-2 rounded-xl bg-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-container transition-all active:scale-[0.97]"
+                                    >
+                                      Accept Case
+                                    </Link>
                                   ) : alert.status === "responding" && isResponder && alert.acceptedBy === currentUser?.uid ? (
                                     <button 
                                       onClick={(e) => startResolveFlow(e)}
