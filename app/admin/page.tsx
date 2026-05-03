@@ -14,7 +14,7 @@ import LiveSOSFeed from "../components/LiveSOSFeed";
 import PendingApprovals from "../components/PendingApprovals";
 import VolunteerApprovals from "../components/VolunteerApprovals";
 import VetApprovals from "../components/VetApprovals"; 
-
+import DonationManagement from "../components/DonationManagement";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -136,6 +136,14 @@ export default function AdminDashboard() {
           <div onClick={() => setActiveTab("shop")}>
             <NavItem icon="🛒" label="Shop Orders" active={activeTab === "shop"} isOpen={isSidebarOpen} />
           </div>
+          <div onClick={() => setActiveTab("donations")}>
+  <NavItem
+    icon="💰"
+    label="Donations"
+    active={activeTab === "donations"}
+    isOpen={isSidebarOpen}
+  />
+</div>
           
           
           
@@ -228,6 +236,7 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === "shop" && (
+            
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in duration-300">
               <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <h2 className="text-lg font-bold text-slate-800">Shop Orders Management</h2>
@@ -241,6 +250,11 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+          {activeTab === "donations" && (
+  <div className="animate-in fade-in duration-300">
+    <DonationManagement />
+  </div>
+)}
 
           
 

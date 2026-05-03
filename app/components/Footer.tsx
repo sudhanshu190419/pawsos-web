@@ -301,7 +301,7 @@ width: "100%",
                     clipRule="evenodd"
                   />
                 </svg>
-                Operating across India
+                GL BAJAJ INSTITUTE OF MANAGEMENT AND RESEARCH, APJ Abdul Kalam Rd, Knowledge Park III, Greater Noida, Uttar Pradesh 201306
               </span>
             </div>
 

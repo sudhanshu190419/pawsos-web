@@ -162,7 +162,7 @@ export default function HomePage() {
                 subtitle="Find clinics"
                 stat="Within 10km"
                 icon={<HeartPulse className="w-5 h-5" />}
-                link="/vets"
+                link="/vets_detail"
                 tag="Fast"
                 accent="blue"
                 image="/vet-hospital.png"

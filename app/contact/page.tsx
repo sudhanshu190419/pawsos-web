@@ -91,8 +91,8 @@ export default function ContactPage() {
               <h3 className="font-bold text-slate-800 text-base sm:text-lg mb-1 sm:mb-2">Headquarters</h3>
               <p className="text-slate-500 text-xs sm:text-sm mb-3 sm:mb-4">Come say hello at our office.</p>
               <p className="font-bold text-slate-700 text-sm leading-relaxed">
-                Greater Noida<br/>
-                Uttar Pradesh, India
+                GL BAJAJ INSTITUTE OF MANAGEMENT AND RESEARCH<br/>
+                APJ Abdul Kalam Rd, Knowledge Park III, Greater Noida, Uttar Pradesh 201306
               </p>
             </div>
 
