@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { db } from "../lib/firebase";
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp  } from "firebase/firestore";
-import axios from "axios";
 
-const BASE_URL = "https://pawsos-certificates-production.up.railway.app";
+
+
 interface VolunteerUser {
   id: string;
   name?: string;
@@ -65,36 +65,15 @@ const displayList =
   // ✅ APPROVE
   const handleApprove = async (user: VolunteerUser) => {
   setIsProcessing(true);
+
   try {
-    const generatedId = `ID-${user.id.slice(0,6)}`;
-    const generatedCertId = `CERT-${user.id.slice(0,6)}`;
-
-    const [idResponse, certResponse] = await Promise.all([
-      axios.post(`${BASE_URL}/api/idcard/generate`, {
-        name: user.name || "Volunteer",
-        id: generatedId,
-        status: "Approved",
-        city: user.address || "Unknown"
-      }),
-      axios.post(`${BASE_URL}/api/certificates/generate`, {
-        name: user.name || "Volunteer",
-        certificateId: generatedCertId
-      })
-    ]);
-
     await updateDoc(doc(db, "users", user.id), {
       volunteerStatus: "approved",
-      volunteerApproved: true,
-      role: "volunteer",
-      idCardPath: `${BASE_URL}${idResponse.data.filePath}`,
-      certificatePath: `${BASE_URL}${certResponse.data.filePath}`,
-      volunteerSince: serverTimestamp(),
     });
 
     setSelectedUser(null);
-
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
   } finally {
     setIsProcessing(false);
   }

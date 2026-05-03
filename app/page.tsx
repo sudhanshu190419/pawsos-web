@@ -86,22 +86,57 @@ export default function HomePage() {
                 className="block md:hidden w-full h-auto object-contain scale-100 origin-center"
               />
               {/* Hero CTA Buttons — overlaid on image, bottom-center */}
-              <div className="absolute bottom-8 sm:bottom-6 md:bottom-8 left-0 right-0 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-6 z-10">
-                <Link
-                  href="/download"
-                  className="inline-flex items-center justify-center gap-2.5 bg-primary text-on-primary px-5 sm:px-8 py-2.5 sm:py-3 rounded-2xl font-bold text-xs sm:text-base hover:bg-primary-container active:scale-[0.97] transition-all duration-300 shadow-[0_20px_50px_rgba(156,62,35,0.3)] hover:shadow-[0_25px_60px_rgba(156,62,35,0.4)] hover:-translate-y-1 w-full sm:w-auto md:backdrop-blur-md"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  Report a SOS
-                </Link>
-                <Link
-                  href="/volunteer-form"
-                  className="inline-flex items-center justify-center gap-2.5 bg-white/95 text-slate-800 border border-white/50 px-5 sm:px-8 py-2.5 sm:py-3 rounded-2xl font-bold text-xs sm:text-base hover:bg-white active:scale-[0.97] transition-all duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] hover:-translate-y-1 w-full sm:w-auto md:backdrop-blur-md"
-                >
-                  <Users className="w-4 h-4" />
-                  Become a Volunteer
-                </Link>
-              </div>
+              {/* Hero CTA Buttons — overlaid on image, bottom-center */}
+{/* Hero CTA Buttons — overlaid on image, bottom-center */}
+<div className="absolute bottom-2 sm:bottom-8 left-0 right-0 flex flex-col sm:flex-row items-center justify-center md:justify-start gap-3.5 sm:gap-4 px-6 md:pl-16 lg:pl-32 z-10">
+  
+  {/* Primary Button: Report SOS */}
+  <Link
+  href="/report"
+  className="w-full sm:w-auto py-3.5 px-6 bg-orange-500 text-white font-bold text-sm rounded-xl hover:bg-orange-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
+>
+  <AlertCircle className="w-5 h-5" />
+  Report a SOS
+
+  <svg
+    className="w-4 h-4"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2.5}
+      d="M14 5l7 7m0 0l-7 7m7-7H3"
+    />
+  </svg>
+</Link>
+
+  {/* Secondary Button: Become Volunteer */}
+  <Link
+  href="/volunteer-form"
+  className="w-full sm:w-auto py-3.5 px-6 border-2 border-slate-100 bg-white/95 backdrop-blur-md text-slate-700 font-bold text-sm rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200/50 hover:-translate-y-0.5"
+>
+  <Users className="w-5 h-5 text-slate-400" />
+  Become a Volunteer
+
+  <svg
+    className="w-4 h-4 text-slate-400"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2.5}
+      d="M14 5l7 7m0 0l-7 7m7-7H3"
+    />
+  </svg>
+</Link>
+
+</div>
             </div>
           </section>
         </ParallaxHero>
@@ -217,27 +252,7 @@ export default function HomePage() {
         </section>
       </Reveal>
 
-      {/* ── About ────────────────────────────────────────────── */}
-      <Reveal>
-        <section className="px-4 sm:px-6 py-12 sm:py-16 md:py-24">
-          <div className="max-w-4xl mx-auto text-center">
-            <p className="text-orange-500 font-bold tracking-widest uppercase text-xs sm:text-sm mb-4">
-              About #AnimalSathi
-            </p>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 leading-tight mb-6 tracking-tight">
-              A Better Way to Help{" "}
-              <br className="hidden sm:block" />
-              <span className="text-orange-500">Animals in Need</span>
-            </h2>
-            <p className="text-base sm:text-lg md:text-xl text-slate-500 leading-relaxed max-w-3xl mx-auto">
-              AnimalSathi is a real-time animal rescue platform that connects citizens,
-              volunteers, and verified NGOs. From reporting emergencies to finding
-              nearby veterinary care, we ensure every animal receives timely help,
-              proper treatment, and a second chance at life.
-            </p>
-          </div>
-        </section>
-      </Reveal>
+     
 
       {/* ── How It Works ─────────────────────────────────────── */}
       <Reveal>
@@ -268,14 +283,70 @@ export default function HomePage() {
               <div className="hidden md:block absolute top-8 left-[16%] right-[16%] h-px
                               bg-gradient-to-r from-transparent via-orange-300 to-transparent z-0" />
 
-              <div className="grid md:grid-cols-3 gap-14 md:gap-8 lg:gap-12 relative z-10 pt-4 md:pt-0">
-                <StepCard step={1} image="/my-rescue-dog.jpg"    title="Report SOS"        icon={<Camera className="w-6 h-6" />}
-                  text="Spot an injured animal? Report it instantly with GPS location and live photos." />
-                <StepCard step={2} image="/alert-broadcast.jpg"  title="Alert Broadcast"   icon={<Bell className="w-6 h-6" />}
-                  text="Nearby verified volunteers and NGOs receive instant push notifications with your report." />
-                <StepCard step={3} image="/rescue.jpg"           title="Rescue & Care"     icon={<Heart className="w-6 h-6" />}
-                  text="Help arrives. The animal is secured, taken to a vet if needed, and tracked on the app." />
+              <div className="relative">
+              {/* Note: The desktop connector line is removed as per the new design */}
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 relative z-10 pt-4 md:pt-0">
+                
+                {/* Step 1 */}
+                <StepCard 
+                  step={1} 
+                  image="https://lh3.googleusercontent.com/aida-public/AB6AXuBR6br3rDbWeciQfQaci80ZJHQYClLkL_CBr2lGtILcM7vQImpyEuN-lSnOupIHk1nvo33zzs48qo1BY8ujxsl0IHieWHv-DDv_J3QO2B1AoEyV5LS6mjhrAiiNgmvs3YQ2QZ0q1yoc5DjZHoWuBDaTaOXnzoR8XIG0rVtazkUg3Fru4JGQiqO1ySlNUdH9n2Lt57y0QYPBG_a6dSZfTOpPRDTvLB15DicuNcuKE2R6bg88KqD5Z5yFhv5jgQ8rBgp5DavAMK__HYA7"
+                  preHeaderIcon={<Camera className="w-4 h-4" />}
+                  preHeaderTitle="Action Required"
+                  preHeaderColor="text-orange-500"
+                  title="Report SOS" 
+                  text="Spot an injured animal? Report it instantly with GPS location and live photos to initiate an immediate rescue mission."
+                  footer={
+                    <button className="w-full py-3.5 px-6 bg-orange-500 text-white font-bold text-sm rounded-xl hover:bg-orange-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                      Launch SOS Reporter
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                    </button>
+                  }
+                />
+
+                {/* Step 2 */}
+                {/* Step 2 */}
+                <StepCard 
+                  step={2} 
+                  image="https://lh3.googleusercontent.com/aida-public/AB6AXuBOkw-zqHR0oK3c-w3_u5xSOZ9ml7Uv4MUj-pyIW5wgSAAAu4mk1_WHoASCHWPT4H2CFyMvLbMLnZt_YcjjZhoR1zdjtAHWqnW2GMNMFP-weLSziIWnjba7LCzXxsQjkbPp991k3Pe0yiIj5HfQvROzJ3QvIJ0pQMrzCzCUZNaQQ-crICgHjoe7-I8t6xxtYdePyumta6DStT8u6YKg_EZWwMHLr7AZ3MV6FomcHZl90BgLToI6wal_lXt62K5U6UPZd8bVLbs6oMbZ"
+                  preHeaderIcon={<Bell className="w-4 h-4" />}
+                  preHeaderTitle="Coordination"
+                  preHeaderColor="text-blue-500"
+                  title="Alert Broadcast" 
+                  text="Nearby verified volunteers and NGOs receive instant push notifications with your report details and precise location coordinates."
+                  footer={
+                    <Link 
+                      href="/report" 
+                      className="w-full py-3.5 px-6 border-2 border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                    >
+                      View Live Map
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                    </Link>
+                  }
+                />
+
+                {/* Step 3 */}
+                <StepCard 
+                  step={3} 
+                  image="https://lh3.googleusercontent.com/aida-public/AB6AXuCDQMjpfhRtKO5HqCKhoP4Qc2bTvU1LO1o3cR-gA_iqMWVn-y6AP7h2x_wJ1ZeyvaZ1Zhi5y2D9450lLXLMA5q-u0datsprK5gptsPR6l6V8WJBw2gYisRpFc920MB-Lct9H_rexXpG_-yEC0DxBP6rPmiyACK8DDxa5gvrV_Wbx0pvOZQWMp3OYEbZ2BnDd3JgeyhgEMv7CCpHn4rej_0bcyI2Q7cyz66pDVJNcY1YlIpgd6uYEk3a-dlV_Ap-Lca3cMOX7cjNAUA6"
+                  preHeaderIcon={<HeartPulse className="w-4 h-4" />}
+                  preHeaderTitle="Recovery"
+                  preHeaderColor="text-green-500"
+                  title="Rescue & Care" 
+                  text="Help arrives. The animal is secured, taken to a vet if needed, and tracked on the app so you can follow its journey to recovery."
+                  footer={
+                    <div className="flex items-center justify-between py-3 border-t border-slate-100 mt-2">
+                      <span className="font-bold text-sm text-slate-500 uppercase tracking-wide">Success Rate</span>
+                      <div className="flex items-center gap-1.5 text-green-600">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                        <span className="font-black text-xl">94%</span>
+                      </div>
+                    </div>
+                  }
+                />
               </div>
+            </div>
             </div>
           </div>
         </section>
@@ -283,23 +354,20 @@ export default function HomePage() {
 
       {/* ── Bottom CTA ───────────────────────────────────────── */}
       <Reveal>
-        <section className="px-4 sm:px-6 pb-16 sm:pb-24 pt-10 sm:pt-12">
-          <div className="relative max-w-5xl mx-auto rounded-[2rem] sm:rounded-[3rem]
-                          overflow-hidden bg-slate-900 border border-slate-800
-                          shadow-2xl shadow-slate-900/30 p-8 sm:p-12 md:p-20 text-center">
+        <section className="relative overflow-hidden bg-white py-20 sm:py-24 md:py-32 border-t border-slate-100">
+          
+          {/* Ambient Corner Blurs (matching the new design) */}
+          <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-orange-200 rounded-full blur-[100px] -mr-48 -mt-48" />
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-100 rounded-full blur-[100px] -ml-48 -mb-48" />
+          </div>
 
-            {/* Ambient glow */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
-              <div className="w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[100px]" />
-            </div>
-
-            <div className="relative z-10 flex flex-col items-center">
-
-              {/* Social proof */}
-              <div className="inline-flex items-center gap-3
-                              bg-slate-800/60 backdrop-blur-md border border-slate-700/60
-                              rounded-2xl px-4 py-2 mb-8 shadow-sm">
-                <div className="flex -space-x-2.5">
+          <div className="max-w-7xl mx-auto px-6 relative z-10">
+            <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
+              
+              {/* Community Badge */}
+              <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-100 px-4 py-2 rounded-full mb-8 shadow-sm">
+                <div className="flex -space-x-2">
                   {[
                     "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
                     "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80",
@@ -309,57 +377,48 @@ export default function HomePage() {
                       key={i}
                       src={src}
                       alt="Volunteer"
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-slate-800 object-cover"
+                      className="w-7 h-7 rounded-full border-2 border-white object-cover"
                     />
                   ))}
                 </div>
-                <span className="text-slate-300 text-xs sm:text-sm font-medium">
+                <span className="text-orange-600 font-bold text-xs sm:text-sm uppercase tracking-wider ml-1">
                   Join 10,000+ Animal Lovers
                 </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white
-                             mb-5 tracking-tight leading-tight">
-                Ready to make an {" "}
-                <span className="text-orange-500">impact?</span>
+              {/* Heading */}
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-slate-900 mb-6 tracking-tight leading-tight">
+                Ready to make an <span className="text-orange-500">impact?</span>
               </h2>
 
-              <p className="text-base sm:text-lg text-slate-400 mb-10 max-w-xl mx-auto leading-relaxed">
-                Compassion becomes powerful when communities work together. Help
-                us build India's strongest animal rescue network today.
+              {/* Description */}
+              <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl leading-relaxed">
+                Compassion becomes powerful when communities work together. Help us build India's strongest animal rescue network today.
               </p>
 
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 w-full">
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
                 <a
                   href="https://play.google.com/store"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto flex items-center justify-center gap-2.5
-                             bg-orange-500 text-white px-8 py-3.5 rounded-xl font-bold text-base
-                             hover:bg-orange-400 active:scale-[0.97]
-                             transition-all duration-200 shadow-lg shadow-orange-500/25
-                             hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 group"
+                  className="bg-orange-500 text-white px-8 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 hover:bg-orange-600 hover:shadow-xl hover:shadow-orange-500/20 active:scale-[0.98] transition-all duration-200"
                 >
-                  <svg className="w-5 h-5 group-hover:scale-110 transition-transform duration-200"
-                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                   Download the App
                 </a>
-
+                
                 <Link
                   href="/volunteer-form"
-                  className="w-full sm:w-auto flex items-center justify-center gap-2.5
-                             bg-slate-800 border border-slate-700 text-white
-                             px-8 py-3.5 rounded-xl font-semibold text-base
-                             hover:bg-slate-700 hover:border-slate-600 active:scale-[0.97]
-                             transition-all duration-200 shadow-lg hover:-translate-y-0.5 group"
+                  className="border-2 border-slate-800 text-slate-800 px-8 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 hover:bg-slate-800 hover:text-white active:scale-[0.98] transition-all duration-200"
                 >
-                  <Users className="w-5 h-5 text-slate-400 group-hover:text-orange-400 transition-colors duration-200" />
+                  <Users className="w-5 h-5" />
                   Become a Volunteer
                 </Link>
               </div>
+
             </div>
           </div>
         </section>
@@ -406,18 +465,20 @@ function CategoryCard({
           style={{ boxShadow: `inset -2px -2px 0 0 ${a.border}` }}
         />
 
-        <div className="absolute bottom-0 right-0 w-[55%] h-[75%] z-0 pointer-events-none overflow-hidden flex items-end justify-end">
-          <img
-            src={image}
-            alt=""
-            className="w-full h-full object-contain object-right-bottom
-                       transition-transform duration-500 group-hover:scale-110 group-hover:rotate-1 will-change-transform"
-            style={{
-              maskImage: "linear-gradient(to top left, black 70%, transparent 100%)",
-              WebkitMaskImage: "linear-gradient(to top left, black 70%, transparent 100%)",
-            }}
-          />
-        </div>
+        {/* Image Container */}
+<div className="absolute bottom-0 right-0 w-[60%] h-[80%] z-0 pointer-events-none rounded-br-2xl sm:rounded-br-[1.75rem] overflow-hidden">
+  <div className="absolute inset-0 flex items-end justify-end transition-transform duration-500 group-hover:scale-110 group-hover:rotate-1 will-change-transform origin-bottom-right">
+    <img
+      src={image}
+      alt=""
+      className="w-full h-full object-contain object-right-bottom"
+      style={{
+        maskImage: "linear-gradient(to top left, black 65%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to top left, black 65%, transparent 100%)",
+      }}
+    />
+  </div>
+</div>
 
         <div className="relative z-10 p-4 sm:p-5 md:p-6 flex flex-col h-full min-h-[180px] sm:min-h-[200px] md:min-h-[220px]">
           {/* Top row */}
@@ -479,53 +540,51 @@ function CategoryCard({
 }
 
 // ─── StepCard ────────────────────────────────────────────────────────────────
+// ─── StepCard ────────────────────────────────────────────────────────────────
 function StepCard({
-  step, image, title, text, icon,
+  step, image, title, text, preHeaderIcon, preHeaderTitle, preHeaderColor, footer
 }: {
-  step: number; image: string; title: string; text: string; icon: React.ReactNode;
+  step: number; image: string; title: string; text: string;
+  preHeaderIcon: React.ReactNode; preHeaderTitle: string; preHeaderColor: string;
+  footer: React.ReactNode;
 }) {
   return (
-    <div className="relative group mt-10 md:mt-0">
-
-      {/* Floating step number */}
-      <div className="absolute -top-7 sm:-top-8 md:-top-10 left-1/2 -translate-x-1/2 z-20
-                      w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18
-                      bg-white border-[5px] border-orange-50
-                      rounded-2xl flex items-center justify-center
-                      font-extrabold text-xl sm:text-2xl text-orange-500
-                      shadow-xl group-hover:border-orange-100
-                      group-hover:scale-110 group-hover:-rotate-3
-                      transition-all duration-300">
-        {step}
-      </div>
-
-      {/* Card */}
-      <div className="bg-white rounded-[1.75rem] border border-slate-100
-                      shadow-md hover:shadow-2xl hover:shadow-slate-200/60
-                      hover:-translate-y-2 active:scale-[0.98]
-                      transition-all duration-400 ease-out
-                      overflow-hidden pt-12 sm:pt-14 pb-7 px-5 sm:px-7 text-center
-                      flex flex-col h-full will-change-transform">
-
-        {/* Image */}
-        <div className="overflow-hidden rounded-2xl mb-6 relative shadow-sm bg-slate-50">
-          <img
-            src={image}
-            alt={title}
-            className="w-full h-40 sm:h-48 lg:h-52 object-cover
-                       group-hover:scale-110 transition-transform duration-700 ease-out will-change-transform"
-          />
-          {/* Icon badge */}
-          <div className="absolute bottom-2.5 right-2.5
-                          bg-white/95 backdrop-blur-sm w-10 h-10 sm:w-11 sm:h-11 rounded-xl
-                          flex items-center justify-center text-xl shadow-md border border-white/60
-                          group-hover:-translate-y-1 group-hover:shadow-lg transition-all duration-300">
-            {icon}
+    <div className="bg-white rounded-2xl overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border border-slate-100 flex flex-col h-full hover:shadow-[0px_12px_32px_rgba(0,0,0,0.08)] transition-all duration-300 group">
+      
+      {/* Image Container */}
+      <div className="relative h-64 bg-slate-100 overflow-hidden">
+        <img 
+          src={image} 
+          alt={title} 
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" 
+        />
+        
+        {/* Floating Step Number */}
+        <div className="absolute top-4 left-4">
+          <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-black text-xl shadow-[0_0_15px_rgba(249,115,22,0.4)]">
+            {step}
           </div>
         </div>
+      </div>
 
-        <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3 tracking-tight">{title}</h3>
-        <p className="text-sm sm:text-base text-slate-500 leading-relaxed flex-grow">{text}</p>
+      {/* Content Container */}
+      <div className="p-6 sm:p-8 flex flex-col flex-grow">
+        {/* Pre-header label */}
+        <div className={`flex items-center gap-2 mb-3 ${preHeaderColor}`}>
+          {preHeaderIcon}
+          <span className="font-bold text-xs uppercase tracking-wider">{preHeaderTitle}</span>
+        </div>
+        
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3">{title}</h3>
+        
+        <p className="text-sm sm:text-base text-slate-500 mb-8 flex-grow leading-relaxed">
+          {text}
+        </p>
+        
+        {/* Dynamic Footer / Button Area */}
+        <div className="mt-auto">
+          {footer}
+        </div>
       </div>
     </div>
   );

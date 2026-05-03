@@ -111,107 +111,127 @@ export default function ContactPage() {
 
           </div>
 
-          {/* RIGHT COLUMN: CONTACT FORM */}
           <div className="md:col-span-2">
-            <div className="bg-white p-6 sm:p-8 md:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden">
-              
-              {/* Decorative corner shape */}
-              <div className="absolute -top-16 -right-16 sm:-top-24 sm:-right-24 w-32 h-32 sm:w-48 sm:h-48 bg-orange-50 rounded-full blur-2xl sm:blur-3xl"></div>
+  <div className="bg-white p-8 md:p-10 rounded-[24px] shadow-[0_4px_20px_rgba(15,23,42,0.06)] border border-slate-50">
 
-              {submitted ? (
-                <div className="h-full flex flex-col items-center justify-center text-center py-16 sm:py-20 animate-in fade-in zoom-in duration-500">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-50 text-green-500 border-2 border-green-100 rounded-full flex items-center justify-center text-3xl sm:text-4xl mb-4 sm:mb-6 shadow-sm">
-                    ✓
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-slate-800 mb-3 sm:mb-4">Message Sent!</h2>
-                  <p className="text-sm sm:text-base text-slate-500 max-w-md mx-auto mb-6 sm:mb-8">
-                    Thank you for reaching out. A member of the AnimalSathi team will get back to you within 24-48 hours.
-                  </p>
-                  <button 
-                    onClick={() => setSubmitted(false)}
-                    className="w-full sm:w-auto bg-slate-100 text-slate-600 px-6 sm:px-8 py-3.5 sm:py-3 rounded-full font-bold text-sm sm:text-base hover:bg-slate-200 transition-colors"
-                  >
-                    Send another message
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="relative z-10 space-y-5 sm:space-y-6">
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
-                    <div>
-                      <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">Your Name</label>
-                      <input 
-                        type="text" 
-                        name="name"
-                        required
-                        value={formData.name}
-                        onChange={handleChange}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all font-medium text-sm sm:text-base text-slate-800"
-                        placeholder="Jane Doe"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">Email Address</label>
-                      <input 
-                        type="email" 
-                        name="email"
-                        required
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all font-medium text-sm sm:text-base text-slate-800"
-                        placeholder="jane@example.com"
-                      />
-                    </div>
-                  </div>
+    <h3 className="text-3xl font-bold text-slate-900 mb-2">
+      Send us a Message
+    </h3>
 
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">What is this regarding?</label>
-                    <select 
-                      name="topic"
-                      value={formData.topic}
-                      onChange={handleChange}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all font-bold text-sm sm:text-base text-slate-700 cursor-pointer appearance-none"
-                    >
-                      <option>General Inquiry</option>
-                      <option>App Support / Technical Issue</option>
-                      <option>NGO / Vet Partnership</option>
-                      <option>Investor / Media Relations</option>
-                      <option>Donation Question</option>
-                    </select>
-                  </div>
+    <p className="text-slate-500 mb-8">
+      We typically respond within 24 hours.
+    </p>
 
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 sm:mb-2 ml-1">Message</label>
-                    <textarea 
-                      name="message"
-                      required
-                      rows={5}
-                      value={formData.message}
-                      onChange={handleChange}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all font-medium text-sm sm:text-base text-slate-800 resize-none"
-                      placeholder="How can we help you today?"
-                    ></textarea>
-                  </div>
+    {submitted ? (
+      <div className="text-center py-20">
+        <div className="w-20 h-20 bg-green-50 text-green-500 border-2 border-green-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
+          ✓
+        </div>
 
-                  <button 
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-slate-900 text-white py-3.5 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg hover:bg-orange-600 shadow-lg hover:shadow-orange-200 transition-all duration-300 disabled:opacity-50 disabled:hover:bg-slate-900 flex justify-center items-center gap-2"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Sending...
-                      </>
-                    ) : (
-                      "Send Message"
-                    )}
-                  </button>
+        <h2 className="text-3xl font-bold text-slate-800 mb-4">
+          Message Sent!
+        </h2>
 
-                </form>
-              )}
-            </div>
+        <p className="text-slate-500 max-w-md mx-auto mb-8">
+          Thank you for contacting AnimalSathi. We’ll get back to you shortly.
+        </p>
+
+        <button
+          onClick={() => setSubmitted(false)}
+          className="bg-slate-100 text-slate-700 px-8 py-3 rounded-full font-bold hover:bg-slate-200 transition-all"
+        >
+          Send another message
+        </button>
+      </div>
+    ) : (
+      <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* Name + Email */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <div className="space-y-2">
+            <label className="font-semibold text-slate-600 ml-1 text-sm">
+              Full Name
+            </label>
+
+            <input
+              type="text"
+              name="name"
+              required
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="John Doe"
+              className="w-full bg-white border-2 border-slate-100 rounded-[16px] px-6 py-4 outline-none focus:border-orange-500 transition-colors placeholder:text-slate-300"
+            />
           </div>
+
+          <div className="space-y-2">
+            <label className="font-semibold text-slate-600 ml-1 text-sm">
+              Email Address
+            </label>
+
+            <input
+              type="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="john@example.com"
+              className="w-full bg-white border-2 border-slate-100 rounded-[16px] px-6 py-4 outline-none focus:border-orange-500 transition-colors placeholder:text-slate-300"
+            />
+          </div>
+        </div>
+
+        {/* Topic */}
+        <div className="space-y-2">
+          <label className="font-semibold text-slate-600 ml-1 text-sm">
+            Inquiry Type
+          </label>
+
+          <select
+            name="topic"
+            value={formData.topic}
+            onChange={handleChange}
+            className="w-full bg-white border-2 border-slate-100 rounded-[16px] px-6 py-4 outline-none focus:border-orange-500 transition-colors"
+          >
+            <option>General Inquiry</option>
+            <option>App Support / Technical Issue</option>
+            <option>NGO / Vet Partnership</option>
+            <option>Investor / Media Relations</option>
+            <option>Donation Question</option>
+          </select>
+        </div>
+
+        {/* Message */}
+        <div className="space-y-2">
+          <label className="font-semibold text-slate-600 ml-1 text-sm">
+            Your Message
+          </label>
+
+          <textarea
+            name="message"
+            required
+            rows={5}
+            value={formData.message}
+            onChange={handleChange}
+            placeholder="How can we help you and the animals today?"
+            className="w-full bg-white border-2 border-slate-100 rounded-[16px] px-6 py-4 outline-none focus:border-orange-500 transition-colors placeholder:text-slate-300 resize-none"
+          />
+        </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full bg-orange-500 text-white h-[56px] rounded-full font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 hover:translate-y-[-2px] hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+        >
+          {isSubmitting ? "Sending..." : "Send Message"}
+        </button>
+
+      </form>
+    )}
+  </div>
+</div>
 
         </div>
       </section>

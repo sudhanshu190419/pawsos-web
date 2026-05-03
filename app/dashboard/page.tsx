@@ -8,7 +8,6 @@ import { doc, setDoc } from "firebase/firestore";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useProfile } from "./hooks/useProfile";
-import { User as UserIcon, ClipboardList, Award, Settings, X, Pencil } from "lucide-react";
 
 import { useSosCounts } from "./hooks/useSosCounts";
 import ProfileContent from "./components/ProfileContent";
@@ -177,24 +176,8 @@ function ProfilePageContent() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-24">
-      {/* Cover Banner — warm gradient + dot overlay */}
-      <div className="h-32 sm:h-40 md:h-64 bg-gradient-to-r from-primary to-primary-container w-full relative overflow-hidden">
+      <div className="h-32 sm:h-40 md:h-64 bg-gradient-to-r from-orange-400 to-orange-600 w-full relative">
         <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />
-        {/* Dot pattern overlay */}
-        <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="cover-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1.5" fill="white" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#cover-dots)" />
-        </svg>
-        {/* Wave decoration */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 40" className="w-full fill-slate-50">
-            <path d="M0,20 C360,40 1080,0 1440,20 L1440,40 L0,40 Z" />
-          </svg>
-        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-16 md:-mt-24 relative z-10">
@@ -219,9 +202,9 @@ function ProfilePageContent() {
                   onClick={() => document.getElementById("avatarUpload")?.click()}
                   disabled={isUploading}
                   aria-label="Change profile photo"
-                  className="absolute bottom-0 right-0 bg-primary text-on-primary w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white flex items-center justify-center hover:bg-primary-container transition-colors shadow-sm disabled:bg-slate-400"
+                  className="absolute bottom-0 right-0 bg-orange-500 text-white w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white flex items-center justify-center hover:bg-orange-600 transition-colors shadow-sm disabled:bg-slate-400"
                 >
-                  <Pencil className="w-3.5 h-3.5" />
+                  <span className="text-sm md:text-base">✏️</span>
                 </button>
               </div>
 
@@ -234,13 +217,13 @@ function ProfilePageContent() {
               </div>
 
               {/* Mobile-friendly horizontal scroll nav */}
-              <nav className="flex flex-row md:flex-col gap-2 overflow-x-auto no-scrollbar text-left border-t border-slate-100 pt-4 md:pt-6 pb-2 md:pb-0 px-1">
-                <SidebarButton icon={<UserIcon className="w-4 h-4" />} label="Personal Info" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
-                <SidebarButton icon={<ClipboardList className="w-4 h-4" />} label="My SOS Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
+              <nav className="flex flex-row md:flex-col gap-2 overflow-x-auto hide-scrollbar text-left border-t border-slate-100 pt-4 md:pt-6 pb-2 md:pb-0 px-1">
+                <SidebarButton icon="👤" label="Personal Info" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
+                <SidebarButton icon="📋" label="My SOS Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
                 {isVolunteer && (
                   <>
-                    <SidebarButton icon={<Award className="w-4 h-4" />} label="My Credentials" isActive={activeTab === "credentials"} onClick={() => setActiveTab("credentials")} />
-                    <SidebarButton icon={<Settings className="w-4 h-4" />} label="Account Settings" isActive={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
+                    <SidebarButton icon="🎖️" label="My Credentials" isActive={activeTab === "credentials"} onClick={() => setActiveTab("credentials")} />
+                    <SidebarButton icon="⚙️" label="Account Settings" isActive={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
                   </>
                 )}
               </nav>
@@ -267,9 +250,7 @@ function ProfilePageContent() {
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl sm:text-2xl font-black text-slate-800">Update Profile</h3>
-                <button onClick={() => setIsEditModalOpen(false)} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors" aria-label="Close">
-                  <X className="w-4 h-4" />
-                </button>
+                <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-600 text-3xl leading-none" aria-label="Close">×</button>
               </div>
               <p className="text-slate-500 text-sm mb-6">Fill in your details to stay connected with the rescue team.</p>
 
@@ -337,41 +318,96 @@ export default function ProfilePage() {
   );
 }
 
+// 1. REPLACED: CredentialsContent
 function CredentialsContent({ userData }: { userData: UserData | null }) {
-  const idCardUrl = userData?.idCardPath ?? userData?.idcardPath ?? userData?.id_card_path;
-  const certUrl = userData?.certificatePath ?? userData?.certPath;
+  const idCardPath = userData?.idCardPath ?? userData?.idcardPath ?? userData?.id_card_path;
+  const certPath = userData?.certificatePath ?? userData?.certPath;
 
   return (
     <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-slate-100 min-h-[300px] md:min-h-[500px]">
       <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">My Credentials</h3>
       <p className="text-slate-500 mb-6 md:mb-8 text-sm">View and download your official PawSOS volunteer documents.</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        <CredentialCard emoji="💳" title="Volunteer ID Card" description={idCardUrl ? "Your official identification for field rescues." : "Not issued yet."} url={idCardUrl} theme="slate" />
-        <CredentialCard emoji="🎓" title="Volunteer Certificate" description={certUrl ? "Official recognition of your service." : "Not available yet."} url={certUrl} theme="orange" />
+        <CredentialCard 
+          emoji="💳" 
+          title="Volunteer ID Card" 
+          description={idCardPath ? "Your official identification for field rescues." : "Not issued yet."} 
+          storagePath={idCardPath} 
+          theme="slate" 
+        />
+        <CredentialCard 
+          emoji="🎓" 
+          title="Volunteer Certificate" 
+          description={certPath ? "Official recognition of your service." : "Not available yet."} 
+          storagePath={certPath} 
+          theme="orange" 
+        />
       </div>
     </div>
   );
 }
 
-function SidebarButton({ icon, label, isActive, onClick }: { icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }) {
+// 2. UNTOUCHED: Keep your SidebarButton exactly as is
+function SidebarButton({ icon, label, isActive, onClick }: { icon: string; label: string; isActive: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 md:gap-3 px-4 py-2.5 md:py-3 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 md:whitespace-normal md:w-full cursor-pointer ${
+      className={`flex items-center gap-2 md:gap-3 px-4 py-2.5 md:py-3 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 md:whitespace-normal md:w-full ${
         isActive ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-slate-600 hover:bg-slate-50 border border-transparent hover:text-slate-900"
       }`}
     >
-      <span className="shrink-0">{icon}</span>
+      <span className="text-lg">{icon}</span>
       {label}
     </button>
   );
 }
 
-function CredentialCard({ emoji, title, description, url, theme }: { emoji: string; title: string; description: string; url?: string; theme: "slate" | "orange" }) {
-  const active = !!url;
+// 3. REPLACED: CredentialCard
+function CredentialCard({ 
+  emoji, 
+  title, 
+  description, 
+  storagePath, 
+  theme 
+}: { 
+  emoji: string; 
+  title: string; 
+  description: string; 
+  storagePath?: string; 
+  theme: "slate" | "orange" 
+}) {
+  const [isFetching, setIsFetching] = useState(false);
+  
+  const active = !!storagePath;
   const iconBg = active ? theme === "slate" ? "bg-slate-100 text-slate-800" : "bg-orange-100 text-orange-600" : "bg-slate-200 text-slate-400";
   const borderBg = active ? theme === "slate" ? "border-slate-300 bg-white shadow-md hover:-translate-y-1" : "border-orange-200 bg-orange-50/30 shadow-md hover:-translate-y-1" : "border-slate-200 bg-slate-50 opacity-70";
   const btnClass = active ? theme === "slate" ? "bg-slate-800 text-white hover:bg-slate-900" : "bg-orange-500 text-white hover:bg-orange-600" : "bg-slate-200 text-slate-400 cursor-not-allowed";
+
+  const handleOpenDocument = async () => {
+    if (!storagePath) return;
+    setIsFetching(true);
+    
+    try {
+      // 1. Safety Check: If it's ALREADY a full web URL (from your old backend), just open it directly.
+      if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) {
+        window.open(storagePath, "_blank", "noopener,noreferrer");
+        setIsFetching(false);
+        return;
+      }
+
+      // 2. Otherwise, treat it as a Firebase Storage path and fetch the secure URL
+      const storage = getStorage();
+      const fileRef = ref(storage, storagePath);
+      const url = await getDownloadURL(fileRef);
+      window.open(url, "_blank", "noopener,noreferrer");
+      
+    } catch (error) {
+      console.error("Error fetching document:", error);
+      alert("Could not load the document. It might still be generating or the file doesn't exist in Storage.");
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
   return (
     <div className={`relative p-5 md:p-6 rounded-3xl border transition-all duration-300 flex flex-col ${borderBg}`}>
@@ -380,15 +416,21 @@ function CredentialCard({ emoji, title, description, url, theme }: { emoji: stri
       </div>
       <h3 className="font-bold text-slate-800 text-base md:text-lg mb-1">{title}</h3>
       <p className="text-xs text-slate-500 mb-6 flex-1">{description}</p>
+      
       {active ? (
-        <a href={url} target="_blank" rel="noopener noreferrer" className={`block w-full py-3 text-center rounded-xl font-bold text-sm transition-colors shadow-sm ${btnClass}`}>View Document →</a>
+        <button 
+          onClick={handleOpenDocument}
+          disabled={isFetching}
+          className={`block w-full py-3 text-center rounded-xl font-bold text-sm transition-colors shadow-sm ${btnClass} ${isFetching ? 'opacity-75 cursor-wait' : ''}`}
+        >
+          {isFetching ? "Opening..." : "View Document →"}
+        </button>
       ) : (
         <button disabled className={`w-full py-3 rounded-xl font-bold text-sm ${btnClass}`}>Unavailable</button>
       )}
     </div>
   );
 }
-
 function FullScreenSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
