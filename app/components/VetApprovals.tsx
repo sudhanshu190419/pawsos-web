@@ -81,7 +81,6 @@ export default function VetApprovals() {
       // 2. Update the main user document so the Mobile App unlocks Vet features!
       await updateDoc(doc(db, "users", selectedVet.uid), { 
         vetApproved: true,
-        role: 'vet', 
         vetApprovedSince: new Date()
       });
 
@@ -110,7 +109,7 @@ export default function VetApprovals() {
       // 2. Lock them back to a normal user
       await updateDoc(doc(db, "users", selectedVet.uid), { 
         vetApproved: false,
-        role: 'user' 
+        
       });
 
       setSelectedVet(null); 

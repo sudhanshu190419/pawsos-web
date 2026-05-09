@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams  } from "next/navigation";
 
 import {
   signInWithEmailAndPassword,
@@ -31,6 +31,8 @@ export default function AuthPage() {
   };
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+const redirectTo = searchParams.get("redirect") || "/";
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -89,7 +91,7 @@ export default function AuthPage() {
           lastLoginAt: serverTimestamp()
         }, { merge: true });
 
-        router.push("/"); // 🔥 FIX: Next.js routing prevents hard browser reloads
+        router.push(redirectTo); // 🔥 FIX: Next.js routing prevents hard browser reloads
       }
     } catch (err: any) {
       showToast(err.message);
@@ -130,7 +132,7 @@ export default function AuthPage() {
         }, { merge: true });
       }
 
-      router.push("/"); // 🔥 FIX: Use Next.js router instead of window.location
+      router.push(redirectTo); // 🔥 FIX: Use Next.js router instead of window.location
     } catch (err: any) {
       console.error(err);
       showToast("Google Sign-In Failed: " + err.message);
@@ -147,27 +149,7 @@ export default function AuthPage() {
     );
   }
 
-  if (isVolunteer) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4 sm:px-6">
-        <div className="bg-white rounded-[2rem] shadow-xl p-8 sm:p-10 w-full max-w-md text-center border border-slate-100">
-          <div className="text-5xl mb-4">🎉</div>
-          <h1 className="text-2xl font-black mb-3 text-slate-800 tracking-tight">
-            You're a Volunteer!
-          </h1>
-          <p className="text-slate-500 mb-8 font-medium">
-            You are already logged in. Manage your rescue operations from your dashboard.
-          </p>
-          <button
-            onClick={() => router.push("/profile")}
-            className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg hover:-translate-y-1"
-          >
-            Go to Dashboard →
-          </button>
-        </div>
-      </main>
-    );
-  }
+ 
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4 sm:px-6 py-12 relative overflow-hidden selection:bg-orange-200">

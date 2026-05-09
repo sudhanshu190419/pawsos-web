@@ -235,7 +235,7 @@ transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
 pointer-events-none group-hover:pointer-events-auto">
               <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
 backdrop-blur-sm w-56 py-3 flex flex-col">
-                <Link href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
+                <Link href="/volunteer-form" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
 hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
                 <Link href="/onboarding" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
 hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>

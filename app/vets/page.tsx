@@ -144,7 +144,15 @@ export default function VetsPage() {
   const [showForm, setShowForm] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+  setMounted(true);
+
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get("openForm") === "true") {
+    setShowForm(true);
+  }
+}, []);
 
   const openForm = useCallback(() => setShowForm(true), []);
   const closeForm = useCallback(() => setShowForm(false), []);
@@ -677,7 +685,9 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
       <p className="text-slate-500 max-w-sm mx-auto mb-8 text-sm leading-relaxed">
         You need to be signed in to submit your veterinarian application.
       </p>
-      <Link href="/auth" className="inline-block bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors shadow-lg">
+      <Link
+       href={`/auth?redirect=${encodeURIComponent("/vets?openForm=true")}`} 
+       className="inline-block bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors shadow-lg">
         Sign In / Create Account
       </Link>
     </div>

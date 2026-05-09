@@ -110,11 +110,18 @@ function FontLoader() {
 
 export default function NGOOnboardingPage() {
   const [showForm, setShowForm] = useState(false);
+  
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+  setMounted(true);
+
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get("openForm") === "true") {
+    setShowForm(true);
+  }
+}, []);
 
   const openForm = useCallback(() => setShowForm(true), []);
   const closeForm = useCallback(() => setShowForm(false), []);
@@ -782,7 +789,7 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
           You need to be signed in to submit a partnership application. Your progress will be saved.
         </p>
         <Link
-          href="/auth"
+          href={`/auth?redirect=${encodeURIComponent("/onboarding?openForm=true")}`}
           className="inline-block bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors shadow-lg"
         >
           Sign In / Create Account

@@ -59,7 +59,9 @@ export default function VolunteerFormPage() {
         setChecking(false); // Only stop checking if they are logged in
       } else {
         // 🔥 NEW: If no user is found, instantly redirect to the auth page
-        router.push("/auth"); 
+        router.push(
+  `/auth?redirect=${encodeURIComponent("/volunteer-form")}`
+);
       }
     });
 
