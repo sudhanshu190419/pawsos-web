@@ -112,7 +112,7 @@ export default function HowItWorksPage() {
 
               <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-5">
                 <a
-                  href="https://play.google.com/store"
+                  href="https://play.google.com/store/apps/details?id=com.pawsos"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto bg-orange-500 text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:bg-orange-600 transition-all duration-300 shadow-xl hover:shadow-orange-500/25 hover:-translate-y-1 flex justify-center items-center gap-2 sm:gap-3 group"

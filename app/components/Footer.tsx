@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname,useRouter  } from "next/navigation";
-
+import { usePathname, useRouter } from "next/navigation";
 
 /*
   Add to globals.css:
@@ -12,7 +11,7 @@ import { usePathname,useRouter  } from "next/navigation";
 const SOCIAL_LINKS = [
   {
     label: "Instagram",
-    href: "https://instagram.com/animalsathi",
+    href: "https://instagram.com/animal.sathi",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
         <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
@@ -38,11 +37,11 @@ const SOCIAL_LINKS = [
     ),
   },
   {
-    label: "YouTube",
-    href: "https://youtube.com/@animalsathi",
+    label: "LinkedIn",
+    href: "https://linkedin.com/company/animalsathi", 
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-        <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+        <path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1 4.98 2.12 4.98 3.5zM.5 8h4V24h-4V8zm7 0h3.8v2.2h.1c.53-1 1.84-2.2 3.8-2.2 4.06 0 4.8 2.67 4.8 6.14V24h-4v-7.4c0-1.77-.03-4.05-2.47-4.05-2.47 0-2.85 1.93-2.85 3.92V24h-4V8z"/>
       </svg>
     ),
   },
@@ -80,6 +79,7 @@ const LEGAL_LINKS = [
 export default function Footer() {
   const pathname = usePathname();
   const router = useRouter();
+  
   return (
     <>
       <style>{`
@@ -89,7 +89,7 @@ export default function Footer() {
           text-decoration: none;
           transition: color 0.18s ease;
           display: inline-flex;
-          align-items: center;
+          align-items: flex-start; /* Changed to flex-start so long text wraps nicely under itself */
           gap: 6px;
         }
         .as-link:hover { color: #f97316; }
@@ -125,9 +125,14 @@ export default function Footer() {
         @media (max-width: 768px) {
           .as-footer-grid {
             grid-template-columns: 1fr 1fr !important;
+            gap: 40px 16px !important; /* Increased row gap to prevent overlap, tight column gap */
+            align-items: start;
           }
-          .as-brand-col {
-            grid-column: span 2;
+
+          /* Force both the Brand and the Contact columns to span full width on mobile */
+          .as-brand-col,
+          .as-contact-col {
+            grid-column: 1 / -1;
           }
         }
       `}</style>
@@ -136,6 +141,8 @@ export default function Footer() {
         style={{
           background: "#111110",
           fontFamily: "'DM Sans', sans-serif",
+          overflowX: "hidden",
+          width: "100%",
         }}
       >
         {/* Orange top accent line */}
@@ -154,11 +161,12 @@ export default function Footer() {
           style={{
             maxWidth: "1120px",
             margin: "0 auto",
-           padding: "64px 32px 52px",
+            padding: "64px 20px 52px",
             display: "grid",
             gridTemplateColumns: "2.8fr 1.2fr 1.2fr 1.8fr",
-gap: "32px",
-width: "100%",
+            gap: "24px",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
           {/* Brand */}
@@ -189,7 +197,7 @@ width: "100%",
             <p
               style={{
                 color: "#4b5563",
-                fontSize: "0.85rem",
+                fontSize: "0.99rem",
                 lineHeight: 1.75,
                 maxWidth: "260px",
                 margin: "0 0 24px",
@@ -232,29 +240,27 @@ width: "100%",
                 }}
               >
                 {col.links.map((link) => (
-                <li key={link.href}>
-  <Link
-    href={link.href}
-    className="as-link"
-    scroll={true}
-    onClick={(e) => {
-      if (
-  pathname.replace(/\/$/, "") ===
-  link.href.replace(/\/$/, "")
-) {
-        e.preventDefault();
-
-        router.push(link.href);
-
-        setTimeout(() => {
-          window.scrollTo({
-            top: 0,
-            behavior: "smooth",
-          });
-        }, 50);
-      }
-    }}
-  >
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="as-link"
+                      scroll={true}
+                      onClick={(e) => {
+                        if (
+                          pathname.replace(/\/$/, "") ===
+                          link.href.replace(/\/$/, "")
+                        ) {
+                          e.preventDefault();
+                          router.push(link.href);
+                          setTimeout(() => {
+                            window.scrollTo({
+                              top: 0,
+                              behavior: "smooth",
+                            });
+                          }, 50);
+                        }
+                      }}
+                    >
                       {link.text}
                       {link.badge && (
                         <span
@@ -280,7 +286,8 @@ width: "100%",
           ))}
 
           {/* Contact + App */}
-          <div>
+          {/* ADDED .as-contact-col CLASS HERE */}
+          <div className="as-contact-col">
             <span className="as-col-label">Contact</span>
 
             <div
@@ -292,33 +299,33 @@ width: "100%",
               }}
             >
               <a
-                href="mailto:animalsathi.app@gmail.com"
+                href="mailto:animalbuddiessociety@gmail.com"
                 className="as-link"
                 style={{
-  wordBreak: "normal",
-  overflowWrap: "break-word",
-}}
+                  wordBreak: "normal",
+                  overflowWrap: "break-word",
+                }}
               >
                 <svg
                   viewBox="0 0 20 20"
                   fill="currentColor"
                   width="14"
                   height="14"
-                  style={{ flexShrink: 0, color: "#f97316" }}
+                  style={{ flexShrink: 0, color: "#f97316", marginTop: "3px" }}
                 >
                   <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
                   <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                 </svg>
-                animalsathi.app@gmail.com
+                animalbuddiessociety@gmail.com
               </a>
 
-              <span className="as-link" style={{ cursor: "default" }}>
+              <span className="as-link" style={{ cursor: "default", lineHeight: "1.5" }}>
                 <svg
                   viewBox="0 0 20 20"
                   fill="currentColor"
                   width="14"
                   height="14"
-                  style={{ flexShrink: 0, color: "#f97316" }}
+                  style={{ flexShrink: 0, color: "#f97316", marginTop: "4px" }}
                 >
                   <path
                     fillRule="evenodd"
@@ -330,69 +337,109 @@ width: "100%",
               </span>
             </div>
 
-            {/* Play Store */}
-            <a
-              href="https://play.google.com/store"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Get it on Google Play"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "10px 16px",
-                borderRadius: "10px",
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(255,255,255,0.03)",
-                textDecoration: "none",
-                transition: "border-color 0.18s, background 0.18s",
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.borderColor = "rgba(249,115,22,0.35)";
-                el.style.background = "rgba(249,115,22,0.06)";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.borderColor = "rgba(255,255,255,0.08)";
-                el.style.background = "rgba(255,255,255,0.03)";
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="#f97316"
-                width="20"
-                height="20"
-                style={{ flexShrink: 0 }}
+            {/* App Download Section */}
+            <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "12px",
+    marginTop: "8px",
+    flexWrap: "nowrap",
+    width: "100%",
+  }}
+>
+              {/* Play Store Button */}
+              <a
+                href="https://play.google.com/store/apps/details?id=com.pawsos"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Get it on Google Play"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "10px 16px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "rgba(255,255,255,0.03)",
+                  textDecoration: "none",
+                  transition: "border-color 0.18s, background 0.18s",
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLAnchorElement;
+                  el.style.borderColor = "rgba(249,115,22,0.35)";
+                  el.style.background = "rgba(249,115,22,0.06)";
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLAnchorElement;
+                  el.style.borderColor = "rgba(255,255,255,0.08)";
+                  el.style.background = "rgba(255,255,255,0.03)";
+                }}
               >
-                <path d="M3.18 23.76a2 2 0 01-.93-.89V1.13A2 2 0 013.18.24l.1-.06 12.77 11.76v.12L3.28 23.82l-.1-.06zM17.34 15.22l-3.14-2.9 3.14-2.9 3.55 2.01a1.03 1.03 0 010 1.79l-3.55 2zM3.28.18L14.2 10.6 10.7 14 3.28.18zm10.92 13.62l-9.92 9.02L14.2 13.4l-.01.4z" />
-              </svg>
-              <div>
-                <p
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="#f97316"
+                  width="20"
+                  height="20"
+                >
+                  <path d="M3.18 23.76a2 2 0 01-.93-.89V1.13A2 2 0 013.18.24l.1-.06 12.77 11.76v.12L3.28 23.82l-.1-.06zM17.34 15.22l-3.14-2.9 3.14-2.9 3.55 2.01a1.03 1.03 0 010 1.79l-3.55 2zM3.28.18L14.2 10.6 10.7 14 3.28.18zm10.92 13.62l-9.92 9.02L14.2 13.4l-.01.4z" />
+                </svg>
+
+                <div>
+                  <p
+                    style={{
+                      fontSize: "0.6rem",
+                      color: "#6b7280",
+                      textTransform: "uppercase",
+                      margin: 0,
+                    }}
+                  >
+                    Get it on
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "0.85rem",
+                      fontWeight: 500,
+                      color: "#d1d5db",
+                      margin: "3px 0 0",
+                    }}
+                  >
+                    Google Play
+                  </p>
+                </div>
+              </a>
+
+              {/* QR Code */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <img
+                  src="/qr-code.png"
+                  alt="Scan to download"
                   style={{
-                    fontSize: "0.6rem",
+                    width: "80px",
+                    height: "80px",
+                    borderRadius: "12px",
+                    background: "#fff",
+                    padding: "6px",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "0.65rem",
                     color: "#6b7280",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.07em",
-                    margin: 0,
-                    lineHeight: 1,
                   }}
                 >
-                  Get it on
-                </p>
-                <p
-                  style={{
-                    fontSize: "0.85rem",
-                    fontWeight: 500,
-                    color: "#d1d5db",
-                    margin: "3px 0 0",
-                    lineHeight: 1,
-                  }}
-                >
-                  Google Play
-                </p>
+                  Scan to Download
+                </span>
               </div>
-            </a>
+            </div>
           </div>
         </div>
 
@@ -419,27 +466,25 @@ width: "100%",
             <div style={{ display: "flex", flexWrap: "wrap", gap: "20px" }}>
               {LEGAL_LINKS.map((l) => (
                 <Link
-  key={l.href}
-  href={l.href}
-  className="as-link"
-  onClick={(e) => {
-  if (
-  pathname.replace(/\/$/, "") ===
-  l.href.replace(/\/$/, "")
-) {
-    e.preventDefault();
-
-    router.push(l.href);
-
-    setTimeout(() => {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }, 50);
-  }
-}}
->
+                  key={l.href}
+                  href={l.href}
+                  className="as-link"
+                  onClick={(e) => {
+                    if (
+                      pathname.replace(/\/$/, "") ===
+                      l.href.replace(/\/$/, "")
+                    ) {
+                      e.preventDefault();
+                      router.push(l.href);
+                      setTimeout(() => {
+                        window.scrollTo({
+                          top: 0,
+                          behavior: "smooth",
+                        });
+                      }, 50);
+                    }
+                  }}
+                >
                   {l.text}
                 </Link>
               ))}

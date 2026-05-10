@@ -399,7 +399,7 @@ export default function HomePage() {
               {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
                 <a
-                  href="https://play.google.com/store"
+                  href="https://play.google.com/store/apps/details?id=com.pawsos"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-orange-500 text-white px-8 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 hover:bg-orange-600 hover:shadow-xl hover:shadow-orange-500/20 active:scale-[0.98] transition-all duration-200"

@@ -81,9 +81,12 @@ export default function ContactPage() {
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-50 rounded-xl flex items-center justify-center text-xl sm:text-2xl mb-4 sm:mb-6 border border-orange-100">✉️</div>
               <h3 className="font-bold text-slate-800 text-base sm:text-lg mb-1 sm:mb-2">Email Us</h3>
               <p className="text-slate-500 text-xs sm:text-sm mb-3 sm:mb-4">Our friendly team is here to help.</p>
-              <a href="mailto:support@animalsathi.org" className="font-black text-orange-600 text-sm sm:text-base hover:text-orange-700 transition-colors break-all">
-                support@animalsathi.org
-              </a>
+              <a
+  href="mailto:animalbuddiessociety@gmail.com"
+  className="font-bold text-orange-600 text-xs sm:text-sm hover:text-orange-700 transition-colors break-all"
+>
+  animalbuddiessociety@gmail.com
+</a>
             </div>
 
             <div className="bg-white p-6 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
@@ -105,7 +108,7 @@ export default function ContactPage() {
               </p>
               <div className="flex flex-col gap-2">
                 <Link href="/onboarding" className="text-sm font-bold text-orange-600 hover:underline">Apply as NGO →</Link>
-                <Link href="/vet-onboarding" className="text-sm font-bold text-blue-600 hover:underline">Apply as Vet →</Link>
+                <Link href="/vets" className="text-sm font-bold text-blue-600 hover:underline">Apply as Vet →</Link>
               </div>
             </div>
 
