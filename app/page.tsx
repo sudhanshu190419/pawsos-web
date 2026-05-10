@@ -298,10 +298,22 @@ export default function HomePage() {
                   title="Report SOS" 
                   text="Spot an injured animal? Report it instantly with GPS location and live photos to initiate an immediate rescue mission."
                   footer={
-                    <button className="w-full py-3.5 px-6 bg-orange-500 text-white font-bold text-sm rounded-xl hover:bg-orange-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                      Launch SOS Reporter
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                    </button>
+                    <a
+  href="https://play.google.com/store/apps/details?id=com.pawsos"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="w-full py-3.5 px-6 bg-orange-500 text-white font-bold text-sm rounded-xl hover:bg-orange-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+>
+  Launch SOS Reporter
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2.5}
+      d="M14 5l7 7m0 0l-7 7m7-7H3"
+    />
+  </svg>
+</a>
                   }
                 />
 
