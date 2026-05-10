@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname,useRouter  } from "next/navigation";
+
 
 /*
   Add to globals.css:
@@ -76,6 +78,8 @@ const LEGAL_LINKS = [
 ];
 
 export default function Footer() {
+  const pathname = usePathname();
+  const router = useRouter();
   return (
     <>
       <style>{`
@@ -228,8 +232,29 @@ width: "100%",
                 }}
               >
                 {col.links.map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href} className="as-link">
+                <li key={link.href}>
+  <Link
+    href={link.href}
+    className="as-link"
+    scroll={true}
+    onClick={(e) => {
+      if (
+  pathname.replace(/\/$/, "") ===
+  link.href.replace(/\/$/, "")
+) {
+        e.preventDefault();
+
+        router.push(link.href);
+
+        setTimeout(() => {
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+          });
+        }, 50);
+      }
+    }}
+  >
                       {link.text}
                       {link.badge && (
                         <span
@@ -394,11 +419,27 @@ width: "100%",
             <div style={{ display: "flex", flexWrap: "wrap", gap: "20px" }}>
               {LEGAL_LINKS.map((l) => (
                 <Link
-                  key={l.href}
-                  href={l.href}
-                  className="as-link"
-                  style={{ fontSize: "0.78rem" }}
-                >
+  key={l.href}
+  href={l.href}
+  className="as-link"
+  onClick={(e) => {
+  if (
+  pathname.replace(/\/$/, "") ===
+  l.href.replace(/\/$/, "")
+) {
+    e.preventDefault();
+
+    router.push(l.href);
+
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }, 50);
+  }
+}}
+>
                   {l.text}
                 </Link>
               ))}
