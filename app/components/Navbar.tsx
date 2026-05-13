@@ -239,6 +239,8 @@ backdrop-blur-sm w-56 py-3 flex flex-col">
 hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
                 <Link href="/onboarding" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
 hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
+                <Link href="/onboarding/organization" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
+hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Hospital Onboarding</Link>
                 <Link href="/vets" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
 hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
               </div>
@@ -427,6 +429,7 @@ transition-all duration-200 shimmer-btn"
             <div className="flex flex-col gap-2 pl-2">
               <Link onClick={() => setIsMobileMenuOpen(false)} href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🦸‍♂️ Become a Volunteer</Link>
               <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏢 NGO Partnerships</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding/organization" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Hospital Onboarding</Link>
               <Link onClick={() => setIsMobileMenuOpen(false)} href="/vets" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Register as a Vet</Link>
             </div>
           </div>

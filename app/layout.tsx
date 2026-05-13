@@ -1,14 +1,23 @@
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+﻿import type { Metadata, Viewport } from "next";
+import { Geist_Mono, Manrope, Newsreader } from "next/font/google";
 import "./globals.css";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import BottomNav from "./components/BottomNav"; // 🔥 Add this
+import { GlobalToastHost } from "./components/ui/GlobalToastHost";
+import BottomNav from "./components/BottomNav";
+import { LocationProvider } from "./lib/LocationContext";
+import { AuthProvider } from "./lib/AuthContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
+});
+
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
+  subsets: ["latin"],
+  style: "italic",
 });
 
 const geistMono = Geist_Mono({
@@ -17,9 +26,40 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AnimalSathi | Community-Powered Animal Rescue",
-  description:
-    "AnimalSathi (PawSOS) helps report animal emergencies and connect volunteers, NGOs, and rescuers.",
+  title: {
+    default: "AnimalSathi | Community-Powered Animal Rescue",
+    template: "%s | AnimalSathi"
+  },
+  description: "AnimalSathi (PawSOS) connects citizens, volunteers, and NGOs for urgent animal rescue, coordinated triage, and pet care across India.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AnimalSathi",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "AnimalSathi",
+    title: "AnimalSathi | Community-Powered Animal Rescue",
+    description: "Connecting citizens, volunteers, and NGOs for urgent animal rescue in India.",
+    images: [
+      {
+        url: "/banner.png",
+        width: 1200,
+        height: 630,
+        alt: "AnimalSathi - Saving lives together",
+      }
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AnimalSathi | Community-Powered Animal Rescue",
+    description: "Connecting citizens, volunteers, and NGOs for urgent animal rescue in India.",
+    images: ["/banner.png"],
+  },
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
@@ -31,6 +71,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#9c3e23",
 };
 
 export default function RootLayout({
@@ -41,24 +82,36 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}
+        className={`${manrope.variable} ${newsreader.variable} ${geistMono.variable} font-sans antialiased bg-surface text-on-surface`}
       >
-        
+        {/* Skip to content â€” accessibility */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[99999] focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded-lg focus:font-bold focus:text-sm focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
 
-        {/* Navbar */}
-        <Navbar />
+        <AuthProvider>
+          <LocationProvider>
+            <GlobalToastHost />
 
-        {/* Page Content */}
-        <main id="main-content" className="relative z-10 min-h-screen">
-          {children}
-        </main>
+            {/* Navbar */}
+            <Navbar />
 
-        {/* Footer */}
-        <Footer />
+            {/* Page Content */}
+            <main id="main-content" className="relative z-10 min-h-[100dvh]">
+              {children}
+            </main>
 
-        {/* 🔥 Mobile Bottom Navigation */}
-        {/* This will only show on mobile devices (md:hidden is inside the component) */}
-        <BottomNav />
+            {/* Footer */}
+            <Footer />
+
+            {/* ðŸ”¥ Mobile Bottom Navigation */}
+            {/* This will only show on mobile devices (md:hidden is inside the component) */}
+            <BottomNav />
+          </LocationProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,27 +1,48 @@
-"use client";
+﻿"use client";
 
 // Prevent prerendering - Firebase must initialize at runtime
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // 🔥 Added for redirects
-import { auth, db } from "../lib/firebase"; // 🔥 Make sure auth is exported from here
-import { onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/navigation"; // ðŸ”¥ Added for redirects
+import { auth, db } from "../lib/firebase"; // ðŸ”¥ Make sure auth is exported from here
+import { 
+  LayoutDashboard, 
+  AlertCircle, 
+  Building2, 
+  Users, 
+  ShoppingBag, 
+  LogOut, 
+  ChevronRight, 
+  Menu, 
+  ExternalLink,
+  ShieldCheck,
+  Heart,
+  Stethoscope
+} from "lucide-react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 
 import LiveSOSFeed from "../components/LiveSOSFeed";
 import PendingApprovals from "../components/PendingApprovals";
 import VolunteerApprovals from "../components/VolunteerApprovals";
 import VetApprovals from "../components/VetApprovals"; 
-import DonationManagement from "../components/DonationManagement";
+import OrganizationApprovals from "../components/OrganizationApprovals";
+
+import { useUserMeta } from "../hooks/useUserMeta";
 
 export default function AdminDashboard() {
   const router = useRouter();
   
-  // 🔥 NEW: Security State
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isAdminAuthorized, setIsAdminAuthorized] = useState(false);
+  const { currentUser: user, userMeta, loading: isCheckingAuth } = useUserMeta();
+  const isAdminAuthorized = userMeta.role === "admin";
+
+  useEffect(() => {
+    if (!isCheckingAuth && !isAdminAuthorized) {
+      router.push("/");
+    }
+  }, [isCheckingAuth, isAdminAuthorized, router]);
 
   // Existing UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -30,35 +51,7 @@ export default function AdminDashboard() {
   const [pendingNGOCount, setPendingNGOCount] = useState(0);
   const [activeSOSCount, setActiveSOSCount] = useState(0);
   const [pendingVetCount, setPendingVetCount] = useState(0);
-
-  // 🔥 THE SECURITY GATEKEEPER
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          // Check if this logged-in user actually has admin rights
-          const userDocRef = doc(db, "users", user.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists() && userDoc.data().role === "admin") {
-            setIsAdminAuthorized(true);
-          } else {
-            console.warn("Access Denied: User is not an admin.");
-            router.push("/"); // Kick to home page
-          }
-        } catch (error) {
-          console.error("Error verifying admin status:", error);
-          router.push("/");
-        }
-      } else {
-        // Not logged in at all
-        router.push("/login"); // or "/" depending on your setup
-      }
-      setIsCheckingAuth(false);
-    });
-
-    return () => unsubscribeAuth();
-  }, [router]);
+  const [pendingOrgCount, setPendingOrgCount] = useState(0);
 
   // Existing Data Fetching (Only runs if authorized)
   useEffect(() => {
@@ -79,83 +72,79 @@ export default function AdminDashboard() {
       setPendingVetCount(snapshot.size);
     });
 
+    const orgQuery = query(collection(db, "pending_organizations"), where("status", "==", "pending_review"));
+    const unsubOrg = onSnapshot(orgQuery, (snapshot) => {
+      setPendingOrgCount(snapshot.size);
+    });
+
     return () => {
       unsubNGO();
       unsubSOS();
       unsubVet();
+      unsubOrg();
     };
-  }, [isAdminAuthorized]); // 🔥 Dependency added
+  }, [isAdminAuthorized]); // ðŸ”¥ Dependency added
 
 
-  // 🔥 LOADING SCREEN (Prevents UI flashing while checking credentials)
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-        <div className="w-12 h-12 border-4 border-slate-200 border-t-orange-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 font-bold tracking-wide">Verifying Secure Access...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-surface">
+        <div className="w-12 h-12 border-4 border-warm-line border-t-primary rounded-full animate-spin mb-6"></div>
+        <p className="text-on-surface-variant font-bold tracking-widest uppercase text-xs">Securing Terminal...</p>
       </div>
     );
   }
 
-  // 🔥 DOUBLE CHECK (If somehow they bypass loading, render nothing)
   if (!isAdminAuthorized) return null;
 
-
-  // ... THE REST OF YOUR RETURN STATEMENT STAYS EXACTLY THE SAME ...
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      
+    <div className="min-h-screen bg-surface flex text-on-surface selection:bg-primary/10 selection:text-primary">
+
       {/* SIDEBAR */}
-      <aside className={`bg-slate-900 text-slate-300 w-64 flex-shrink-0 transition-all duration-300 flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full absolute md:relative md:w-20 z-20"}`}>
-        
+      <aside className={`bg-on-surface text-on-primary w-64 flex-shrink-0 transition-all duration-300 flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full absolute md:relative md:w-20 z-20"}`}>
+
         {/* Sidebar Header */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800">
-          <span className={`text-white font-black text-xl tracking-tight ${!isSidebarOpen && "md:hidden"}`}>
-            Animal<span className="text-orange-500">Sathi</span> <span className="text-xs bg-slate-800 px-2 py-1 rounded-md text-slate-400 ml-1">ADMIN</span>
+        <div className="h-20 flex items-center justify-between px-6 border-b border-warm-line/10">
+          <span className={`text-on-primary font-black text-xl tracking-tighter flex items-center gap-2 ${!isSidebarOpen && "md:hidden"}`}>
+            <span className="text-primary"><ShieldCheck className="w-6 h-6" /></span> AnimalSathi
           </span>
-          <span className={`text-orange-500 text-2xl hidden ${!isSidebarOpen && "md:block"}`}>🐾</span>
+          <span className={`text-primary hidden ${!isSidebarOpen && "md:block"}`}><ShieldCheck className="w-6 h-6" /></span>
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto py-6 flex flex-col gap-2 px-4">
+        <nav className="flex-1 overflow-y-auto py-8 flex flex-col gap-1 px-4">
           <div onClick={() => setActiveTab("dashboard")}>
-            <NavItem icon="📊" label="Dashboard" active={activeTab === "dashboard"} isOpen={isSidebarOpen} />
+            <NavItem icon={LayoutDashboard} label="Dashboard" active={activeTab === "dashboard"} isOpen={isSidebarOpen} />
           </div>
           <div onClick={() => setActiveTab("sos")}>
-            <NavItem icon="🚨" label="Live SOS Alerts" badge={activeSOSCount > 0 ? activeSOSCount : null} active={activeTab === "sos"} isOpen={isSidebarOpen} />
+            <NavItem icon={AlertCircle} label="SOS Alerts" badge={activeSOSCount > 0 ? activeSOSCount : null} active={activeTab === "sos"} isOpen={isSidebarOpen} colorClass="text-rescue-red" />
+          </div>
+          <div onClick={() => setActiveTab("organizations")}>
+            <NavItem icon={ShieldCheck} label="Enterprise" badge={pendingOrgCount > 0 ? pendingOrgCount : null} active={activeTab === "organizations"} isOpen={isSidebarOpen} colorClass="text-[#9C3E23]" />
           </div>
           <div onClick={() => setActiveTab("ngos")}>
-            <NavItem icon="🏢" label="NGO Approvals" badge={pendingNGOCount > 0 ? pendingNGOCount : null} active={activeTab === "ngos"} isOpen={isSidebarOpen} />
+            <NavItem icon={Building2} label="NGO Partners" badge={pendingNGOCount > 0 ? pendingNGOCount : null} active={activeTab === "ngos"} isOpen={isSidebarOpen} />
           </div>
           <div onClick={() => setActiveTab("volunteers")}>
-            <NavItem icon="🦸‍♂️" label="Volunteers" active={activeTab === "volunteers"} isOpen={isSidebarOpen} />
+            <NavItem icon={Users} label="Volunteers" active={activeTab === "volunteers"} isOpen={isSidebarOpen} />
           </div>
           <div onClick={() => setActiveTab("vets")}>
-            <NavItem icon="🏥" label="Veterinarians" badge={pendingVetCount > 0 ? pendingVetCount : null} active={activeTab === "vets"} isOpen={isSidebarOpen} />
+            <NavItem icon={Stethoscope} label="Veterinarians" badge={pendingVetCount > 0 ? pendingVetCount : null} active={activeTab === "vets"} isOpen={isSidebarOpen} />
           </div>
           <div onClick={() => setActiveTab("shop")}>
-            <NavItem icon="🛒" label="Shop Orders" active={activeTab === "shop"} isOpen={isSidebarOpen} />
+            <NavItem icon={ShoppingBag} label="Marketplace" active={activeTab === "shop"} isOpen={isSidebarOpen} />
           </div>
-          <div onClick={() => setActiveTab("donations")}>
-  <NavItem
-    icon="💰"
-    label="Donations"
-    active={activeTab === "donations"}
-    isOpen={isSidebarOpen}
-  />
-</div>
-          
-          
-          
         </nav>
 
         {/* Admin Profile Footer */}
-        <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-xl">
-            <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold shrink-0">AD</div>
+        <div className="p-4 border-t border-warm-line/10">
+          <div className="flex items-center gap-3 bg-warm-surface/5 p-3 rounded-2xl border border-warm-line/5">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary font-black shrink-0 shadow-lg shadow-primary/20">AD</div>
             <div className={`overflow-hidden transition-all ${!isSidebarOpen && "md:hidden"}`}>
-              <p className="text-sm font-bold text-white truncate">Admin User</p>
-              <p className="text-xs text-slate-400 truncate">admin@animalsathi.com</p>
+              <p className="text-xs font-black text-on-primary truncate">Admin Terminal</p>
+              <button onClick={() => signOut(auth)} className="text-[10px] font-bold text-on-primary/40 hover:text-primary transition-colors flex items-center gap-1 mt-0.5">
+                Sign Out <LogOut className="w-2.5 h-2.5" />
+              </button>
             </div>
           </div>
         </div>
@@ -163,119 +152,166 @@ export default function AdminDashboard() {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
-        
+
         {/* Top Header */}
-        <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 shadow-sm">
+        <header className="h-20 bg-warm-surface border-b border-warm-line flex items-center justify-between px-6 z-10 shadow-sm">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors"
+              className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface rounded-xl transition-all border border-transparent hover:border-warm-line"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" /></svg>
+              {isSidebarOpen ? <Menu className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
             </button>
-            <h1 className="text-xl font-bold text-slate-800 hidden sm:block">Command Center</h1>
+            <h1 className="text-sm font-black uppercase tracking-[0.2em] text-on-surface-variant hidden sm:block">Command Center</h1>
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm font-bold text-orange-600 bg-orange-50 px-4 py-2 rounded-full hover:bg-orange-100 transition-colors">
-              View Live Site
+            <Link href="/" className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/5 border border-primary/10 px-5 py-2.5 rounded-xl hover:bg-primary/10 transition-all flex items-center gap-2">
+              View Live Site <ExternalLink className="w-3 h-3" />
             </Link>
           </div>
         </header>
 
-        {/* Dashboard Content (Scrollable) */}
-        <div className="flex-1 overflow-auto p-6 md:p-8">
-          
-          {/* Top Stats Row (Always Visible) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard icon="🚨" title="Active SOS" value={activeSOSCount} trend="Requires Action" color="red" />
-            <StatCard icon="🏢" title="Pending NGOs" value={pendingNGOCount} trend={pendingNGOCount > 0 ? "Requires review" : "All caught up"} color="orange" />
-            <StatCard icon="❤️" title="Animals Rescued" value="1,248" trend="+15 this week" color="green" />
-            <StatCard icon="🦸‍♂️" title="Volunteers" value="342" trend="+12 this month" color="blue" />
+        {/* Dashboard Content */}
+        <div className="flex-1 overflow-auto p-6 md:p-10 lg:p-12">
+
+          {/* Top Stats Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            <StatCard icon={AlertCircle} title="Active SOS" value={activeSOSCount} trend="Immediate Action" color="red" />
+            <StatCard icon={ShieldCheck} title="Pending Orgs" value={pendingOrgCount} trend={pendingOrgCount > 0 ? "Review Required" : "System Clear"} color="amber" />
+            <StatCard icon={Heart} title="Lives Saved" value="1,248" trend="+15 this week" color="green" />
+            <StatCard icon={Users} title="Rescuers" value="342" trend="+12 this month" color="blue" />
           </div>
 
           {/* DYNAMIC TAB CONTENT */}
           {activeTab === "dashboard" && (
-            <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in duration-300">
-              <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                  <h2 className="text-lg font-bold text-slate-800">Live SOS Feed</h2>
-                  <button onClick={() => setActiveTab("sos")} className="text-sm font-bold text-orange-600 hover:text-orange-700">View All</button>
+            <div className="flex flex-col gap-8 animate-fadeUp">
+              <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden flex flex-col">
+                <div className="px-8 py-6 border-b border-warm-line flex justify-between items-center bg-warm-raised/30">
+                  <h2 className="text-lg font-bold text-on-surface">Live SOS Feed</h2>
+                  <button onClick={() => setActiveTab("sos")} className="text-xs font-black uppercase tracking-widest text-primary hover:opacity-70 transition-opacity">View Operational Map</button>
                 </div>
-                <LiveSOSFeed />
+                <div className="p-2 overflow-auto">
+                  <LiveSOSFeed />
+                </div>
               </div>
-              <PendingApprovals />
+              
+              <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden h-fit">
+                <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
+                  <h2 className="text-lg font-bold text-on-surface">Org Requests</h2>
+                </div>
+                <div className="p-4">
+                  <OrganizationApprovals />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "organizations" && (
+            <div className="max-w-4xl mx-auto animate-fadeUp">
+               <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                 <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
+                   <h2 className="text-lg font-bold text-on-surface">Enterprise Partner Verification</h2>
+                 </div>
+                 <div className="p-6">
+                    <OrganizationApprovals />
+                 </div>
+               </div>
             </div>
           )}
 
           {activeTab === "vets" && (
-            <div className="max-w-3xl mx-auto animate-in fade-in duration-300 h-[800px]">
-               <VetApprovals />
+            <div className="max-w-4xl mx-auto animate-fadeUp">
+               <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                 <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
+                   <h2 className="text-lg font-bold text-on-surface">Veterinarian Verification</h2>
+                 </div>
+                 <div className="p-6">
+                    <VetApprovals />
+                 </div>
+               </div>
             </div>
           )}
 
           {activeTab === "ngos" && (
-            <div className="max-w-3xl mx-auto animate-in fade-in duration-300 h-[800px]">
-               <PendingApprovals />
+            <div className="max-w-4xl mx-auto animate-fadeUp">
+               <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                 <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
+                   <h2 className="text-lg font-bold text-on-surface">NGO Partner Onboarding</h2>
+                 </div>
+                 <div className="p-6">
+                    <PendingApprovals />
+                 </div>
+               </div>
             </div>
           )}
 
           {activeTab === "sos" && (
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in duration-300">
-              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h2 className="text-lg font-bold text-slate-800">All Live SOS Alerts</h2>
+            <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden flex flex-col animate-fadeUp min-h-[700px]">
+              <div className="px-8 py-6 border-b border-warm-line flex justify-between items-center bg-warm-raised/30">
+                <h2 className="text-lg font-bold text-on-surface">Operational SOS Map</h2>
               </div>
-              <LiveSOSFeed />
+              <div className="flex-1 p-2">
+                <LiveSOSFeed />
+              </div>
             </div>
           )}
 
           {activeTab === "volunteers" && (
-            <div className="max-w-3xl mx-auto animate-in fade-in duration-300">
-              <VolunteerApprovals />
+            <div className="max-w-4xl mx-auto animate-fadeUp">
+              <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
+                  <h2 className="text-lg font-bold text-on-surface">Volunteer Management</h2>
+                </div>
+                <div className="p-6">
+                   <VolunteerApprovals />
+                </div>
+              </div>
             </div>
           )}
 
           {activeTab === "shop" && (
-            
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in duration-300">
-              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h2 className="text-lg font-bold text-slate-800">Shop Orders Management</h2>
+            <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden flex flex-col animate-fadeUp">
+              <div className="px-8 py-6 border-b border-warm-line flex justify-between items-center bg-warm-raised/30">
+                <h2 className="text-lg font-bold text-on-surface">Shop Orders Management</h2>
               </div>
-              <div className="p-16 flex flex-col items-center justify-center text-center">
-                <div className="text-6xl mb-4 opacity-50">🛒</div>
-                <h3 className="text-xl font-black text-slate-800 mb-2">Shop Module Coming Soon</h3>
-                <p className="text-slate-500 max-w-md">
-                  This section will track all your merchandise orders, donations, and shop inventory once the e-commerce features are connected.
+              <div className="p-24 flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 rounded-[2rem] bg-primary/5 flex items-center justify-center mb-8 border border-primary/10">
+                  <ShoppingBag className="w-10 h-10 text-primary opacity-40" />
+                </div>
+                <h3 className="text-2xl font-extrabold text-on-surface mb-3 tracking-tight">Marketplace Terminal Offline</h3>
+                <p className="text-on-surface-variant max-w-md font-medium leading-relaxed">
+                  This secure gateway will track merchandise orders, medical supply logistics, and vendor inventory once the commerce layer is activated.
                 </p>
               </div>
             </div>
           )}
-          {activeTab === "donations" && (
-  <div className="animate-in fade-in duration-300">
-    <DonationManagement />
-  </div>
-)}
-
-          
-
         </div>
       </main>
-
     </div>
   );
-}
+  }
 
 /* --- ADMIN UI HELPER COMPONENTS --- */
 
-function NavItem({ icon, label, active, badge, isOpen }: any) {
+interface NavItemProps {
+  icon: React.ElementType;
+  label: string;
+  active: boolean;
+  badge?: number | null;
+  isOpen: boolean;
+  colorClass?: string;
+}
+
+function NavItem({ icon: Icon, label, active, badge, isOpen, colorClass = "" }: NavItemProps) {
   return (
-    <div className={`flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer transition-colors ${active ? "bg-orange-500 text-white" : "hover:bg-slate-800 text-slate-300"}`}>
-      <div className="flex items-center gap-3">
-        <span className="text-xl">{icon}</span>
-        <span className={`font-bold text-sm truncate ${!isOpen && "md:hidden"}`}>{label}</span>
+    <div className={`flex items-center justify-between px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 group border border-transparent ${active ? "bg-primary text-on-primary shadow-lg shadow-primary/20 border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]" : "hover:bg-warm-surface/10 text-on-primary/60 hover:text-on-primary"}`}>
+      <div className="flex items-center gap-4">
+        <Icon className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${active ? "text-on-primary" : colorClass || "text-on-primary/40 group-hover:text-primary"}`} />
+        <span className={`font-bold text-sm tracking-tight truncate ${!isOpen && "md:hidden"}`}>{label}</span>
       </div>
       {badge ? (
-        <span className={`bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full ${!isOpen && "md:hidden"}`}>
+        <span className={`bg-rescue-red text-white text-[9px] font-black px-2 py-0.5 rounded-full ${!isOpen && "md:hidden"} shadow-sm font-mono`}>
           {badge}
         </span>
       ) : null}
@@ -283,25 +319,39 @@ function NavItem({ icon, label, active, badge, isOpen }: any) {
   );
 }
 
-function StatCard({ icon, title, value, trend, color }: any) {
+interface StatCardProps {
+  icon: React.ElementType;
+  title: string;
+  value: string | number;
+  trend: string;
+  color: "red" | "green" | "blue" | "amber";
+}
+
+function StatCard({ icon: Icon, title, value, trend, color }: StatCardProps) {
   const colorMap: Record<string, string> = {
-    red: "bg-red-50 text-red-600 border-red-100",
-    green: "bg-green-50 text-green-600 border-green-100",
-    blue: "bg-blue-50 text-blue-600 border-blue-100",
-    orange: "bg-orange-50 text-orange-600 border-orange-100",
+    red: "bg-rescue-red/5 text-rescue-red border-rescue-red/10",
+    green: "bg-field-green/5 text-field-green border-field-green/10",
+    blue: "bg-map-blue/5 text-map-blue border-map-blue/10",
+    amber: "bg-primary/5 text-primary border-primary/10",
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl border ${colorMap[color]}`}>
-          {icon}
+    <div className="bg-warm-surface p-7 rounded-[2rem] border border-warm-line shadow-sm flex flex-col justify-between hover:shadow-md transition-all group active:scale-[0.98] relative overflow-hidden">
+      <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+        <Icon className="w-24 h-24 -mr-8 -mt-8 rotate-12" />
+      </div>
+      <div className="flex justify-between items-start mb-6 relative z-10">
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-transform duration-500 group-hover:rotate-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4)] ${colorMap[color]}`}>
+          <Icon className="w-7 h-7" />
         </div>
       </div>
-      <div>
-        <h3 className="text-3xl font-black text-slate-800 mb-1">{value}</h3>
-        <p className="text-sm font-bold text-slate-500 uppercase tracking-wide">{title}</p>
-        <p className={`text-xs font-bold mt-2 ${color === 'red' || color === 'orange' ? 'text-orange-500' : 'text-slate-400'}`}>{trend}</p>
+      <div className="relative z-10">
+        <h3 className="text-4xl font-black text-on-surface mb-1 font-mono tracking-tighter">{value}</h3>
+        <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">{title}</p>
+        <div className="flex items-center gap-1.5 mt-3">
+          <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${color === 'red' || color === 'amber' ? 'bg-primary' : 'bg-on-surface-variant/30'}`} />
+          <p className={`text-[10px] font-bold ${color === 'red' || color === 'amber' ? 'text-primary' : 'text-on-surface-variant/40'}`}>{trend}</p>
+        </div>
       </div>
     </div>
   );

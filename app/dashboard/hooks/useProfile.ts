@@ -14,6 +14,8 @@ type UserData = {
   phone?: string;
   city?: string;
   photoURL?: string;
+  orgApproved?: boolean;
+  organizationId?: string;
 };
 
 type VerificationStatus = "approved" | "rejected" | "pending";
@@ -30,12 +32,18 @@ type NgoData = {
   hasShelter?: boolean;
 };
 
+type PendingOrgData = {
+  status: string;
+  orgName: string;
+};
+
 export function useProfile() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [vetData, setVetData] = useState<VetData | null>(null);
   const [ngoData, setNgoData] = useState<NgoData | null>(null);
+  const [pendingOrg, setPendingOrg] = useState<PendingOrgData | null>(null);
   const [isVolunteer, setIsVolunteer] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -48,11 +56,12 @@ export function useProfile() {
 
       setUser(currentUser);
 
-      // Fetch all three collections in parallel
-      const [userSnap, vetSnap, ngoSnap] = await Promise.allSettled([
+      // Fetch all collections in parallel
+      const [userSnap, vetSnap, ngoSnap, pendingOrgSnap] = await Promise.allSettled([
         getDoc(doc(db, "users", currentUser.uid)),
         getDoc(doc(db, "vets_web", currentUser.uid)),
         getDoc(doc(db, "ngos_web", currentUser.uid)),
+        getDoc(doc(db, "pending_organizations", currentUser.uid)),
       ]);
 
       let isApprovedRescuer = false;
@@ -60,9 +69,14 @@ export function useProfile() {
       if (userSnap.status === "fulfilled" && userSnap.value.exists()) {
         const data = userSnap.value.data() as UserData;
         setUserData(data);
-        
-        // FIXED: Case-insensitive check for role, ensures it works even if saved as "Volunteer"
+
+        // Case-insensitive check for role
         if (data.role?.toLowerCase() === "volunteer" && data.volunteerApproved === true) {
+          isApprovedRescuer = true;
+        }
+
+        // Check for approved organizations
+        if ((data.role === "hospital" || data.role === "ngo") && data.orgApproved === true) {
           isApprovedRescuer = true;
         }
       }
@@ -70,8 +84,7 @@ export function useProfile() {
       if (vetSnap.status === "fulfilled" && vetSnap.value.exists()) {
         const data = vetSnap.value.data() as VetData;
         setVetData(data);
-        
-        // Include Vets as volunteers so they don't see "Become a Volunteer"
+
         if (data.verificationStatus === "approved") {
           isApprovedRescuer = true;
         }
@@ -80,11 +93,14 @@ export function useProfile() {
       if (ngoSnap.status === "fulfilled" && ngoSnap.value.exists()) {
         const data = ngoSnap.value.data() as NgoData;
         setNgoData(data);
-        
-        // Include NGOs as volunteers so they don't see "Become a Volunteer"
+    
         if (data.verificationStatus === "approved") {
           isApprovedRescuer = true;
         }
+      }
+
+      if (pendingOrgSnap.status === "fulfilled" && pendingOrgSnap.value.exists()) {
+        setPendingOrg(pendingOrgSnap.value.data() as PendingOrgData);
       }
 
       // Set the final state
@@ -106,5 +122,5 @@ export function useProfile() {
     [user]
   );
 
-  return { user, userData, vetData, ngoData, isVolunteer, loading, updateUserData, updateProfilePhoto };
+  return { user, userData, vetData, ngoData, pendingOrg, isVolunteer, loading, updateUserData, updateProfilePhoto };
 }
