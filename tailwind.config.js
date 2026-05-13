@@ -30,6 +30,11 @@ module.exports = {
         'on-surface-variant': '#56423d',
         'surface-container': '#e6e6e5',
         'surface-container-high': '#dcdcdb',
+        'warm-surface': '#fdfcfb',
+        'warm-line': '#e8e2e0',
+        'warm-raised': '#f5f0ee',
+        'field-green': '#10b981',
+        'rescue-red': '#ef4444',
       }
     },
   },
