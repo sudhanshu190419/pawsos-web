@@ -4,7 +4,20 @@ import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from "rea
 import { auth, db } from "./../lib/firebase";
 import { updateProfile } from "firebase/auth";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, setDoc } from "firebase/firestore";
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  getDocs, 
+  updateDoc, 
+  deleteDoc, 
+  arrayUnion, 
+  doc, 
+  setDoc,
+  getDoc,
+  serverTimestamp 
+} from "firebase/firestore";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useProfile } from "./hooks/useProfile";
@@ -27,11 +40,26 @@ interface UserData {
   phone?: string;
   city?: string;
   photoURL?: string;
+  organizationId?: string;
+  organizationName?: string;
+  orgApproved?: boolean;
   idCardPath?: string;
   idcardPath?: string;
   id_card_path?: string;
   certificatePath?: string;
   certPath?: string;
+}
+
+interface Invitation {
+  id: string;
+  orgId: string;
+  orgName: string;
+  userEmail: string;
+  userId: string;
+  type: "org_invite" | "user_request";
+  status: "pending" | "accepted" | "rejected";
+  role?: string;
+  createdAt: any;
 }
 
 interface VetData {
@@ -90,6 +118,9 @@ function ProfilePageContent() {
     (searchParams.get("tab") as TabId) ?? "profile"
   );
 
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+
   useEffect(() => {
     const tab = searchParams.get("tab") as TabId | null;
     if (tab) setActiveTab(tab);
@@ -106,10 +137,79 @@ function ProfilePageContent() {
     setToast({ message, type });
   }, []);
 
+  // Listen for invitations
   useEffect(() => {
-    document.body.style.overflow = isEditModalOpen ? "hidden" : "";
+    if (!user) return;
+    const q = query(
+      collection(db, "invitations"), 
+      where("userEmail", "==", user.email),
+      where("status", "==", "pending")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Invitation));
+      setInvitations(docs);
+    });
+    return () => unsub();
+  }, [user]);
+
+  const handleAcceptInvite = async (invite: Invitation) => {
+    try {
+      await updateDoc(doc(db, "users", user!.uid), {
+        organizationId: invite.orgId,
+        organizationName: invite.orgName,
+        orgApproved: true,
+        role: invite.role || "hospital"
+      });
+      await updateDoc(doc(db, "invitations", invite.id), { status: "accepted" });
+      showToast("Joined organization successfully!");
+    } catch (e) {
+      console.error(e);
+      showToast("Failed to join organization.", "error");
+    }
+  };
+
+  const handleRejectInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, "invitations", inviteId), { status: "rejected" });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSendJoinRequest = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const orgName = (e.currentTarget.elements.namedItem("orgName") as HTMLInputElement).value;
+    try {
+      const q = query(collection(db, "organizations"), where("orgName", "==", orgName));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        showToast("Organization not found.", "error");
+        return;
+      }
+      const org = snap.docs[0].data();
+      const orgId = snap.docs[0].id;
+      await setDoc(doc(collection(db, "invitations")), {
+        orgId,
+        orgName: org.orgName,
+        userId: user!.uid,
+        userEmail: user!.email,
+        userName: user!.displayName,
+        type: "user_request",
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+      setShowRequestModal(false);
+      showToast("Join request sent!");
+    } catch (e) {
+      console.error(e);
+      showToast("Failed to send request.", "error");
+    }
+  };
+
+  useEffect(() => {
+    document.body.style.overflow = (isEditModalOpen || showRequestModal) ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [isEditModalOpen]);
+  }, [isEditModalOpen, showRequestModal]);
 
   const openEditModal = useCallback(() => {
     setEditPhone(userData?.phone ?? "");
@@ -232,13 +332,72 @@ function ProfilePageContent() {
 
           {/* ── CONTENT ── */}
           <div className="w-full md:w-2/3 lg:w-3/4 flex flex-col gap-6">
-            {activeTab === "profile" && <ProfileContent user={user} isVolunteer={isVolunteer} sosCount={sosCount} resolvedCount={resolvedCount} userData={userData} vetData={vetData} ngoData={ngoData} onEditClick={openEditModal} />}
+            {activeTab === "profile" && (
+              <ProfileContent 
+                user={user} 
+                isVolunteer={isVolunteer} 
+                sosCount={sosCount} 
+                resolvedCount={resolvedCount} 
+                userData={userData} 
+                vetData={vetData} 
+                ngoData={ngoData} 
+                onEditClick={openEditModal}
+                invitations={invitations}
+                onAcceptInvite={handleAcceptInvite}
+                onRejectInvite={handleRejectInvite}
+                onRequestClick={() => setShowRequestModal(true)}
+              />
+            )}
             {activeTab === "reports" && <ReportsContent user={user} isVolunteer={isVolunteer} />}
             {activeTab === "settings" && <SettingsContent user={user} showToast={showToast} />}
             {isVolunteer && activeTab === "credentials" && <CredentialsContent userData={userData} />}
           </div>
         </div>
       </div>
+
+      {showRequestModal &&
+        createPortal(
+          <div className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ zIndex: 99999 }}>
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowRequestModal(false)} />
+            <div
+              className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative z-[100000] animate-in slide-in-from-bottom sm:zoom-in duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-800">Join Organization</h3>
+                <button onClick={() => setShowRequestModal(false)} className="text-slate-400 hover:text-slate-600 text-3xl leading-none" aria-label="Close">×</button>
+              </div>
+              <p className="text-slate-500 text-sm mb-6">Send a join request to a verified NGO or Hospital.</p>
+
+              <form onSubmit={handleSendJoinRequest} className="space-y-4 sm:space-y-5">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Organization Name</label>
+                  <input
+                    name="orgName"
+                    type="text"
+                    required
+                    placeholder="Enter full organization name"
+                    className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl px-4 sm:px-5 py-3 outline-none focus:border-orange-500 transition-colors text-slate-900 font-bold placeholder:text-slate-400 placeholder:font-normal"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-2 ml-1 italic">Note: Name must match exactly as registered on AnimalSathi.</p>
+                </div>
+
+                <div className="flex gap-3 mt-8">
+                  <button type="button" onClick={() => setShowRequestModal(false)} className="flex-1 px-4 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-[2] bg-orange-500 text-white px-6 py-3 rounded-2xl font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    Send Request
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {isEditModalOpen &&
         createPortal(
@@ -318,7 +477,6 @@ export default function ProfilePage() {
   );
 }
 
-// 1. REPLACED: CredentialsContent
 function CredentialsContent({ userData }: { userData: UserData | null }) {
   const idCardPath = userData?.idCardPath ?? userData?.idcardPath ?? userData?.id_card_path;
   const certPath = userData?.certificatePath ?? userData?.certPath;
@@ -347,7 +505,6 @@ function CredentialsContent({ userData }: { userData: UserData | null }) {
   );
 }
 
-// 2. UNTOUCHED: Keep your SidebarButton exactly as is
 function SidebarButton({ icon, label, isActive, onClick }: { icon: string; label: string; isActive: boolean; onClick: () => void }) {
   return (
     <button
@@ -362,7 +519,6 @@ function SidebarButton({ icon, label, isActive, onClick }: { icon: string; label
   );
 }
 
-// 3. REPLACED: CredentialCard
 function CredentialCard({ 
   emoji, 
   title, 
@@ -377,7 +533,6 @@ function CredentialCard({
   theme: "slate" | "orange" 
 }) {
   const [isFetching, setIsFetching] = useState(false);
-  
   const active = !!storagePath;
   const iconBg = active ? theme === "slate" ? "bg-slate-100 text-slate-800" : "bg-orange-100 text-orange-600" : "bg-slate-200 text-slate-400";
   const borderBg = active ? theme === "slate" ? "border-slate-300 bg-white shadow-md hover:-translate-y-1" : "border-orange-200 bg-orange-50/30 shadow-md hover:-translate-y-1" : "border-slate-200 bg-slate-50 opacity-70";
@@ -386,24 +541,19 @@ function CredentialCard({
   const handleOpenDocument = async () => {
     if (!storagePath) return;
     setIsFetching(true);
-    
     try {
-      // 1. Safety Check: If it's ALREADY a full web URL (from your old backend), just open it directly.
       if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) {
         window.open(storagePath, "_blank", "noopener,noreferrer");
         setIsFetching(false);
         return;
       }
-
-      // 2. Otherwise, treat it as a Firebase Storage path and fetch the secure URL
       const storage = getStorage();
       const fileRef = ref(storage, storagePath);
       const url = await getDownloadURL(fileRef);
       window.open(url, "_blank", "noopener,noreferrer");
-      
     } catch (error) {
       console.error("Error fetching document:", error);
-      alert("Could not load the document. It might still be generating or the file doesn't exist in Storage.");
+      alert("Could not load the document.");
     } finally {
       setIsFetching(false);
     }
@@ -416,13 +566,8 @@ function CredentialCard({
       </div>
       <h3 className="font-bold text-slate-800 text-base md:text-lg mb-1">{title}</h3>
       <p className="text-xs text-slate-500 mb-6 flex-1">{description}</p>
-      
       {active ? (
-        <button 
-          onClick={handleOpenDocument}
-          disabled={isFetching}
-          className={`block w-full py-3 text-center rounded-xl font-bold text-sm transition-colors shadow-sm ${btnClass} ${isFetching ? 'opacity-75 cursor-wait' : ''}`}
-        >
+        <button onClick={handleOpenDocument} disabled={isFetching} className={`block w-full py-3 text-center rounded-xl font-bold text-sm transition-colors shadow-sm ${btnClass} ${isFetching ? 'opacity-75 cursor-wait' : ''}`}>
           {isFetching ? "Opening..." : "View Document →"}
         </button>
       ) : (
@@ -431,6 +576,7 @@ function CredentialCard({
     </div>
   );
 }
+
 function FullScreenSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -438,7 +584,3 @@ function FullScreenSpinner() {
     </div>
   );
 }
-
-// Global CSS fix for hide-scrollbar (add this to your globals.css if not already present)
-// .hide-scrollbar::-webkit-scrollbar { display: none; }
-// .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

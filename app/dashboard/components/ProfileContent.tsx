@@ -33,18 +33,27 @@ export default function ProfileContent({
   vetData,
   ngoData,
   onEditClick,
+  invitations,
+  onAcceptInvite,
+  onRejectInvite,
+  onRequestClick,
 }: {
   user: User;
   isVolunteer: boolean;
   sosCount: number;
   resolvedCount: number;
-  userData: UserData | null;
+  userData: any;
   vetData: VetData | null;
   ngoData: NgoData | null;
   onEditClick: () => void;
+  invitations: any[];
+  onAcceptInvite: (invite: any) => void;
+  onRejectInvite: (id: string) => void;
+  onRequestClick: () => void;
 }) {
   return (
     <>
+      {/* ... existing stats grid ... */}
       <div className="grid grid-cols-2 gap-3 md:gap-4">
         <StatBox icon="🚨" value={sosCount} label="Reported" />
         {isVolunteer ? (
@@ -78,6 +87,61 @@ export default function ProfileContent({
           <DetailField label="Phone" value={userData?.phone ?? "Not set"} />
           <DetailField label="City" value={userData?.city ?? "Not set"} />
         </div>
+      </div>
+
+      {/* Organization Membership Card */}
+      <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-slate-100">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl md:text-2xl font-bold text-slate-800">Organization</h3>
+          {!userData?.organizationId && (
+            <button
+              onClick={onRequestClick}
+              className="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-all shadow-md"
+            >
+              Join Organization
+            </button>
+          )}
+        </div>
+
+        {userData?.organizationId ? (
+          <div className="p-5 bg-orange-50 rounded-2xl border border-orange-100 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-orange-500 text-white flex items-center justify-center text-2xl shadow-lg shadow-orange-200">🏢</div>
+              <div>
+                <p className="font-black text-orange-900 leading-tight">{userData.organizationName}</p>
+                <p className="text-xs font-bold text-orange-600 uppercase tracking-widest mt-1">Verified Partner</p>
+              </div>
+            </div>
+            <div className="bg-white text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-orange-200">
+              Active Member
+            </div>
+          </div>
+        ) : invitations.length > 0 ? (
+          <div className="space-y-3">
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Pending Invitations ({invitations.length})</p>
+            {invitations.map((invite) => (
+              <div key={invite.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xl">🤝</div>
+                  <div>
+                    <p className="font-bold text-slate-800">{invite.orgName}</p>
+                    <p className="text-xs text-slate-500">Invited you as {invite.role || "Member"}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => onRejectInvite(invite.id)} className="px-4 py-2 rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-200 transition-colors">Decline</button>
+                  <button onClick={() => onAcceptInvite(invite)} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold text-xs hover:bg-orange-600 transition-all shadow-md">Accept & Join</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+            <div className="text-3xl mb-2">🏢</div>
+            <p className="text-slate-500 font-bold text-sm">Not linked to any organization yet.</p>
+            <p className="text-slate-400 text-xs mt-1">Join an NGO or Hospital to access specialized tools.</p>
+          </div>
+        )}
       </div>
 
       {/* NGO card */}

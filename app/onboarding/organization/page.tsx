@@ -6,6 +6,7 @@ import { auth, db, storage } from "../../lib/firebase";
 import {
   doc,
   setDoc,
+  deleteDoc,
   serverTimestamp,
   GeoPoint,
 } from "firebase/firestore";
@@ -127,6 +128,22 @@ export default function OrganizationOnboardingPage() {
 
   // Rejected State
   if (pendingOrg?.status === "rejected") {
+    const handleReApply = async () => {
+      try {
+        const id = (pendingOrg as any)?.id || "";
+        if (!id) {
+          showToast("No application id found.", "error");
+          return;
+        }
+        await deleteDoc(doc(db, "pending_organizations", id));
+        router.refresh();
+        showToast("Application cleared. You can now apply again.", "success");
+      } catch (error) {
+        console.error("Error clearing rejected application:", error);
+        showToast("Failed to clear application. Please try again.", "error");
+      }
+    };
+
     return (
       <main className="min-h-[100dvh] flex items-center justify-center bg-white px-4 sm:px-6 py-10 relative overflow-hidden">
         <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-8 sm:p-12 w-full max-w-md text-center animate-scaleIn">
@@ -134,15 +151,26 @@ export default function OrganizationOnboardingPage() {
             <XCircle className="w-10 h-10 text-rescue-red" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-3 text-slate-800 tracking-tight">Application Rejected</h2>
-          <p className="text-slate-500 mb-10 font-medium leading-relaxed">
+          <p className="text-slate-500 mb-6 font-medium leading-relaxed">
             Unfortunately, your organizational registry was not approved. This could be due to incomplete documentation or verification failure.
           </p>
-          <button
-            onClick={() => router.refresh()}
-            className="w-full shimmer-btn bg-primary text-white py-4 rounded-2xl font-bold hover:bg-primary-container transition-all shadow-lg hover:-translate-y-1"
-          >
-            Refresh Status
-          </button>
+          {(pendingOrg as any).rejectionReason && (
+            <div className="bg-rescue-red/5 border border-rescue-red/20 rounded-2xl p-4 mb-8 text-left">
+              <p className="text-xs font-bold uppercase tracking-wider text-rescue-red mb-2">Feedback from reviewers:</p>
+              <p className="text-sm text-slate-600">{(pendingOrg as any).rejectionReason}</p>
+            </div>
+          )}
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleReApply}
+              className="w-full shimmer-btn bg-primary text-white py-4 rounded-2xl font-bold hover:bg-primary-container transition-all shadow-lg hover:-translate-y-1 active:scale-95"
+            >
+              Edit & Re-submit Application
+            </button>
+            <Link href="/" className="w-full px-6 py-4 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-all">
+              Return Home
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -279,7 +307,12 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
   });
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (u?.email) {
+        setFormData(prev => ({ ...prev, email: u.email || "" }));
+      }
+    });
     return () => unsub();
   }, []);
 
@@ -367,7 +400,7 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
 
             <InputField icon={UserRound} label="Primary Admin / Manager" value={formData.contactPerson} onChange={v => setFormData({...formData, contactPerson: v})} placeholder="Full name of authority" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputField icon={Mail} label="Official Email" value={formData.email} onChange={v => setFormData({...formData, email: v})} placeholder="admin@org.org" />
+              <InputField icon={Mail} label="Official Email" value={formData.email} onChange={v => setFormData({...formData, email: v})} placeholder="admin@org.org" disabled={true} />
               <InputField icon={Phone} label="Contact Number" value={formData.phone} onChange={v => setFormData({...formData, phone: v})} placeholder="+91" />
             </div>
           </div>
@@ -486,18 +519,39 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
   );
 }
 
-function InputField({ icon: Icon, label, value, onChange, placeholder }: { icon: any, label: string, value: string, onChange: (v: string) => void, placeholder: string }) {
+function InputField({ 
+  icon: Icon, 
+  label, 
+  value, 
+  onChange, 
+  placeholder, 
+  disabled = false 
+}: { 
+  icon: any, 
+  label: string, 
+  value: string, 
+  onChange: (v: string) => void, 
+  placeholder: string,
+  disabled?: boolean 
+}) {
   return (
-    <div className="relative group">
+    <div className={`relative group ${disabled ? 'opacity-80' : ''}`}>
       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2.5 ml-1 flex items-center gap-1.5">
         <Icon className="w-3.5 h-3.5" /> {label}
+        {disabled && <Lock className="w-2.5 h-2.5 text-slate-400" />}
       </label>
       <input 
         type="text" 
         value={value} 
-        onChange={e => onChange(e.target.value)}
+        onChange={e => !disabled && onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 text-sm sm:text-base font-bold text-slate-700 placeholder:text-slate-300 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 transition-all outline-none shadow-sm"
+        disabled={disabled}
+        readOnly={disabled}
+        className={`w-full border rounded-2xl px-6 py-4 text-sm sm:text-base font-bold transition-all outline-none shadow-sm ${
+          disabled 
+            ? 'bg-slate-50 border-slate-100 text-slate-500 cursor-not-allowed' 
+            : 'bg-white border-slate-200 text-slate-700 placeholder:text-slate-300 focus:border-primary/50 focus:ring-4 focus:ring-primary/5'
+        }`}
       />
     </div>
   );

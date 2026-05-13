@@ -15,6 +15,7 @@ import {
   Star,
   Menu as MenuIcon,
 } from "lucide-react";
+import { User as FirebaseUser } from "firebase/auth";
 
 /* ═══════════════════════════════════════════════════
    STATIC DATA (outside component to avoid re-creation)
@@ -123,6 +124,8 @@ const TRENDING_SEARCHES = [
 type ShopHeaderProps = {
   onCartClick?: () => void;
   cartCount?: number;
+  user?: FirebaseUser | null;
+  onAddProduct?: () => void;
 };
 
 /* ═══════════════════════════════════════════════════

@@ -21,6 +21,7 @@ import { Sparkles, Bone, Pill, Circle, Activity } from "lucide-react";
 import ShopHeader from "../components/ShopHeader";
 import ProductCard from "../components/ProductCard";
 import CheckoutPanel from "../components/CheckoutPanel";
+import CartDrawer from "../components/CartDrawer";
 
 /* ═══════════════════════════════════════════════════
    GLOBAL STYLES (injected once)
@@ -246,188 +247,6 @@ ProductCardSkeleton.displayName = "ProductCardSkeleton";
 /* ═══════════════════════════════════════════════════
    CART DRAWER (extracted component)
    ═══════════════════════════════════════════════════ */
-const CartDrawer = memo(
-  ({
-    items,
-    total,
-    onClose,
-    onUpdateQty,
-    onRemove,
-    onBuyNow,
-  }: {
-    items: any[];
-    total: number;
-    onClose: () => void;
-    onUpdateQty: (id: string, delta: number) => void;
-    onRemove: (id: string) => void;
-    onBuyNow: () => void;
-  }) => {
-    // Focus trap: close on Escape
-    useEffect(() => {
-      const handler = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
-      };
-      document.addEventListener("keydown", handler);
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.removeEventListener("keydown", handler);
-        document.body.style.overflow = "";
-      };
-    }, [onClose]);
-
-    return (
-      <div
-        className="fixed inset-0 z-[100000] bg-slate-900/50 backdrop-blur-[2px]"
-        onClick={onClose}
-        style={{ animation: "cart-backdrop-in 220ms ease-out" }}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Shopping cart"
-      >
-        <aside
-          className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
-          onClick={(e) => e.stopPropagation()}
-          style={{ animation: "cart-drawer-in 280ms cubic-bezier(0.22,1,0.36,1)" }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
-                <svg className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-800">Your Cart</h3>
-                <p className="text-xs text-slate-400">
-                  {items.length} item{items.length !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-100 transition-colors"
-              aria-label="Close cart"
-            >
-              <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Items */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {items.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center py-12">
-                <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-4">
-                  <svg className="w-10 h-10 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-                  </svg>
-                </div>
-                <p className="text-base font-semibold text-slate-700">Your cart is empty</p>
-                <p className="text-sm text-slate-400 mt-1">Add items to get started</p>
-                <button
-                  onClick={onClose}
-                  className="mt-6 px-6 py-2.5 text-sm font-semibold text-orange-600 border border-orange-200 rounded-xl hover:bg-orange-50 transition-colors"
-                >
-                  Continue Shopping
-                </button>
-              </div>
-            ) : (
-              items.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
-                  style={{ animation: `fade-up 300ms ease-out ${idx * 50}ms both` }}
-                >
-                  <div className="flex gap-3">
-                    <div className="w-[72px] h-[72px] rounded-xl overflow-hidden bg-slate-50 flex-shrink-0">
-                      <Image
-                        src={item.imageUrl}
-                        alt={item.name}
-                        width={72}
-                        height={72}
-                        sizes="72px"
-                        loading="lazy"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-800 line-clamp-1">{item.name}</p>
-                      <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
-                        {item.vetClinicName || "Verified Clinic"}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-sm font-extrabold text-slate-900">
-                          ₹{((Number(item.price) || 0) * (item.qty || 1)).toLocaleString("en-IN")}
-                        </p>
-                        <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => onUpdateQty(item.id, -1)}
-                            className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors font-bold text-base"
-                            aria-label="Decrease quantity"
-                          >
-                            −
-                          </button>
-                          <span className="w-8 text-center text-sm font-bold text-slate-800">{item.qty || 1}</span>
-                          <button
-                            type="button"
-                            onClick={() => onUpdateQty(item.id, 1)}
-                            className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors font-bold text-base"
-                            aria-label="Increase quantity"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onRemove(item.id)}
-                      className="self-start w-7 h-7 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
-                      aria-label={`Remove ${item.name}`}
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Footer */}
-          {items.length > 0 && (
-            <div className="border-t border-slate-100 p-4 space-y-3 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
-              <div className="flex items-center justify-between px-1">
-                <div>
-                  <p className="text-xs text-slate-400 font-medium">Subtotal</p>
-                  <p className="text-xl font-extrabold text-slate-900 tracking-tight">
-                    ₹{total.toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <span className="text-[10px] text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full font-medium">
-                  Taxes calculated at checkout
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={onBuyNow}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3.5 rounded-2xl font-bold text-sm hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all active:scale-[0.98]"
-              >
-                Proceed to Checkout →
-              </button>
-            </div>
-          )}
-        </aside>
-      </div>
-    );
-  }
-);
-CartDrawer.displayName = "CartDrawer";
 
 /* ═══════════════════════════════════════════════════
    ADD PRODUCT MODAL (extracted component)
@@ -782,8 +601,30 @@ export default function ShopPage() {
 }, []);
 
 useEffect(() => {
-  localStorage.setItem("cart", JSON.stringify(cartItems));
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("cart", JSON.stringify(cartItems));
+    // notify other components/tabs in this window
+    window.dispatchEvent(new CustomEvent("cart-updated", { detail: cartItems }));
+  } catch (e) {
+    console.error("Failed to persist cart:", e);
+  }
 }, [cartItems]);
+
+// Listen for cart updates from other components/tabs
+useEffect(() => {
+  if (typeof window === "undefined") return;
+  const handler = (e: Event) => {
+    try {
+      const detail = (e as CustomEvent).detail;
+      if (Array.isArray(detail)) setCartItems(detail);
+    } catch (err) {
+      // ignore
+    }
+  };
+  window.addEventListener("cart-updated", handler as EventListener);
+  return () => window.removeEventListener("cart-updated", handler as EventListener);
+}, []);
   // Firestore realtime listener
   useEffect(() => {
     const q = query(collection(db, "shop_products"), orderBy("createdAt", "desc"), limit(50));
@@ -798,5 +639,205 @@ useEffect(() => {
   setVisibleCount(8);
 }, [activeCategory, activeAnimal, searchQuery]);
 
-  return null; // This will be the full shop logic, but for now we backup it
+  const filteredProducts = useMemo(() => {
+    let result = products;
+    if (activeCategory !== "All") result = result.filter((p) => p.category === activeCategory);
+    if (activeAnimal) result = result.filter((p) => p.animal === activeAnimal);
+    if (searchQuery) result = result.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    return result;
+  }, [products, activeCategory, activeAnimal, searchQuery]);
+
+  const visibleProducts = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
+
+  return (
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-primary/10 selection:text-primary">
+      <GlobalStyles />
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Header */}
+      <ShopHeader
+        cartCount={cartItems.length}
+        onCartClick={() => setIsCartOpen(true)}
+        user={user}
+        onAddProduct={isVet ? () => setShowAddModal(true) : undefined}
+      />
+
+      {/* Main Section */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+        
+        {/* Search & Filters */}
+        <div className="mb-12 space-y-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
+          </div>
+
+          {/* Category Filter */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {["All", "Medicine", "Nutrition", "Toys", "Accessories"].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+                  activeCategory === cat
+                    ? "bg-primary text-white shadow-lg shadow-primary/20"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Animal Filter */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {ANIMALS.map((animal) => (
+              <button
+                key={animal.name}
+                onClick={() => setActiveAnimal(activeAnimal === animal.name ? "" : animal.name)}
+                className={`px-3 py-2 rounded-xl whitespace-nowrap text-sm font-medium transition-all flex items-center gap-2 ${
+                  activeAnimal === animal.name
+                    ? "bg-primary text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <span className="text-lg">{animal.name === "Dog" ? "🐕" : animal.name === "Cat" ? "🐈" : "🐾"}</span>
+                {animal.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Products Grid */}
+        <div className="mb-12">
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : visibleProducts.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-4xl mb-4">📦</div>
+              <p className="text-slate-500 font-medium">No products found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {visibleProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={() => {
+                    setCartItems((prev) => {
+                      const existing = prev.find((item) => item.id === product.id);
+                      if (existing) {
+                        return prev.map((item) =>
+                          item.id === product.id ? { ...item, qty: (item.qty || 1) + 1 } : item
+                        );
+                      }
+                      return [...prev, { ...product, qty: 1 }];
+                    });
+                    showToast(`Added ${product.name} to cart!`);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Load More */}
+        {visibleCount < filteredProducts.length && (
+          <div className="flex justify-center">
+            <button
+              onClick={() => setVisibleCount((prev) => prev + 8)}
+              className="px-8 py-3 bg-primary text-white rounded-2xl font-bold hover:bg-primary-container transition-all"
+            >
+              Load More Products
+            </button>
+          </div>
+        )}
+      </main>
+
+      {/* Cart Drawer */}
+      {isCartOpen && (
+        <CartDrawer
+          items={cartItems}
+          total={cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0)}
+          onClose={() => setIsCartOpen(false)}
+          onUpdateQty={(id, delta) => {
+            setCartItems((prev) =>
+              prev.map((item) =>
+                item.id === id
+                  ? { ...item, qty: Math.max(1, (item.qty || 1) + delta) }
+                  : item
+              ).filter((item) => item.qty > 0)
+            );
+          }}
+          onRemove={(id) => setCartItems((prev) => prev.filter((item) => item.id !== id))}
+          onBuyNow={() => {
+            setIsCheckoutOpen(true);
+            setIsCartOpen(false);
+          }}
+        />
+      )}
+
+      {/* Add Product Modal */}
+      {showAddModal && (
+        <AddProductModal
+          onClose={() => setShowAddModal(false)}
+          onSubmit={async (data) => {
+            setIsUploading(true);
+            try {
+              let imageUrl = "";
+              if (data.image && user) {
+                const storageRef = ref(storage, `shop_products/${user.uid}_${Date.now()}`);
+                await uploadBytes(storageRef, data.image);
+                imageUrl = await getDownloadURL(storageRef);
+              }
+              await addDoc(collection(db, "shop_products"), {
+                name: data.name,
+                price: Number(data.price),
+                category: data.category,
+                animal: data.animal,
+                description: data.description,
+                imageUrl,
+                vetClinicName,
+                vetUserId: user?.uid,
+                createdAt: serverTimestamp(),
+              });
+              showToast("Product added successfully!");
+              setShowAddModal(false);
+            } catch (error: any) {
+              showToast(error.message, "error");
+            }
+            setIsUploading(false);
+          }}
+          isUploading={isUploading}
+        />
+      )}
+
+      {/* Checkout Panel */}
+      {isCheckoutOpen && (
+        <CheckoutPanel
+          items={cartItems}
+          total={cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0)}
+          onBackToCart={() => {
+            setIsCheckoutOpen(false);
+            setIsCartOpen(true);
+          }}
+          onClose={() => setIsCheckoutOpen(false)}
+          onPlaceOrder={() => {
+            setCartItems([]);
+            setIsCheckoutOpen(false);
+            showToast("Order placed successfully!", "success");
+          }}
+        />
+      )}
+    </div>
+  );
 }

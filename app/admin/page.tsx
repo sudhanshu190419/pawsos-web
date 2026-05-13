@@ -1,12 +1,12 @@
-﻿"use client";
+"use client";
 
 // Prevent prerendering - Firebase must initialize at runtime
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // ðŸ”¥ Added for redirects
-import { auth, db } from "../lib/firebase"; // ðŸ”¥ Make sure auth is exported from here
+import { useRouter } from "next/navigation";
+import { auth, db } from "../lib/firebase";
 import { 
   LayoutDashboard, 
   AlertCircle, 
@@ -83,14 +83,14 @@ export default function AdminDashboard() {
       unsubVet();
       unsubOrg();
     };
-  }, [isAdminAuthorized]); // ðŸ”¥ Dependency added
+  }, [isAdminAuthorized]);
 
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-surface">
-        <div className="w-12 h-12 border-4 border-warm-line border-t-primary rounded-full animate-spin mb-6"></div>
-        <p className="text-on-surface-variant font-bold tracking-widest uppercase text-xs">Securing Terminal...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-primary rounded-full animate-spin mb-6"></div>
+        <p className="text-slate-500 font-bold tracking-widest uppercase text-xs">Securing Terminal...</p>
       </div>
     );
   }
@@ -98,14 +98,14 @@ export default function AdminDashboard() {
   if (!isAdminAuthorized) return null;
 
   return (
-    <div className="min-h-screen bg-surface flex text-on-surface selection:bg-primary/10 selection:text-primary">
+    <div className="min-h-screen bg-slate-50 flex text-slate-900 selection:bg-primary/10 selection:text-primary">
 
       {/* SIDEBAR */}
-      <aside className={`bg-on-surface text-on-primary w-64 flex-shrink-0 transition-all duration-300 flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full absolute md:relative md:w-20 z-20"}`}>
+      <aside className={`bg-slate-900 text-white w-64 flex-shrink-0 transition-all duration-300 flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full absolute md:relative md:w-20 z-20"}`}>
 
         {/* Sidebar Header */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-warm-line/10">
-          <span className={`text-on-primary font-black text-xl tracking-tighter flex items-center gap-2 ${!isSidebarOpen && "md:hidden"}`}>
+        <div className="h-20 flex items-center justify-between px-6 border-b border-white/5">
+          <span className={`text-white font-black text-xl tracking-tighter flex items-center gap-2 ${!isSidebarOpen && "md:hidden"}`}>
             <span className="text-primary"><ShieldCheck className="w-6 h-6" /></span> AnimalSathi
           </span>
           <span className={`text-primary hidden ${!isSidebarOpen && "md:block"}`}><ShieldCheck className="w-6 h-6" /></span>
@@ -137,12 +137,12 @@ export default function AdminDashboard() {
         </nav>
 
         {/* Admin Profile Footer */}
-        <div className="p-4 border-t border-warm-line/10">
-          <div className="flex items-center gap-3 bg-warm-surface/5 p-3 rounded-2xl border border-warm-line/5">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary font-black shrink-0 shadow-lg shadow-primary/20">AD</div>
+        <div className="p-4 border-t border-white/5">
+          <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-black shrink-0 shadow-lg shadow-primary/20">AD</div>
             <div className={`overflow-hidden transition-all ${!isSidebarOpen && "md:hidden"}`}>
-              <p className="text-xs font-black text-on-primary truncate">Admin Terminal</p>
-              <button onClick={() => signOut(auth)} className="text-[10px] font-bold text-on-primary/40 hover:text-primary transition-colors flex items-center gap-1 mt-0.5">
+              <p className="text-xs font-black text-white truncate">Admin Terminal</p>
+              <button onClick={() => signOut(auth)} className="text-[10px] font-bold text-white/40 hover:text-primary transition-colors flex items-center gap-1 mt-0.5">
                 Sign Out <LogOut className="w-2.5 h-2.5" />
               </button>
             </div>
@@ -154,15 +154,15 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
 
         {/* Top Header */}
-        <header className="h-20 bg-warm-surface border-b border-warm-line flex items-center justify-between px-6 z-10 shadow-sm">
+        <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 shadow-sm">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface rounded-xl transition-all border border-transparent hover:border-warm-line"
+              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-200"
             >
               {isSidebarOpen ? <Menu className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
             </button>
-            <h1 className="text-sm font-black uppercase tracking-[0.2em] text-on-surface-variant hidden sm:block">Command Center</h1>
+            <h1 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500 hidden sm:block">Command Center</h1>
           </div>
 
           <div className="flex items-center gap-4">
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
         </header>
 
         {/* Dashboard Content */}
-        <div className="flex-1 overflow-auto p-6 md:p-10 lg:p-12">
+        <div className="flex-1 overflow-auto p-6 md:p-10 lg:p-12 bg-slate-50/50">
 
           {/* Top Stats Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -186,9 +186,9 @@ export default function AdminDashboard() {
           {/* DYNAMIC TAB CONTENT */}
           {activeTab === "dashboard" && (
             <div className="flex flex-col gap-8 animate-fadeUp">
-              <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden flex flex-col">
-                <div className="px-8 py-6 border-b border-warm-line flex justify-between items-center bg-warm-raised/30">
-                  <h2 className="text-lg font-bold text-on-surface">Live SOS Feed</h2>
+              <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden flex flex-col">
+                <div className="px-8 py-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                  <h2 className="text-lg font-bold text-slate-800">Live SOS Feed</h2>
                   <button onClick={() => setActiveTab("sos")} className="text-xs font-black uppercase tracking-widest text-primary hover:opacity-70 transition-opacity">View Operational Map</button>
                 </div>
                 <div className="p-2 overflow-auto">
@@ -196,9 +196,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
               
-              <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden h-fit">
-                <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
-                  <h2 className="text-lg font-bold text-on-surface">Org Requests</h2>
+              <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden h-fit">
+                <div className="px-8 py-6 border-b border-slate-200 bg-slate-50/50">
+                  <h2 className="text-lg font-bold text-slate-800">Org Requests</h2>
                 </div>
                 <div className="p-4">
                   <OrganizationApprovals />
@@ -209,9 +209,9 @@ export default function AdminDashboard() {
 
           {activeTab === "organizations" && (
             <div className="max-w-4xl mx-auto animate-fadeUp">
-               <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
-                 <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
-                   <h2 className="text-lg font-bold text-on-surface">Enterprise Partner Verification</h2>
+               <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                 <div className="px-8 py-6 border-b border-slate-200 bg-slate-50/50">
+                   <h2 className="text-lg font-bold text-slate-800">Enterprise Partner Verification</h2>
                  </div>
                  <div className="p-6">
                     <OrganizationApprovals />
@@ -222,9 +222,9 @@ export default function AdminDashboard() {
 
           {activeTab === "vets" && (
             <div className="max-w-4xl mx-auto animate-fadeUp">
-               <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
-                 <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
-                   <h2 className="text-lg font-bold text-on-surface">Veterinarian Verification</h2>
+               <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                 <div className="px-8 py-6 border-b border-slate-200 bg-slate-50/50">
+                   <h2 className="text-lg font-bold text-slate-800">Veterinarian Verification</h2>
                  </div>
                  <div className="p-6">
                     <VetApprovals />
@@ -235,9 +235,9 @@ export default function AdminDashboard() {
 
           {activeTab === "ngos" && (
             <div className="max-w-4xl mx-auto animate-fadeUp">
-               <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
-                 <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
-                   <h2 className="text-lg font-bold text-on-surface">NGO Partner Onboarding</h2>
+               <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                 <div className="px-8 py-6 border-b border-slate-200 bg-slate-50/50">
+                   <h2 className="text-lg font-bold text-slate-800">NGO Partner Onboarding</h2>
                  </div>
                  <div className="p-6">
                     <PendingApprovals />
@@ -247,9 +247,9 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === "sos" && (
-            <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden flex flex-col animate-fadeUp min-h-[700px]">
-              <div className="px-8 py-6 border-b border-warm-line flex justify-between items-center bg-warm-raised/30">
-                <h2 className="text-lg font-bold text-on-surface">Operational SOS Map</h2>
+            <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden flex flex-col animate-fadeUp min-h-[700px]">
+              <div className="px-8 py-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                <h2 className="text-lg font-bold text-slate-800">Operational SOS Map</h2>
               </div>
               <div className="flex-1 p-2">
                 <LiveSOSFeed />
@@ -259,9 +259,9 @@ export default function AdminDashboard() {
 
           {activeTab === "volunteers" && (
             <div className="max-w-4xl mx-auto animate-fadeUp">
-              <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
-                <div className="px-8 py-6 border-b border-warm-line bg-warm-raised/30">
-                  <h2 className="text-lg font-bold text-on-surface">Volunteer Management</h2>
+              <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                <div className="px-8 py-6 border-b border-slate-200 bg-slate-50/50">
+                  <h2 className="text-lg font-bold text-slate-800">Volunteer Management</h2>
                 </div>
                 <div className="p-6">
                    <VolunteerApprovals />
@@ -271,16 +271,16 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === "shop" && (
-            <div className="bg-warm-surface border border-warm-line rounded-[2rem] shadow-sm overflow-hidden flex flex-col animate-fadeUp">
-              <div className="px-8 py-6 border-b border-warm-line flex justify-between items-center bg-warm-raised/30">
-                <h2 className="text-lg font-bold text-on-surface">Shop Orders Management</h2>
+            <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col animate-fadeUp">
+              <div className="px-8 py-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                <h2 className="text-lg font-bold text-slate-800">Shop Orders Management</h2>
               </div>
               <div className="p-24 flex flex-col items-center justify-center text-center">
                 <div className="w-20 h-20 rounded-[2rem] bg-primary/5 flex items-center justify-center mb-8 border border-primary/10">
                   <ShoppingBag className="w-10 h-10 text-primary opacity-40" />
                 </div>
-                <h3 className="text-2xl font-extrabold text-on-surface mb-3 tracking-tight">Marketplace Terminal Offline</h3>
-                <p className="text-on-surface-variant max-w-md font-medium leading-relaxed">
+                <h3 className="text-2xl font-extrabold text-slate-800 mb-3 tracking-tight">Marketplace Terminal Offline</h3>
+                <p className="text-slate-500 max-w-md font-medium leading-relaxed">
                   This secure gateway will track merchandise orders, medical supply logistics, and vendor inventory once the commerce layer is activated.
                 </p>
               </div>
@@ -290,7 +290,7 @@ export default function AdminDashboard() {
       </main>
     </div>
   );
-  }
+}
 
 /* --- ADMIN UI HELPER COMPONENTS --- */
 
@@ -305,9 +305,9 @@ interface NavItemProps {
 
 function NavItem({ icon: Icon, label, active, badge, isOpen, colorClass = "" }: NavItemProps) {
   return (
-    <div className={`flex items-center justify-between px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 group border border-transparent ${active ? "bg-primary text-on-primary shadow-lg shadow-primary/20 border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]" : "hover:bg-warm-surface/10 text-on-primary/60 hover:text-on-primary"}`}>
+    <div className={`flex items-center justify-between px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 group border border-transparent ${active ? "bg-primary text-white shadow-lg shadow-primary/20 border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]" : "hover:bg-white/10 text-white/60 hover:text-white"}`}>
       <div className="flex items-center gap-4">
-        <Icon className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${active ? "text-on-primary" : colorClass || "text-on-primary/40 group-hover:text-primary"}`} />
+        <Icon className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${active ? "text-white" : colorClass || "text-white/40 group-hover:text-primary"}`} />
         <span className={`font-bold text-sm tracking-tight truncate ${!isOpen && "md:hidden"}`}>{label}</span>
       </div>
       {badge ? (
@@ -329,14 +329,14 @@ interface StatCardProps {
 
 function StatCard({ icon: Icon, title, value, trend, color }: StatCardProps) {
   const colorMap: Record<string, string> = {
-    red: "bg-rescue-red/5 text-rescue-red border-rescue-red/10",
-    green: "bg-field-green/5 text-field-green border-field-green/10",
-    blue: "bg-map-blue/5 text-map-blue border-map-blue/10",
-    amber: "bg-primary/5 text-primary border-primary/10",
+    red: "bg-red-50 text-red-600 border-red-100",
+    green: "bg-green-50 text-green-600 border-green-100",
+    blue: "bg-blue-50 text-blue-600 border-blue-100",
+    amber: "bg-orange-50 text-orange-600 border-orange-100",
   };
 
   return (
-    <div className="bg-warm-surface p-7 rounded-[2rem] border border-warm-line shadow-sm flex flex-col justify-between hover:shadow-md transition-all group active:scale-[0.98] relative overflow-hidden">
+    <div className="bg-white p-7 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-all group active:scale-[0.98] relative overflow-hidden">
       <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
         <Icon className="w-24 h-24 -mr-8 -mt-8 rotate-12" />
       </div>
@@ -346,11 +346,11 @@ function StatCard({ icon: Icon, title, value, trend, color }: StatCardProps) {
         </div>
       </div>
       <div className="relative z-10">
-        <h3 className="text-4xl font-black text-on-surface mb-1 font-mono tracking-tighter">{value}</h3>
-        <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">{title}</p>
+        <h3 className="text-4xl font-black text-slate-800 mb-1 font-mono tracking-tighter">{value}</h3>
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{title}</p>
         <div className="flex items-center gap-1.5 mt-3">
-          <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${color === 'red' || color === 'amber' ? 'bg-primary' : 'bg-on-surface-variant/30'}`} />
-          <p className={`text-[10px] font-bold ${color === 'red' || color === 'amber' ? 'text-primary' : 'text-on-surface-variant/40'}`}>{trend}</p>
+          <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${color === 'red' || color === 'amber' ? 'bg-primary' : 'bg-slate-300'}`} />
+          <p className={`text-[10px] font-bold ${color === 'red' || color === 'amber' ? 'text-primary' : 'text-slate-400'}`}>{trend}</p>
         </div>
       </div>
     </div>
