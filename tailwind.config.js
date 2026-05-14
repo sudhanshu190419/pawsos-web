@@ -11,8 +11,8 @@ module.exports = {
         xs: '480px',
       },
       fontFamily: {
-        display: ['Newsreader', 'serif'],
-        sans: ['Manrope', 'sans-serif'],
+        display: ['var(--font-newsreader)', 'serif'],
+        sans: ['var(--font-manrope)', 'sans-serif'],
       },
       colors: {
         primary: '#9c3e23',

@@ -1,9 +1,9 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { db } from "../lib/firebase"; 
-import { collection, query, orderBy, onSnapshot, limit } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 interface SOSAlert {
   id: string;
@@ -17,14 +17,51 @@ interface SOSAlert {
   title: string;
   type: string;
   urgency: string; // critical, high, normal
+  latitude?: number | null;
+  longitude?: number | null;
+  assignedResponderId?: string;
+  assignedResponderName?: string;
+  assignedResponderRole?: string;
+  assignedTask?: string;
 }
 
-export default function LiveSOSFeed() {
+type ResponderOption = {
+  id: string;
+  name: string;
+  role?: string;
+};
+
+type LiveSOSFeedProps = {
+  showDispatchControls?: boolean;
+  responders?: ResponderOption[];
+  isOwner?: boolean;
+  centerLocation?: { latitude: number; longitude: number } | null;
+  initialLimit?: number;
+  pageSize?: number;
+  showLoadMore?: boolean;
+};
+
+export default function LiveSOSFeed({
+  showDispatchControls = false,
+  responders = [],
+  isOwner = false,
+  centerLocation = null,
+  initialLimit = 10,
+  pageSize = 10,
+  showLoadMore = true,
+}: LiveSOSFeedProps) {
   const [alerts, setAlerts] = useState<SOSAlert[]>([]);
   const [loading, setLoading] = useState(true);
   
   // 🔥 NEW: State for our active filter
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "responding" | "resolved">("all");
+  const [alertRadiusKm, setAlertRadiusKm] = useState(10);
+  const [assignments, setAssignments] = useState<Record<string, { responderId: string; task: string; role: string }>>({});
+  const [isAssigning, setIsAssigning] = useState<string | null>(null);
+  const [roleUpdates, setRoleUpdates] = useState<Record<string, boolean>>({});
+  const [visibleCount, setVisibleCount] = useState(initialLimit);
+
+  const roleOptions = ["Dispatcher", "Senior Vet", "Ambulance Driver", "Rescue Volunteer", "Staff"];
 
   useEffect(() => {
     // We increased the limit to 100 so client-side filtering has plenty of data to work with
@@ -35,10 +72,21 @@ export default function LiveSOSFeed() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedAlerts = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Omit<SOSAlert, "id">),
-      }));
+      const fetchedAlerts = snapshot.docs.map((docSnap) => {
+        const raw = docSnap.data() as Omit<SOSAlert, "id"> & { location?: any };
+        let latitude: number | null | undefined = raw.latitude;
+        let longitude: number | null | undefined = raw.longitude;
+        if (raw.location && typeof raw.location === "object") {
+          latitude = typeof raw.location.latitude === "number" ? raw.location.latitude : latitude;
+          longitude = typeof raw.location.longitude === "number" ? raw.location.longitude : longitude;
+        }
+        return {
+          id: docSnap.id,
+          ...raw,
+          latitude,
+          longitude,
+        };
+      });
       
       setAlerts(fetchedAlerts);
       setLoading(false);
@@ -63,11 +111,39 @@ export default function LiveSOSFeed() {
     }
   };
 
-  // 🔥 NEW: Client-side filtering logic
-  const filteredAlerts = alerts.filter(alert => {
-    if (activeFilter === "all") return true;
-    return alert.status === activeFilter;
-  });
+  const centerCoords = useMemo(() => {
+    if (!centerLocation) return null;
+    if (typeof centerLocation.latitude !== "number" || typeof centerLocation.longitude !== "number") return null;
+    return centerLocation;
+  }, [centerLocation]);
+
+  const computeDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const toRad = (val: number) => (val * Math.PI) / 180;
+    const r = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * r * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  // 🔥 NEW: Client-side filtering logic (status + optional radius)
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter((alert) => {
+      if (activeFilter !== "all" && alert.status !== activeFilter) return false;
+      if (!showDispatchControls || !centerCoords) return true;
+      if (typeof alert.latitude !== "number" || typeof alert.longitude !== "number") return true;
+      const distance = computeDistanceKm(centerCoords.latitude, centerCoords.longitude, alert.latitude, alert.longitude);
+      return distance <= alertRadiusKm;
+    });
+  }, [alerts, activeFilter, showDispatchControls, centerCoords, alertRadiusKm]);
+
+  useEffect(() => {
+    setVisibleCount(initialLimit);
+  }, [activeFilter, alertRadiusKm, initialLimit]);
+
+  const limitedAlerts = useMemo(() => {
+    return filteredAlerts.slice(0, visibleCount);
+  }, [filteredAlerts, visibleCount]);
 
   // Helper function to get nice colors for different statuses
   const getStatusStyle = (status: string) => {
@@ -77,6 +153,71 @@ export default function LiveSOSFeed() {
       case 'resolved': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
       default: return 'bg-slate-50 text-slate-600 border-slate-200';
     }
+  };
+
+  const handleAssign = async (alert: SOSAlert) => {
+    const selection = assignments[alert.id];
+    if (!selection?.responderId || !selection?.task || !selection?.role) return;
+    const responder = responders.find((r) => r.id === selection.responderId);
+    if (!responder) return;
+
+    setIsAssigning(alert.id);
+    try {
+      await updateDoc(doc(db, "sos_alerts", alert.id), {
+        assignedResponderId: responder.id,
+        assignedResponderName: responder.name,
+        assignedResponderRole: responder.role || "Staff",
+        assignedTask: selection.task,
+        assignedAt: serverTimestamp(),
+        status: selection.task === "Responding" ? "responding" : alert.status,
+      });
+    } catch (error) {
+      console.error("Failed to assign responder:", error);
+    } finally {
+      setIsAssigning(null);
+    }
+  };
+
+  const busyResponderIds = useMemo(() => {
+    return new Set(
+      alerts
+        .filter((alert) => alert.assignedResponderId && alert.status !== "resolved")
+        .map((alert) => alert.assignedResponderId as string)
+    );
+  }, [alerts]);
+
+  const getAvailableResponders = (alertId: string) => {
+    const selectedRole = assignments[alertId]?.role;
+    if (!selectedRole) return [] as ResponderOption[];
+    return responders.filter((responder) => {
+      const roleMatches = (responder.role || "Staff") === selectedRole;
+      const isBusy = busyResponderIds.has(responder.id);
+      return roleMatches && !isBusy;
+    });
+  };
+
+  const handleRoleUpdate = async (responderId: string, nextRole: string) => {
+    if (!isOwner) return;
+    setRoleUpdates((prev) => ({ ...prev, [responderId]: true }));
+    try {
+      await updateDoc(doc(db, "users", responderId), { orgRole: nextRole });
+    } catch (error) {
+      console.error("Failed to update responder role:", error);
+    } finally {
+      setRoleUpdates((prev) => ({ ...prev, [responderId]: false }));
+    }
+  };
+
+  const getAssignedResponder = (alert: SOSAlert) => {
+    if (!alert.assignedResponderId) return null;
+    const responder = responders.find((r) => r.id === alert.assignedResponderId);
+    if (responder) {
+      return { name: responder.name, role: responder.role || "Staff" };
+    }
+    return {
+      name: alert.assignedResponderName || "Responder",
+      role: alert.assignedResponderRole || "Staff",
+    };
   };
 
   if (loading) {
@@ -119,6 +260,21 @@ export default function LiveSOSFeed() {
           onClick={() => setActiveFilter("resolved")} 
           colorClass="hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 active-emerald"
         />
+
+        {showDispatchControls && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Alert Radius</span>
+            <select
+              value={alertRadiusKm}
+              onChange={(e) => setAlertRadiusKm(Number(e.target.value))}
+              className="bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-full text-slate-600 hover:border-slate-300"
+            >
+              {[5, 10, 25, 50].map((km) => (
+                <option key={km} value={km}>{km} km</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Table Area */}
@@ -130,20 +286,22 @@ export default function LiveSOSFeed() {
               <th className="px-6 py-4">Details</th>
               <th className="px-6 py-4">Location</th>
               <th className="px-6 py-4">Time</th>
+              <th className="px-6 py-4">Responder</th>
+              {showDispatchControls && <th className="px-6 py-4">Dispatch</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             
             {filteredAlerts.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-16 text-center">
+                <td colSpan={showDispatchControls ? 6 : 5} className="px-6 py-16 text-center">
                   <div className="text-4xl mb-3 opacity-50">📭</div>
                   <p className="text-slate-500 font-bold">No {activeFilter !== 'all' ? activeFilter : ''} alerts found.</p>
                   <p className="text-slate-400 text-xs mt-1">Everything looks clear in this category.</p>
                 </td>
               </tr>
             ) : (
-              filteredAlerts.map((alert) => (
+              limitedAlerts.map((alert) => (
                 <tr key={alert.id} className="hover:bg-slate-50/80 transition-colors group">
                   
                   {/* 1. Alert Info (Photo + Urgency/Status) */}
@@ -210,6 +368,134 @@ export default function LiveSOSFeed() {
                       {formatTime(alert.time)}
                     </span>
                   </td>
+
+                  <td className="px-6 py-4">
+                    {(() => {
+                      const assigned = getAssignedResponder(alert);
+                      if (!assigned) {
+                        return <span className="text-xs font-semibold text-slate-400">Unassigned</span>;
+                      }
+                      return (
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-slate-700">{assigned.name}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            {assigned.role}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </td>
+
+                  {showDispatchControls && (
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-2 min-w-[220px]">
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={assignments[alert.id]?.task || ""}
+                            onChange={(e) =>
+                              setAssignments((prev) => ({
+                                ...prev,
+                                [alert.id]: {
+                                  responderId: prev[alert.id]?.responderId || "",
+                                  role: prev[alert.id]?.role || "",
+                                  task: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg text-slate-600"
+                          >
+                            <option value="">Select task</option>
+                            <option value="Responding">Responding to SOS</option>
+                            <option value="Transport">Ambulance transport</option>
+                            <option value="Vet Care">Assign vet care</option>
+                          </select>
+                          <select
+                            value={assignments[alert.id]?.role || ""}
+                            onChange={(e) =>
+                              setAssignments((prev) => ({
+                                ...prev,
+                                [alert.id]: {
+                                  responderId: "",
+                                  role: e.target.value,
+                                  task: prev[alert.id]?.task || "",
+                                },
+                              }))
+                            }
+                            className="w-full bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg text-slate-600"
+                          >
+                            <option value="">Select role</option>
+                            {roleOptions.map((role) => (
+                              <option key={role} value={role}>
+                                {role}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={assignments[alert.id]?.responderId || ""}
+                            onChange={(e) =>
+                              setAssignments((prev) => ({
+                                ...prev,
+                                [alert.id]: {
+                                  responderId: e.target.value,
+                                  role: prev[alert.id]?.role || "",
+                                  task: prev[alert.id]?.task || "",
+                                },
+                              }))
+                            }
+                            className="w-full bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg text-slate-600"
+                            disabled={!assignments[alert.id]?.role || !isOwner}
+                          >
+                            <option value="">Select responder</option>
+                            {getAvailableResponders(alert.id).map((responder) => (
+                              <option key={responder.id} value={responder.id}>
+                                {responder.name} {responder.role ? `• ${responder.role}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {isOwner && assignments[alert.id]?.responderId && (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={
+                                responders.find((r) => r.id === assignments[alert.id]?.responderId)?.role ||
+                                "Staff"
+                              }
+                              onChange={(e) => handleRoleUpdate(assignments[alert.id]?.responderId, e.target.value)}
+                              className="w-full bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg text-slate-600"
+                            >
+                              {roleOptions.map((role) => (
+                                <option key={role} value={role}>
+                                  {role}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
+                              {roleUpdates[assignments[alert.id]?.responderId] ? "Updating..." : "Role"}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => handleAssign(alert)}
+                            disabled={
+                              isAssigning === alert.id ||
+                              !assignments[alert.id]?.responderId ||
+                              !assignments[alert.id]?.task ||
+                              !assignments[alert.id]?.role
+                            }
+                            className="px-3 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-slate-900 text-white hover:bg-primary transition-colors disabled:opacity-50"
+                          >
+                            {isAssigning === alert.id ? "Assigning..." : "Assign"}
+                          </button>
+                          {(alert.assignedResponderName || alert.assignedTask) && (
+                            <span className="text-[10px] font-bold text-slate-400">
+                              {alert.assignedTask || "Assigned"} • {alert.assignedResponderName || "Responder"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  )}
                   
                 </tr>
               ))
@@ -217,6 +503,17 @@ export default function LiveSOSFeed() {
           </tbody>
         </table>
       </div>
+
+      {showLoadMore && filteredAlerts.length > limitedAlerts.length && (
+        <div className="p-4 flex justify-center border-t border-slate-100 bg-white">
+          <button
+            onClick={() => setVisibleCount((prev) => prev + pageSize)}
+            className="px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-primary transition-colors"
+          >
+            Load 10 more
+          </button>
+        </div>
+      )}
     </div>
   );
 }

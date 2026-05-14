@@ -79,6 +79,8 @@ const LEGAL_LINKS = [
 export default function Footer() {
   const pathname = usePathname();
   const router = useRouter();
+
+  if (pathname === "/auth") return null;
   
   return (
     <>

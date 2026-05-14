@@ -137,6 +137,11 @@ function ProfilePageContent() {
     setToast({ message, type });
   }, []);
 
+  const buildOrgEmpId = useCallback((orgId: string) => {
+    const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${orgId}-EMP-${suffix}`;
+  }, []);
+
   // Listen for invitations
   useEffect(() => {
     if (!user) return;
@@ -158,7 +163,8 @@ function ProfilePageContent() {
         organizationId: invite.orgId,
         organizationName: invite.orgName,
         orgApproved: true,
-        role: invite.role || "hospital"
+        orgRole: invite.role || "member",
+        orgEmpId: buildOrgEmpId(invite.orgId)
       });
       await updateDoc(doc(db, "invitations", invite.id), { status: "accepted" });
       showToast("Joined organization successfully!");

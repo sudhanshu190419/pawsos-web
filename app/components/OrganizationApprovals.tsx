@@ -74,6 +74,11 @@ export default function OrganizationApprovals() {
     };
   }, []);
 
+  const buildOrgEmpId = (orgId: string) => {
+    const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${orgId}-EMP-${suffix}`;
+  };
+
   const handleApprove = async () => {
     if (!selectedOrg) return;
     setIsProcessing(true);
@@ -87,23 +92,21 @@ export default function OrganizationApprovals() {
         id: orgId,
         isApproved: true,
         approvedAt: serverTimestamp(),
+        ownerId: selectedOrg.ownerId,
       });
 
       // 2. Fetch current user data to check role
       const userRef = doc(db, "users", selectedOrg.ownerId);
       const userSnap = await getDoc(userRef);
-      const currentUserData = userSnap.data();
 
-      // 3. Update user document - Preserve admin role if exists
+      // 3. Update user document without overriding global role
       const updates: any = {
         orgApproved: true,
         organizationId: orgId,
-        organizationName: selectedOrg.orgName
+        organizationName: selectedOrg.orgName,
+        orgRole: "owner",
+        orgEmpId: buildOrgEmpId(orgId),
       };
-
-      if (currentUserData?.role !== "admin") {
-        updates.role = selectedOrg.type === "hospital" ? "hospital" : "ngo";
-      }
 
       await updateDoc(userRef, updates);
 

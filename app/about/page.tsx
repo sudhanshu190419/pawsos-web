@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 export default function AboutPage() {
   return (
@@ -16,7 +17,7 @@ export default function AboutPage() {
             <span>Our Mission</span>
           </div>
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight mb-4 sm:mb-6 leading-tight">
-            Building India's fastest <br className="hidden sm:block" />
+            Building India&apos;s fastest <br className="hidden sm:block" />
             <span className="text-orange-500">animal rescue network.</span>
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-light leading-relaxed px-2 sm:px-0">
@@ -73,7 +74,7 @@ export default function AboutPage() {
             </ul>
           </div>
           <div className="order-1 md:order-2 bg-slate-200 rounded-[1.5rem] sm:rounded-3xl h-64 sm:h-80 w-full overflow-hidden shadow-lg border-4 border-white relative">
-             <img src="/animal_suffer.png" alt="Stray dog looking sad" className="w-full h-full object-cover" />
+             <Image src="/animal_suffer.png" alt="Stray dog looking sad" fill className="object-cover" />
              <div className="absolute inset-0 bg-slate-900/20 mix-blend-multiply"></div>
           </div>
         </div>
@@ -81,7 +82,7 @@ export default function AboutPage() {
         {/* The Solution */}
         <div className="grid md:grid-cols-2 gap-8 sm:gap-12 items-center">
           <div className="bg-orange-100 rounded-[1.5rem] sm:rounded-3xl h-64 sm:h-80 w-full overflow-hidden shadow-lg border-4 border-white relative">
-             <img src="/solution.png" alt="Person petting a dog" className="w-full h-full object-cover" />
+             <Image src="/solution.png" alt="Person petting a dog" fill className="object-cover" />
           </div>
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-4">

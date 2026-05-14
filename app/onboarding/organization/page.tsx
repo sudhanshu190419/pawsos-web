@@ -10,6 +10,13 @@ import {
   serverTimestamp,
   GeoPoint,
 } from "firebase/firestore";
+import dynamic from "next/dynamic";
+
+const HQMapClient = dynamic(() => import("./HQMapClient"), {
+  ssr: false,
+  loading: () => <div className="w-full h-full min-h-[240px] bg-slate-100 animate-pulse rounded-2xl"></div>
+});
+
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { 
@@ -58,6 +65,7 @@ interface OrgFormData {
   specialties: string[];
   city: string;
   address: string;
+  hqAddress: string;
   logo: File | null;
   licenseFile: File | null;
 }
@@ -289,6 +297,7 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
   const [user, setUser] = useState<User | null>(null);
   const { location } = useLocation();
   const router = useRouter();
+  const [hqCoords, setHqCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const [formData, setFormData] = useState<OrgFormData>({
     orgName: "",
@@ -302,6 +311,7 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
     specialties: [],
     city: "",
     address: "",
+    hqAddress: "",
     logo: null,
     licenseFile: null,
   });
@@ -318,6 +328,18 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
 
   const handleNext = () => setStep(s => Math.min(s + 1, 4));
   const handleBack = () => setStep(s => Math.max(s - 1, 1));
+
+  const ensureHqReady = () => {
+    if (!formData.hqAddress.trim()) {
+      showToast("Headquarters address is required.", "error");
+      return false;
+    }
+    if (!hqCoords || typeof hqCoords.latitude !== "number" || typeof hqCoords.longitude !== "number") {
+      showToast("Headquarters coordinates are required.", "error");
+      return false;
+    }
+    return true;
+  };
 
   const handleSubmit = async () => {
     if (!user) {
@@ -349,6 +371,7 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
         licenseFile: licenseUrl,
         ownerId: user.uid,
         status: "pending_review",
+        hqLocation: hqCoords ? new GeoPoint(hqCoords.latitude, hqCoords.longitude) : null,
         location: location ? new GeoPoint(location.latitude, location.longitude) : null,
         createdAt: serverTimestamp(),
       });
@@ -446,6 +469,68 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
       {step === 3 && (
         <div className="space-y-8 animate-fadeUp">
           <div className="grid grid-cols-1 gap-6">
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-6 sm:p-8 shadow-sm">
+              <div className="flex flex-col gap-4">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Headquarters Location</label>
+                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">Required</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">Use current location, enter coordinates, or set a pin on the map.</p>
+                </div>
+
+                <InputField icon={MapPin} label="Headquarters Address" value={formData.hqAddress} onChange={v => setFormData({...formData, hqAddress: v})} placeholder="HQ address for dispatch center" />
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!location) {
+                        showToast("Current location not available.", "error");
+                        return;
+                      }
+                      setHqCoords({ latitude: location.latitude, longitude: location.longitude });
+                      if (!formData.hqAddress.trim() && location.address) {
+                        setFormData((prev) => ({ ...prev, hqAddress: location.address || prev.hqAddress }));
+                      }
+                    }}
+                    className="px-5 py-3 rounded-2xl bg-primary text-white text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-container transition-all"
+                  >
+                    Use Current Location
+                  </button>
+                  <div className="flex-1 grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      step="0.000001"
+                      value={hqCoords?.latitude ?? ""}
+                      onChange={(e) => {
+                        const nextLat = Number(e.target.value);
+                        setHqCoords((prev) => ({ latitude: nextLat, longitude: prev?.longitude ?? 0 }));
+                      }}
+                      placeholder="Latitude"
+                      className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 placeholder:text-slate-300"
+                    />
+                    <input
+                      type="number"
+                      step="0.000001"
+                      value={hqCoords?.longitude ?? ""}
+                      onChange={(e) => {
+                        const nextLng = Number(e.target.value);
+                        setHqCoords((prev) => ({ latitude: prev?.latitude ?? 0, longitude: nextLng }));
+                      }}
+                      placeholder="Longitude"
+                      className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 placeholder:text-slate-300"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl overflow-hidden border border-slate-200 h-[240px]">
+                  <HQMapClient hqCoords={hqCoords} setHqCoords={setHqCoords} />
+                </div>
+                <p className="text-[10px] text-slate-400">Tap the map to place your headquarters pin.</p>
+              </div>
+            </div>
+
             <InputField icon={MapPin} label="Physical Address" value={formData.address} onChange={v => setFormData({...formData, address: v})} placeholder="Plot no, building, street" />
             <InputField icon={MapPin} label="City" value={formData.city} onChange={v => setFormData({...formData, city: v})} placeholder="e.g. New Delhi" />
             
@@ -481,6 +566,7 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
             <SummaryItem label="Category" value={formData.type.toUpperCase()} isPrimary />
             <SummaryItem label="Logistics" value={`${formData.bedCount} Bed Units ${formData.hasAmbulance ? "Â· 1 Ambulance" : ""}`} />
             <SummaryItem label="Location" value={`${formData.city}, India`} />
+            <SummaryItem label="HQ" value={formData.hqAddress || "Not provided"} />
           </div>
         </div>
       )}
@@ -496,7 +582,15 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
           </button>
         )}
         <button 
-          onClick={step === 4 ? handleSubmit : handleNext} 
+          onClick={() => {
+            if (step === 3 && !ensureHqReady()) return;
+            if (step === 4) {
+              if (!ensureHqReady()) return;
+              handleSubmit();
+              return;
+            }
+            handleNext();
+          }} 
           disabled={loading}
           className={`flex-[2] py-5 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 ${
             loading ? "bg-slate-100 text-slate-400 cursor-wait" : "shimmer-btn bg-primary text-white hover:bg-primary-container hover:shadow-primary/30"
@@ -565,3 +659,4 @@ function SummaryItem({ label, value, isPrimary = false }: { label: string, value
     </div>
   );
 }
+
