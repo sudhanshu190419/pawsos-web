@@ -26,12 +26,13 @@ import { useSosCounts } from "./hooks/useSosCounts";
 import ProfileContent from "./components/ProfileContent";
 import ReportsContent from "./components/ReportsContent";
 import SettingsContent from "./components/SettingsContent";
+import MyPetsContent from "./components/MyPetsContent";
 
 /* =========================================
    TYPES & INTERFACES
    ========================================= */
 
-type TabId = "profile" | "reports" | "credentials" | "settings";
+type TabId = "profile" | "pets" | "reports" | "credentials" | "settings";
 type VerificationStatus = "approved" | "rejected" | "pending";
 
 interface UserData {
@@ -325,6 +326,7 @@ function ProfilePageContent() {
               {/* Mobile-friendly horizontal scroll nav */}
               <nav className="flex flex-row md:flex-col gap-2 overflow-x-auto hide-scrollbar text-left border-t border-slate-100 pt-4 md:pt-6 pb-2 md:pb-0 px-1">
                 <SidebarButton icon="👤" label="Personal Info" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
+                <SidebarButton icon="🐾" label="My Pets" isActive={activeTab === "pets"} onClick={() => setActiveTab("pets")} />
                 <SidebarButton icon="📋" label="My SOS Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
                 {isVolunteer && (
                   <>
@@ -354,6 +356,7 @@ function ProfilePageContent() {
                 onRequestClick={() => setShowRequestModal(true)}
               />
             )}
+            {activeTab === "pets" && <MyPetsContent user={user} />}
             {activeTab === "reports" && <ReportsContent user={user} isVolunteer={isVolunteer} />}
             {activeTab === "settings" && <SettingsContent user={user} showToast={showToast} />}
             {isVolunteer && activeTab === "credentials" && <CredentialsContent userData={userData} />}

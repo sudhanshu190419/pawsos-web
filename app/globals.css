@@ -129,6 +129,29 @@ body {
   }
 }
 
+/* Play Date Animations */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(5deg); }
+  75% { transform: rotate(-5deg); }
+}
+
+@keyframes confetti {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-80px) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes pawBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 @layer utilities {
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-in-out;
@@ -136,6 +159,27 @@ body {
   
   .animate-fadeUp {
     animation: fadeUp 0.6s ease-in-out;
+  }
+  
+  .animate-paw-wiggle {
+    animation: wiggle 0.6s ease-in-out;
+  }
+  
+  .animate-confetti {
+    animation: confetti 1.5s ease-out forwards;
+  }
+  
+  .animate-paw-bounce {
+    animation: pawBounce 1.2s ease-in-out infinite;
+  }
+  
+  .pet-card-glow {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+  }
+  
+  .pet-card-glow:hover {
+    box-shadow: 0 25px 50px -12px rgba(249, 115, 22, 0.15);
   }
   
   .glass-panel {
@@ -163,6 +207,53 @@ body {
   0% { box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.4); }
   70% { box-shadow: 0 0 0 10px rgba(186, 26, 26, 0); }
   100% { box-shadow: 0 0 0 0 rgba(186, 26, 26, 0); }
+}
+
+/* ─── Play Date Feature Animations ─── */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes paw-bounce {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-6px) rotate(6deg); }
+}
+
+@layer utilities {
+  .animate-wiggle {
+    animation: wiggle 0.6s ease-in-out;
+  }
+
+  .animate-bounce-in {
+    animation: bounce-in 0.5s ease-out;
+  }
+
+  .animate-paw-bounce {
+    animation: paw-bounce 2s ease-in-out infinite;
+  }
+
+  .pet-card-glow {
+    box-shadow: 0 4px 24px -4px rgba(251, 146, 60, 0.18);
+    transition: box-shadow 0.3s ease;
+  }
+
+  .pet-card-glow:hover {
+    box-shadow: 0 8px 40px -4px rgba(251, 146, 60, 0.28);
+  }
 }
 
 /* ─── Accessibility: respect reduced motion preference ─── */

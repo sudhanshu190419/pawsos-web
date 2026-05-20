@@ -252,7 +252,93 @@ export default function HomePage() {
         </section>
       </Reveal>
 
-     
+      {/* ── Play Date Promo ─────────────────────────────────── */}
+      <Reveal>
+        <section className="px-4 sm:px-6 py-16 md:py-24">
+          <div className="max-w-6xl mx-auto bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50/40 rounded-3xl p-6 sm:p-10 md:p-14 border border-orange-100/80 shadow-xl shadow-orange-100/30 relative overflow-hidden">
+            
+            {/* Decorative paws */}
+            <div className="pointer-events-none absolute top-6 right-6 text-5xl opacity-10 rotate-12 animate-paw-bounce">🐾</div>
+            <div className="pointer-events-none absolute bottom-8 left-8 text-4xl opacity-10 -rotate-12 animate-paw-bounce" style={{animationDelay: '1s'}}>🐾</div>
+
+            <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
+              {/* Text */}
+              <div className="flex-1 text-center md:text-left">
+                <span className="inline-flex items-center gap-2 text-orange-600 font-bold tracking-widest uppercase text-xs mb-4 bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full border border-orange-100 shadow-sm">
+                  <span className="animate-paw-bounce inline-block">🐾</span>
+                  New Feature
+                </span>
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 mb-4 leading-tight tracking-tight">
+                  Find a{" "}
+                  <span className="relative inline-block text-orange-500">
+                    Play Date
+                    <span className="absolute -bottom-1 left-0 right-0 h-[3px] bg-orange-400 rounded-full" />
+                  </span>{" "}
+                  for your pet
+                </h2>
+                <p className="text-base sm:text-lg text-slate-600 mb-8 leading-relaxed max-w-lg mx-auto md:mx-0">
+                  Let your furry friend make new friends! Browse nearby play dates, 
+                  meet other pets based on their personality — and keep your identity private.
+                </p>
+
+                {/* Feature highlights */}
+                <div className="flex flex-wrap gap-3 justify-center md:justify-start mb-8">
+                  <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-bold text-slate-600 border border-slate-100 shadow-sm">
+                    🔒 Privacy First
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-bold text-slate-600 border border-slate-100 shadow-sm">
+                    🐕 Pet Profiles Only
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-bold text-slate-600 border border-slate-100 shadow-sm">
+                    📍 Location-Based
+                  </span>
+                </div>
+
+                <Link
+                  href="/playdate"
+                  className="inline-flex items-center justify-center gap-2.5 bg-orange-500 text-white px-8 py-3.5 rounded-xl font-semibold text-sm sm:text-base hover:bg-orange-600 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-orange-500/20 hover:shadow-xl hover:-translate-y-0.5"
+                >
+                  <span className="text-lg">🐾</span> Explore Play Dates
+                </Link>
+              </div>
+
+              {/* Visual Card Stack */}
+              <div className="flex-1 w-full max-w-sm relative">
+                {/* Stacked pet cards */}
+                <div className="relative">
+                  {/* Back card */}
+                  <div className="absolute -top-3 left-4 right-4 h-full bg-white/60 rounded-3xl border border-slate-100 shadow-sm" />
+                  {/* Middle card */}
+                  <div className="absolute -top-1.5 left-2 right-2 h-full bg-white/80 rounded-3xl border border-slate-100 shadow-sm" />
+                  {/* Front card */}
+                  <div className="relative bg-white rounded-3xl border border-slate-100 shadow-xl p-5 sm:p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-2xl">🐕</div>
+                      <div>
+                        <p className="font-bold text-slate-800">Bruno</p>
+                        <p className="text-xs text-slate-400">Golden Retriever · 2 years</p>
+                      </div>
+                      <span className="ml-auto text-[10px] font-black text-green-600 uppercase px-2 py-1 rounded-full bg-green-50 border border-green-100">Friendly</span>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl px-4 py-3 mb-3 border border-slate-100">
+                      <p className="text-sm font-bold text-slate-700 mb-0.5">Sunday Park Walk 🌳</p>
+                      <p className="text-xs text-slate-400">Tomorrow, 8:00 AM · Lodi Garden</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex -space-x-2">
+                        <div className="w-7 h-7 rounded-full bg-violet-100 border-2 border-white flex items-center justify-center text-xs">🐱</div>
+                        <div className="w-7 h-7 rounded-full bg-amber-100 border-2 border-white flex items-center justify-center text-xs">🐕</div>
+                        <div className="w-7 h-7 rounded-full bg-pink-100 border-2 border-white flex items-center justify-center text-xs">🐰</div>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-bold">3/10 pets joined</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Reveal>
 
       {/* ── How It Works ─────────────────────────────────────── */}
       <Reveal>
