@@ -3,7 +3,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { db } from "../lib/firebase"; 
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  doc,
+  updateDoc,
+  serverTimestamp,
+  addDoc,
+  deleteField,
+  getDocs,
+  where,
+} from "firebase/firestore";
 
 interface SOSAlert {
   id: string;
@@ -156,27 +168,153 @@ export default function LiveSOSFeed({
   };
 
   const handleAssign = async (alert: SOSAlert) => {
-    const selection = assignments[alert.id];
-    if (!selection?.responderId || !selection?.task || !selection?.role) return;
-    const responder = responders.find((r) => r.id === selection.responderId);
-    if (!responder) return;
+  const selection = assignments[alert.id];
 
-    setIsAssigning(alert.id);
-    try {
-      await updateDoc(doc(db, "sos_alerts", alert.id), {
-        assignedResponderId: responder.id,
-        assignedResponderName: responder.name,
-        assignedResponderRole: responder.role || "Staff",
-        assignedTask: selection.task,
-        assignedAt: serverTimestamp(),
-        status: selection.task === "Responding" ? "responding" : alert.status,
+  if (
+    !selection?.responderId ||
+    !selection?.task ||
+    !selection?.role
+  ) return;
+
+  const responder = responders.find(
+    (r) => r.id === selection.responderId
+  );
+
+  if (!responder) return;
+
+  setIsAssigning(alert.id);
+
+  try {
+
+    // 1. CREATE TASK DOCUMENT
+    await addDoc(collection(db, "assigned_tasks"), {
+      sosId: alert.id,
+
+      assignedTo: responder.id,
+      assignedBy: "ORG_OWNER_ID", // replace later with auth user id
+
+      responderName: responder.name,
+      responderRole: responder.role || "Staff",
+
+      organizationId: "ORG_ID", // replace later dynamically
+
+      taskType: selection.task,
+
+      title: alert.title,
+      description: alert.description,
+      address: alert.address,
+      urgency: alert.urgency,
+
+      photoURL: alert.photoURL || "",
+
+      location: {
+        latitude: alert.latitude || null,
+        longitude: alert.longitude || null,
+      },
+
+      status: "assigned",
+
+      createdAt: serverTimestamp(),
+      acceptedAt: null,
+      completedAt: null,
+    });
+
+    // CREATE NOTIFICATION
+await addDoc(collection(db, "notifications"), {
+  userId: responder.id,
+
+  type: "SOS_TASK",
+
+  sosId: alert.id,
+
+  title: "🚨 New SOS Assigned",
+
+  message: `${selection.task} assigned for ${alert.title}`,
+
+  read: false,
+
+  createdAt: serverTimestamp(),
+});
+
+    // 2. UPDATE SOS ALERT LIGHTLY
+    await updateDoc(doc(db, "sos_alerts", alert.id), {
+  assignedResponderId: responder.id,
+  assignedResponderName: responder.name,
+  assignedResponderRole: responder.role || "Staff",
+
+  assignedTask: selection.task,
+
+  assignedAt: serverTimestamp(),
+
+  // IMPORTANT
+  acceptedBy: responder.id,
+  acceptedByName: responder.name,
+  acceptedAt: serverTimestamp(),
+
+  status: "responding",
+});
+
+  } catch (error) {
+    console.error("Failed to assign responder:", error);
+  } finally {
+    setIsAssigning(null);
+  }
+};
+
+const handleDeassign = async (alert: SOSAlert) => {
+  if (!alert.assignedResponderId) return;
+
+  try {
+
+    // 1. FIND ASSIGNED TASK
+    const q = query(
+      collection(db, "assigned_tasks"),
+      where("sosId", "==", alert.id),
+      where("assignedTo", "==", alert.assignedResponderId)
+    );
+
+    const snap = await getDocs(q);
+
+    // 2. MARK TASK CANCELLED
+    for (const taskDoc of snap.docs) {
+      await updateDoc(doc(db, "assigned_tasks", taskDoc.id), {
+        status: "cancelled",
+        cancelledAt: serverTimestamp(),
       });
-    } catch (error) {
-      console.error("Failed to assign responder:", error);
-    } finally {
-      setIsAssigning(null);
     }
-  };
+
+    // 3. REMOVE ASSIGNMENT FROM SOS
+    await updateDoc(doc(db, "sos_alerts", alert.id), {
+      assignedResponderId: deleteField(),
+      assignedResponderName: deleteField(),
+      assignedResponderRole: deleteField(),
+      assignedTask: deleteField(),
+      assignedAt: deleteField(),
+
+      status: "active",
+    });
+
+    // 4. SEND NOTIFICATION
+    await addDoc(collection(db, "notifications"), {
+      userId: alert.assignedResponderId,
+
+      type: "TASK_REMOVED",
+
+      sosId: alert.id,
+
+      title: "❌ SOS Assignment Removed",
+
+      message: `You were removed from ${alert.title}`,
+
+      read: false,
+
+      createdAt: serverTimestamp(),
+    });
+
+  } catch (error) {
+    console.error("Failed to deassign responder:", error);
+  }
+};
 
   const busyResponderIds = useMemo(() => {
     return new Set(
@@ -474,25 +612,37 @@ export default function LiveSOSFeed({
                             </span>
                           </div>
                         )}
-                        <div className="flex items-center justify-between">
-                          <button
-                            onClick={() => handleAssign(alert)}
-                            disabled={
-                              isAssigning === alert.id ||
-                              !assignments[alert.id]?.responderId ||
-                              !assignments[alert.id]?.task ||
-                              !assignments[alert.id]?.role
-                            }
-                            className="px-3 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-slate-900 text-white hover:bg-primary transition-colors disabled:opacity-50"
-                          >
-                            {isAssigning === alert.id ? "Assigning..." : "Assign"}
-                          </button>
-                          {(alert.assignedResponderName || alert.assignedTask) && (
-                            <span className="text-[10px] font-bold text-slate-400">
-                              {alert.assignedTask || "Assigned"} • {alert.assignedResponderName || "Responder"}
-                            </span>
-                          )}
-                        </div>
+                        <div className="flex items-center justify-between gap-2">
+
+  <button
+    onClick={() => handleAssign(alert)}
+    disabled={
+      isAssigning === alert.id ||
+      !assignments[alert.id]?.responderId ||
+      !assignments[alert.id]?.task ||
+      !assignments[alert.id]?.role
+    }
+    className="px-3 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-slate-900 text-white hover:bg-primary transition-colors disabled:opacity-50"
+  >
+    {isAssigning === alert.id ? "Assigning..." : "Assign"}
+  </button>
+
+  {alert.assignedResponderId && (
+    <button
+      onClick={() => handleDeassign(alert)}
+      className="px-3 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+    >
+      Deassign
+    </button>
+  )}
+
+  {(alert.assignedResponderName || alert.assignedTask) && (
+    <span className="text-[10px] font-bold text-slate-400">
+      {alert.assignedTask || "Assigned"} • {alert.assignedResponderName || "Responder"}
+    </span>
+  )}
+
+</div>
                       </div>
                     </td>
                   )}
