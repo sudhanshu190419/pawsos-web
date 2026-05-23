@@ -14,6 +14,7 @@ import {
   orderBy,
   serverTimestamp,
   limit,
+  where,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { createPortal } from "react-dom";
@@ -459,18 +460,39 @@ export default function ShopPage() {
 
   /* Firestore */
   useEffect(() => {
-    const q = query(collection(db, "shop_products"), orderBy("createdAt", "desc"), limit(50));
+    const q = query(
+      collection(db, "products"),
+      where("status", "==", "active"),
+      orderBy("createdAt", "desc"),
+      limit(50)
+    );
     const unsub = onSnapshot(q, (snapshot) => {
-      setProducts(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const raw = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const mapped = raw.map((item: any) => ({
+        ...item,
+        images: Array.isArray(item.images) ? item.images : item.imageUrl ? [item.imageUrl] : [],
+        clinicName: item.clinicName ?? item.vetClinicName ?? "",
+        imageUrl: item.imageUrl ?? item.images?.[0] ?? "",
+        vetClinicName: item.vetClinicName ?? item.clinicName ?? "",
+      }));
+      console.log("[Shop] fetched products raw:", raw);
+      console.log("[Shop] mapped products:", mapped);
+      setProducts(mapped);
       setLoading(false);
     });
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    if (products.length === 0) return;
+    console.log("[Shop] final render products:", products);
+  }, [products]);
+
   useEffect(() => { setVisibleCount(16); }, [activeCategory, activeAnimal, searchQuery]);
 
   const filteredProducts = useMemo(() => {
     let result = products;
+    result = result.filter((p) => (p.status ?? "active") === "active");
     if (activeCategory !== "All") result = result.filter((p) => p.category === activeCategory);
     if (activeAnimal) result = result.filter((p) => p.animal === activeAnimal);
     if (searchQuery) result = result.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -637,8 +659,13 @@ export default function ShopPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
-              {visibleProducts.map((product) => (
-                <ProductCard key={product.id} product={product} onAddToCart={() => handleAddToCart(product)} />
+              {visibleProducts.map((product, index) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={() => handleAddToCart(product)}
+                  priority={index < 16}
+                />
               ))}
             </div>
           )}

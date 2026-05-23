@@ -317,14 +317,45 @@ export default function ProductDetailPage() {
     if (!id) return;
     const fetchData = async () => {
       try {
-        const docRef = doc(db, "shop_products", id as string);
+        const docRef = doc(db, "products", id as string);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          const data = { id: docSnap.id, ...docSnap.data() } as any;
+          const raw = { id: docSnap.id, ...docSnap.data() } as any;
+          if ((raw.status ?? "active") !== "active") {
+            router.push("/shop");
+            return;
+          }
+          const data = {
+            ...raw,
+            images: Array.isArray(raw.images) ? raw.images : raw.imageUrl ? [raw.imageUrl] : [],
+            clinicName: raw.clinicName ?? raw.vetClinicName ?? "",
+            imageUrl: raw.imageUrl ?? raw.images?.[0] ?? "",
+            vetClinicName: raw.vetClinicName ?? raw.clinicName ?? "",
+          } as any;
+          console.log("[Shop] product raw:", raw);
+          console.log("[Shop] product mapped:", data);
           setProduct(data);
-          const q = query(collection(db, "shop_products"), where("category", "==", data.category), limit(5));
+          const q = query(
+            collection(db, "products"),
+            where("category", "==", data.category),
+            where("status", "==", "active"),
+            limit(5)
+          );
           const relatedSnap = await getDocs(q);
-          setRelatedProducts(relatedSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => p.id !== id));
+          const related = relatedSnap.docs
+            .map((d) => {
+              const item = { id: d.id, ...d.data() } as any;
+              return {
+                ...item,
+                images: Array.isArray(item.images) ? item.images : item.imageUrl ? [item.imageUrl] : [],
+                clinicName: item.clinicName ?? item.vetClinicName ?? "",
+                imageUrl: item.imageUrl ?? item.images?.[0] ?? "",
+                vetClinicName: item.vetClinicName ?? item.clinicName ?? "",
+              };
+            })
+            .filter((p) => p.id !== id);
+          console.log("[Shop] related products mapped:", related);
+          setRelatedProducts(related);
         } else {
           router.push("/shop");
         }
@@ -575,8 +606,13 @@ export default function ProductDetailPage() {
               </a>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {relatedProducts.map((prod) => (
-                <ProductCard key={prod.id} product={prod} onAddToCart={() => handleAddToCart(prod)} />
+              {relatedProducts.map((prod, index) => (
+                <ProductCard
+                  key={prod.id}
+                  product={prod}
+                  onAddToCart={() => handleAddToCart(prod)}
+                  priority={index < 4}
+                />
               ))}
             </div>
           </section>

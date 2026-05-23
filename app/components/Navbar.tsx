@@ -1,17 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { MapPin, RefreshCw, ChevronDown } from "lucide-react";
+import { fetchVetVerificationStatus, VetVerificationStatus } from "../lib/vet";
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [vetStatus, setVetStatus] = useState<VetVerificationStatus | null>(null);
+  const [vetStatusLoading, setVetStatusLoading] = useState(false);
+  const vetStatusFetchedFor = useRef<string | null>(null);
   
   // Controls whether the mobile menu is open or closed
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -90,6 +94,33 @@ useEffect(() => {
       if (unsub) unsub();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setVetStatus(null);
+      vetStatusFetchedFor.current = null;
+      return;
+    }
+    if (vetStatusFetchedFor.current === user.uid) return;
+    let cancelled = false;
+    setVetStatusLoading(true);
+    fetchVetVerificationStatus(user.uid)
+      .then((status) => {
+        if (cancelled) return;
+        setVetStatus(status);
+        vetStatusFetchedFor.current = user.uid;
+      })
+      .catch((err) => {
+        console.error("Vet status check failed:", err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setVetStatusLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
 
   const handleLogout = async () => {
     const authInstance = await loadFirebaseAuth();
@@ -341,6 +372,11 @@ backdrop-blur-sm w-60 flex flex-col overflow-hidden">
                       <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
                     </div>
                     <div className="py-2 flex flex-col">
+                      {vetStatus === "approved" && !vetStatusLoading && (
+                        <Link href="/vet-dashboard" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
+                          <span className="text-lg">🏥</span> Vet Dashboard
+                        </Link>
+                      )}
                       <Link href="/dashboard?tab=profile" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
                       <Link href="/dashboard?tab=reports" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">📋</span> My SOS Reports</Link>
                       <Link href="/dashboard?tab=settings" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">⚙️</span> Settings</Link>
@@ -419,6 +455,9 @@ transition-all duration-200 shimmer-btn"
                 </div>
               </div>
               <div className="flex flex-col gap-1">
+                {vetStatus === "approved" && !vetStatusLoading && (
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/vet-dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Vet Dashboard</Link>
+                )}
                 <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=profile" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">👤 My Profile</Link>
                 <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=reports" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">📋 My SOS Reports</Link>
                 <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=settings" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">⚙️ Settings</Link>

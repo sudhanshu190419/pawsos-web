@@ -14,7 +14,10 @@ export default function ProductCard({
   const price = Number(product.price) || 0;
   const originalPrice = price + 50;
   const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
-  const hasImage = !!product.imageUrl;
+  const imageUrl = product.images?.[0] || null;
+  const hasImage = !!imageUrl;
+  const isFirebaseImage = typeof imageUrl === "string" && imageUrl.includes("firebasestorage.googleapis.com");
+  const blurDataUrl = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOCIgaGVpZ2h0PSI4IiB2aWV3Qm94PSIwIDAgOCA4IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNGM0Y0RjYiLz48L3N2Zz4=";
 
   return (
     <div className="group relative flex flex-col bg-white border border-neutral-100 rounded-xl overflow-hidden hover:border-neutral-200 hover:shadow-md transition-all duration-200">
@@ -24,12 +27,16 @@ export default function ProductCard({
         <div className="relative w-full aspect-square bg-neutral-50 overflow-hidden">
           {hasImage ? (
             <Image
-              src={product.imageUrl}
+              src={imageUrl}
               alt={product.name}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
               priority={priority}
               loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "auto"}
+              unoptimized={isFirebaseImage}
+              placeholder="blur"
+              blurDataURL={blurDataUrl}
               className="object-cover group-hover:scale-[1.04] transition-transform duration-300"
             />
           ) : (
@@ -60,9 +67,9 @@ export default function ProductCard({
         {/* ── CONTENT ── */}
         <div className="px-2.5 pt-2 pb-1">
           {/* Clinic name */}
-          {product.vetClinicName && (
+          {product.clinicName && (
             <p className="text-[10px] font-semibold text-orange-500 truncate leading-none mb-1">
-              {product.vetClinicName}
+              {product.clinicName}
             </p>
           )}
 
