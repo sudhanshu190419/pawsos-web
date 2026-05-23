@@ -12,15 +12,65 @@ interface PetConfig {
   emoji: string;
   accent: string;
   label: string;
+  bg: string;
+  color: string;
+  border: string;
 }
 
 const PET_CONFIG = {
-  dog:    { emoji: "🐕", accent: "#f59e0b", label: "Dogs" },
-  cat:    { emoji: "🐱", accent: "#8b5cf6", label: "Cats" },
-  bird:   { emoji: "🐦", accent: "#0ea5e9", label: "Birds" },
-  rabbit: { emoji: "🐰", accent: "#ec4899", label: "Rabbits" },
-  all:    { emoji: "🐾", accent: "#f97316", label: "All Pets" },
-  other:  { emoji: "🐾", accent: "#64748b", label: "Pets" },
+  dog: {
+    emoji: "🐕",
+    accent: "#f59e0b",
+    label: "Dogs",
+    bg: "bg-orange-50",
+    color: "text-orange-600",
+    border: "border-orange-200",
+  },
+
+  cat: {
+    emoji: "🐱",
+    accent: "#8b5cf6",
+    label: "Cats",
+    bg: "bg-violet-50",
+    color: "text-violet-600",
+    border: "border-violet-200",
+  },
+
+  bird: {
+    emoji: "🐦",
+    accent: "#0ea5e9",
+    label: "Birds",
+    bg: "bg-sky-50",
+    color: "text-sky-600",
+    border: "border-sky-200",
+  },
+
+  rabbit: {
+    emoji: "🐰",
+    accent: "#ec4899",
+    label: "Rabbits",
+    bg: "bg-pink-50",
+    color: "text-pink-600",
+    border: "border-pink-200",
+  },
+
+  all: {
+    emoji: "🐾",
+    accent: "#f97316",
+    label: "All Pets",
+    bg: "bg-orange-50",
+    color: "text-orange-600",
+    border: "border-orange-200",
+  },
+
+  other: {
+    emoji: "🐾",
+    accent: "#64748b",
+    label: "Pets",
+    bg: "bg-slate-50",
+    color: "text-slate-600",
+    border: "border-slate-200",
+  },
 } as const satisfies Record<PetType, PetConfig>;
 
 const FALLBACK_CONFIG = PET_CONFIG.other;

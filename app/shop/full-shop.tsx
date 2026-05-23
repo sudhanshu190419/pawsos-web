@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
 import Image from "next/image";
 import { auth, db, storage } from "../lib/firebase";
+import { CartProvider, useCart } from "../components/cart";
 import { onAuthStateChanged, User } from "firebase/auth";
 import {
   collection,
@@ -384,7 +385,7 @@ const CATEGORIES: { name: string; icon: React.ElementType }[] = [
 /* ═══════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════ */
-export default function ShopPage() {
+function ShopPageContent() {
   const [user, setUser] = useState<User | null>(null);
   const [isVet, setIsVet] = useState(false);
   const [vetClinicName, setVetClinicName] = useState("");
@@ -396,7 +397,7 @@ export default function ShopPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
-  const [cartItems, setCartItems] = useState<any[]>([]);
+  const { items: cartItems, totals, addItem, updateQty, removeItem, clear } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
@@ -435,28 +436,6 @@ export default function ShopPage() {
     return () => unsub();
   }, []);
 
-  /* Cart persistence */
-  useEffect(() => {
-    const stored = localStorage.getItem("cart");
-    if (stored) setCartItems(JSON.parse(stored));
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem("cart", JSON.stringify(cartItems));
-      window.dispatchEvent(new CustomEvent("cart-updated", { detail: cartItems }));
-    } catch (e) { console.error("Failed to persist cart:", e); }
-  }, [cartItems]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handler = (e: Event) => {
-      try { const detail = (e as CustomEvent).detail; if (Array.isArray(detail)) setCartItems(detail); } catch {}
-    };
-    window.addEventListener("cart-updated", handler as EventListener);
-    return () => window.removeEventListener("cart-updated", handler as EventListener);
-  }, []);
 
   /* Firestore */
   useEffect(() => {
@@ -500,16 +479,13 @@ export default function ShopPage() {
   }, [products, activeCategory, activeAnimal, searchQuery]);
 
   const visibleProducts = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
-  const cartTotal = useMemo(() => cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0), [cartItems]);
+  const cartTotal = totals.subtotal;
 
   const handleAddToCart = useCallback((product: any) => {
-    setCartItems((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) return prev.map((item) => item.id === product.id ? { ...item, qty: (item.qty || 1) + 1 } : item);
-      return [...prev, { ...product, qty: 1 }];
-    });
-    showToast(`${product.name} added to cart`);
-  }, [showToast]);
+    const result = addItem(product, 1);
+    if (result.ok) showToast(`${product.name} added to cart`);
+    else showToast(result.reason, "error");
+  }, [addItem, showToast]);
 
   const activeFilterCount = (activeCategory !== "All" ? 1 : 0) + (activeAnimal ? 1 : 0);
   const clearFilters = useCallback(() => { setActiveCategory("All"); setActiveAnimal(""); setSearchQuery(""); }, []);
@@ -521,7 +497,7 @@ export default function ShopPage() {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <ShopHeader
-        cartCount={cartItems.length}
+        cartCount={totals.itemCount}
         onCartClick={() => setIsCartOpen(true)}
         user={user}
         onAddProduct={isVet ? () => setShowAddModal(true) : undefined}
@@ -703,13 +679,8 @@ export default function ShopPage() {
           items={cartItems}
           total={cartTotal}
           onClose={() => setIsCartOpen(false)}
-          onUpdateQty={(id, delta) =>
-            setCartItems((prev) =>
-              prev.map((item) => item.id === id ? { ...item, qty: Math.max(1, (item.qty || 1) + delta) } : item)
-                  .filter((item) => item.qty > 0)
-            )
-          }
-          onRemove={(id) => setCartItems((prev) => prev.filter((item) => item.id !== id))}
+          onUpdateQty={updateQty}
+          onRemove={removeItem}
           onBuyNow={() => { setIsCheckoutOpen(true); setIsCartOpen(false); }}
         />
       )}
@@ -756,9 +727,17 @@ export default function ShopPage() {
           total={cartTotal}
           onBackToCart={() => { setIsCheckoutOpen(false); setIsCartOpen(true); }}
           onClose={() => setIsCheckoutOpen(false)}
-          onPlaceOrder={() => { setCartItems([]); setIsCheckoutOpen(false); showToast("Order placed successfully!"); }}
+          onOrderPlaced={() => { clear(); setIsCheckoutOpen(false); showToast("Order placed successfully!"); }}
         />
       )}
     </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <CartProvider>
+      <ShopPageContent />
+    </CartProvider>
   );
 }

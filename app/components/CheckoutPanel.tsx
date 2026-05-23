@@ -1,24 +1,36 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp,
+  QuerySnapshot,
+  DocumentData,
+} from "firebase/firestore";
 
-type CheckoutItem = {
-  id: string;
-  name: string;
-  price: number | string;
-  qty?: number;
-  image?: string;
-};
+import { auth, db } from "../lib/firebase";
+import type { CartItem } from "./cart/cartTypes";
+
+type CheckoutItem = CartItem;
 
 type CheckoutPanelProps = {
   items: CheckoutItem[];
   total: number;
   onBackToCart: () => void;
   onClose: () => void;
-  onPlaceOrder: () => void;
+  onOrderPlaced: () => void;
 };
 
 type AddressType = {
+  id?: string;
   label: string;
   full: string;
   line1: string;
@@ -38,20 +50,23 @@ export default function CheckoutPanel({
   total,
   onBackToCart,
   onClose,
-  onPlaceOrder,
+  onOrderPlaced,
 }: CheckoutPanelProps) {
   const [activeStep, setActiveStep] = useState(2);
   const [selectedPayment, setSelectedPayment] = useState("cod");
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
+  const [orderError, setOrderError] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
 
   // Address states
   const [addressMode, setAddressMode] = useState<"saved" | "detect" | "manual">("saved");
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectError, setDetectError] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<AddressType[]>([]);
-  const [selectedAddressIndex, setSelectedAddressIndex] = useState(0);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [detectedAddress, setDetectedAddress] = useState<AddressType | null>(null);
 
   // Manual address fields
@@ -66,6 +81,34 @@ export default function CheckoutPanel({
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid ?? null);
+      setUserName(user?.displayName ?? null);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      setSavedAddresses([]);
+      setSelectedAddressId(null);
+      return;
+    }
+    const q = query(collection(db, "users", userId, "addresses"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+      const next = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as AddressType),
+      }));
+      setSavedAddresses(next);
+      if (!selectedAddressId && next.length > 0) {
+        setSelectedAddressId(next[0].id ?? null);
+      }
+    });
+    return () => unsub();
+  }, [userId, selectedAddressId]);
 
   const subtotal = items.reduce(
     (sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1),
@@ -226,8 +269,12 @@ export default function CheckoutPanel({
     setManualPincode(pincodeMatch ? pincodeMatch[0] : "");
   };
 
-  const handleSaveManualAddress = () => {
+  const handleSaveManualAddress = async () => {
     if (!manualLine1.trim()) return;
+    if (!userId) {
+      setDetectError("Please sign in to save addresses.");
+      return;
+    }
     const newAddr: AddressType = {
       label: manualLabel,
       full: `${manualLine1}, ${manualLine2}${manualPincode ? " - " + manualPincode : ""}`,
@@ -235,8 +282,11 @@ export default function CheckoutPanel({
       line2: manualLine2,
       pincode: manualPincode,
     };
-    setSavedAddresses((prev) => [...prev, newAddr]);
-    setSelectedAddressIndex(savedAddresses.length);
+    const docRef = await addDoc(collection(db, "users", userId, "addresses"), {
+      ...newAddr,
+      createdAt: serverTimestamp(),
+    });
+    setSelectedAddressId(docRef.id);
     setAddressMode("saved");
     setManualLine1("");
     setManualLine2("");
@@ -245,17 +295,24 @@ export default function CheckoutPanel({
     setManualLabel("Home");
   };
 
-  const handleUseDetectedAddress = () => {
+  const handleUseDetectedAddress = async () => {
     if (!detectedAddress) return;
-    setSavedAddresses((prev) => [...prev, detectedAddress]);
-    setSelectedAddressIndex(savedAddresses.length);
+    if (!userId) {
+      setDetectError("Please sign in to save addresses.");
+      return;
+    }
+    const docRef = await addDoc(collection(db, "users", userId, "addresses"), {
+      ...detectedAddress,
+      createdAt: serverTimestamp(),
+    });
+    setSelectedAddressId(docRef.id);
     setAddressMode("saved");
     setDetectedAddress(null);
   };
 
-  const getCurrentAddress = (): AddressType => {
+  const getCurrentAddress = (): AddressType | undefined => {
     if (addressMode === "detect" && detectedAddress) return detectedAddress;
-    return savedAddresses[selectedAddressIndex] || savedAddresses[0];
+    return savedAddresses.find((addr) => addr.id === selectedAddressId) || savedAddresses[0];
   };
 
   // Close suggestions on outside click
@@ -269,12 +326,90 @@ export default function CheckoutPanel({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    setOrderError("");
+    if (!userId) {
+      setOrderError("Please sign in to place your order.");
+      return;
+    }
+    if (items.length === 0) {
+      setOrderError("Your cart is empty.");
+      return;
+    }
+    const address = getCurrentAddress();
+    if (!address) {
+      setOrderError("Please select a delivery address.");
+      return;
+    }
+
+    const taxes = Math.round(subtotal * 0.05);
+    const totalAmount = finalTotal + taxes;
+    const paymentStatus = selectedPayment === "cod" ? "pending" : "pending";
+
+    const orderItems = items.map((item) => ({
+      productId: item.id,
+      productName: item.name,
+      quantity: item.qty,
+      price: item.price,
+      vetId: item.vetId,
+      shiprocketPickupId: item.shiprocketPickupId,
+    }));
+
+    const vendorGroups = Object.values(
+      items.reduce<Record<string, { vetId: string; shiprocketPickupId: number | null; items: typeof orderItems; subtotal: number }>>(
+        (acc, item) => {
+          const key = item.vetId || "unknown";
+          if (!acc[key]) {
+            acc[key] = { vetId: item.vetId, shiprocketPickupId: item.shiprocketPickupId, items: [], subtotal: 0 };
+          }
+          acc[key].items.push({
+            productId: item.id,
+            productName: item.name,
+            quantity: item.qty,
+            price: item.price,
+            vetId: item.vetId,
+            shiprocketPickupId: item.shiprocketPickupId,
+          });
+          acc[key].subtotal += item.price * item.qty;
+          return acc;
+        }, {})
+    );
+
     setIsPlacing(true);
-    setTimeout(() => {
+    try {
+      const orderRef = doc(collection(db, "orders"));
+      await runTransaction(db, async (transaction) => {
+        for (const item of items) {
+          const productRef = doc(db, "products", item.id);
+          const snap = await transaction.get(productRef);
+          if (!snap.exists()) throw new Error("Product not found");
+          const currentStock = Number(snap.data().stockQty ?? 0);
+          if (currentStock < item.qty) throw new Error(`Insufficient stock for ${item.name}`);
+          transaction.update(productRef, { stockQty: currentStock - item.qty });
+        }
+        transaction.set(orderRef, {
+          orderId: orderRef.id,
+          userId,
+          userName: userName ?? "",
+          items: orderItems,
+          vendorGroups,
+          subtotal,
+          deliveryFee,
+          taxes,
+          totalAmount,
+          address,
+          paymentMethod: selectedPayment,
+          paymentStatus,
+          orderStatus: "placed",
+          createdAt: serverTimestamp(),
+        });
+      });
+      onOrderPlaced();
+    } catch (err: any) {
+      setOrderError(err?.message || "Failed to place order. Please try again.");
+    } finally {
       setIsPlacing(false);
-      onPlaceOrder();
-    }, 2000);
+    }
   };
 
   const handleApplyPromo = () => {
@@ -414,23 +549,23 @@ export default function CheckoutPanel({
                 <div className="space-y-2">
                   {savedAddresses.map((addr, idx) => (
                     <label
-                      key={idx}
+                      key={addr.id ?? idx}
                       className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer border transition-all duration-200 ${
-                        selectedAddressIndex === idx
+                        selectedAddressId === addr.id
                           ? "border-orange-200 bg-orange-50/60 shadow-sm"
                           : "border-transparent hover:bg-slate-50"
                       }`}
                     >
                       <div className={`w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                        selectedAddressIndex === idx ? "border-orange-500" : "border-slate-300"
+                        selectedAddressId === addr.id ? "border-orange-500" : "border-slate-300"
                       }`}>
-                        {selectedAddressIndex === idx && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                        {selectedAddressId === addr.id && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
                       </div>
                       <input
                         type="radio"
                         name="savedAddr"
-                        checked={selectedAddressIndex === idx}
-                        onChange={() => setSelectedAddressIndex(idx)}
+                        checked={selectedAddressId === addr.id}
+                        onChange={() => setSelectedAddressId(addr.id ?? null)}
                         className="sr-only"
                       />
                       <div className="flex-1 min-w-0">
@@ -447,12 +582,8 @@ export default function CheckoutPanel({
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          if (savedAddresses.length > 1) {
-                            setSavedAddresses((prev) => prev.filter((_, i) => i !== idx));
-                            if (selectedAddressIndex >= idx && selectedAddressIndex > 0) {
-                              setSelectedAddressIndex((prev) => prev - 1);
-                            }
-                          }
+                          if (!userId || !addr.id) return;
+                          deleteDoc(doc(db, "users", userId, "addresses", addr.id));
                         }}
                         className="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
                         title="Remove"
@@ -908,6 +1039,11 @@ export default function CheckoutPanel({
 
         {/* ════════ FIXED BOTTOM CTA ════════ */}
         <div className="border-t border-slate-100 bg-white p-4 space-y-3 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+          {orderError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {orderError}
+            </div>
+          )}
           <div className="flex items-center justify-between px-1">
             <div>
               <p className="text-xs text-slate-400 font-medium">Total Amount</p>

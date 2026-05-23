@@ -24,6 +24,7 @@ import ShopHeader from "../../../components/ShopHeader";
 import ProductCard from "../../../components/ProductCard";
 import CheckoutPanel from "../../../components/CheckoutPanel";
 import CartDrawer from "../../../components/CartDrawer";
+import { useCart } from "../../../components/cart";
 
 /* ═══════════════════════════════════════════════════
    CONSTANTS
@@ -307,7 +308,7 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<Tab>("description");
-  const [cartItems, setCartItems] = useState<any[]>([]);
+  const { items: cartItems, totals, addItem, updateQty, removeItem, clear } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [wishlist, setWishlist] = useState(false);
@@ -368,54 +369,14 @@ export default function ProductDetailPage() {
     fetchData();
   }, [id, router]);
 
-  /* ── Cart persistence ── */
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = localStorage.getItem("cart");
-      if (stored) setCartItems(JSON.parse(stored));
-    } catch (e) {
-      console.error("Failed to read cart:", e);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem("cart", JSON.stringify(cartItems));
-      window.dispatchEvent(new CustomEvent("cart-updated", { detail: cartItems }));
-    } catch (e) {
-      console.error("Failed to persist cart:", e);
-    }
-  }, [cartItems]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handler = (e: Event) => {
-      try {
-        const detail = (e as CustomEvent).detail;
-        if (Array.isArray(detail)) setCartItems(detail);
-      } catch {}
-    };
-    window.addEventListener("cart-updated", handler as EventListener);
-    return () => window.removeEventListener("cart-updated", handler as EventListener);
-  }, []);
 
   /* ── Cart action ── */
   const handleAddToCart = useCallback(
     (prod: any) => {
-      setCartItems((prev) => {
-        const existing = prev.find((item) => item.id === prod.id);
-        if (existing) {
-          return prev.map((item) =>
-            item.id === prod.id ? { ...item, qty: (item.qty || 1) + quantity } : item
-          );
-        }
-        return [...prev, { ...prod, qty: quantity }];
-      });
-      setIsCartOpen(true);
+      const result = addItem(prod, quantity);
+      if (result.ok) setIsCartOpen(true);
     },
-    [quantity]
+    [addItem, quantity]
   );
 
   /* ── Derived values ── */
@@ -423,14 +384,14 @@ export default function ProductDetailPage() {
   const originalPrice = price + 100;
   const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
   const inStock = true;
-  const cartTotal = cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
+  const cartTotal = totals.subtotal;
 
   if (loading) return <PageSkeleton />;
   if (!product) return null;
 
   return (
     <div className="min-h-screen bg-white text-neutral-900">
-      <ShopHeader cartCount={cartItems.length} onCartClick={() => setIsCartOpen(true)} user={null} />
+      <ShopHeader cartCount={totals.itemCount} onCartClick={() => setIsCartOpen(true)} user={null} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
         {/* ── Back ── */}
@@ -625,14 +586,8 @@ export default function ProductDetailPage() {
           items={cartItems}
           total={cartTotal}
           onClose={() => setIsCartOpen(false)}
-          onUpdateQty={(id, delta) =>
-            setCartItems((prev) =>
-              prev
-                .map((item) => (item.id === id ? { ...item, qty: Math.max(1, (item.qty || 1) + delta) } : item))
-                .filter((item) => item.qty > 0)
-            )
-          }
-          onRemove={(id) => setCartItems((prev) => prev.filter((item) => item.id !== id))}
+          onUpdateQty={updateQty}
+          onRemove={removeItem}
           onBuyNow={() => { setIsCheckoutOpen(true); setIsCartOpen(false); }}
         />
       )}
@@ -644,7 +599,7 @@ export default function ProductDetailPage() {
           total={cartTotal}
           onBackToCart={() => { setIsCheckoutOpen(false); setIsCartOpen(true); }}
           onClose={() => setIsCheckoutOpen(false)}
-          onPlaceOrder={() => { setCartItems([]); setIsCheckoutOpen(false); }}
+          onOrderPlaced={() => { clear(); setIsCheckoutOpen(false); }}
         />
       )}
     </div>

@@ -129,7 +129,7 @@ export default function PlayDateDetailPage() {
       <div
         className="h-2 w-full"
         style={{
-          background: `linear-gradient(90deg, ${config.dot}, ${config.dot}66)`,
+          background: `linear-gradient(90deg, ${config.accent}, ${config.accent}66)`,
         }}
       />
 

@@ -131,7 +131,9 @@ const CartDrawer = memo(
                           >
                             −
                           </button>
-                          <span className="w-8 text-center text-sm font-bold text-slate-800">{item.qty || 1}</span>
+                          <span className="w-8 text-center text-sm font-bold text-slate-800 transition-all duration-200">
+                            {item.qty || 1}
+                          </span>
                           <button
                             type="button"
                             onClick={() => onUpdateQty(item.id, 1)}
