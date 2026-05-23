@@ -30,6 +30,9 @@ interface VetFormData {
   willingToTravel: boolean;
   profilePhoto: File | null;
   document: File | null;
+  clinicName: string;
+state: string;
+pincode: string;
 }
 
 interface ExistingApplication {
@@ -75,6 +78,9 @@ const INITIAL_FORM: VetFormData = {
   clinicAddress: "", serviceArea: "",
   availability: [], willingToTravel: false,
   profilePhoto: null, document: null,
+  clinicName: "",
+state: "",
+pincode: "",
 };
 
 const BENEFITS: { icon: React.ElementType; tag: string; title: string; desc: string }[] = [
@@ -135,6 +141,45 @@ const VERIFICATION_STEPS = [
 const AVAILABILITY_OPTIONS = ["Weekdays", "Weekends", "24/7 Emergency"];
 const TOTAL_STEPS = 4;
 const STEP_LABELS = ["Basic Info", "Photo", "Documents", "Availability"];
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry",
+];
+const INDIAN_STATES_SET = new Set(INDIAN_STATES);
 
 /* ══════════════════════════════════════════════════════════════
    PAGE
@@ -564,10 +609,26 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   );
 
   const handleInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      set(e.target.name as keyof VetFormData, e.target.value as never),
-    [set]
-  );
+  (e: React.ChangeEvent<HTMLInputElement>) => {
+
+    const name = e.target.name;
+
+    let value = e.target.value;
+
+    // Phone: allow only 10 digits
+    if (name === "phone") {
+      value = value.replace(/\D/g, "").slice(0, 10);
+    }
+
+    // Pincode: allow only 6 digits
+    if (name === "pincode") {
+      value = value.replace(/\D/g, "").slice(0, 6);
+    }
+
+    set(name as keyof VetFormData, value as never);
+  },
+  [set]
+);
 
   const handleFile = useCallback(
     (key: "profilePhoto" | "document") =>
@@ -592,11 +653,32 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   const validate = (s: number): boolean => {
     const errs: typeof errors = {};
     if (s === 1) {
+      if (!/^\d{10}$/.test(form.phone.trim())) {
+  errs.phone = "Enter valid 10-digit phone number";
+}
+      if (
+  form.clinicAddress.trim().length < 15 ||
+  !/\d/.test(form.clinicAddress)
+) {
+  errs.clinicAddress =
+    "Enter full address with house/flat/shop number";
+}
       if (!form.fullName.trim()) errs.fullName = "Required";
       if (!form.email.trim()) errs.email = "Required";
       if (!form.phone.trim()) errs.phone = "Required";
+      
       if (!form.city.trim()) errs.city = "Required";
       if (!form.clinicAddress.trim()) errs.clinicAddress = "Required";
+      if (!form.clinicName.trim()) errs.clinicName = "Required";
+if (!form.state.trim()) {
+  errs.state = "Required";
+} else if (!INDIAN_STATES_SET.has(form.state.trim())) {
+  errs.state = "Select a valid state";
+}
+if (!form.pincode.trim()) errs.pincode = "Required";
+if (!/^\d{6}$/.test(form.pincode.trim())) {
+  errs.pincode = "Enter valid 6-digit pincode";
+}
     }
     if (s === 2 && !form.profilePhoto) errs.profilePhoto = "Profile photo is required";
     if (s === 3 && !form.document) errs.document = "License / degree certificate is required";
@@ -637,9 +719,12 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
       await setDoc(doc(db, "vets_web", user.uid), {
         uid: user.uid,
         fullName: form.fullName,
+        clinicName: form.clinicName,
         email: form.email,
         phone: form.phone,
         city: form.city,
+        state: form.state,
+  pincode: form.pincode,
         clinicAddress: form.clinicAddress,
         serviceArea: form.serviceArea,
         availability: form.availability,
@@ -760,9 +845,57 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
             <FormField label="Phone Number *" name="phone" value={form.phone} onChange={handleInput} placeholder="+91 98765 43210" error={errors.phone} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField label="City / State *" name="city" value={form.city} onChange={handleInput} placeholder="e.g. New Delhi" error={errors.city} />
-            <FormField label="Clinic Address *" name="clinicAddress" value={form.clinicAddress} onChange={handleInput} placeholder="Full address" error={errors.clinicAddress} />
-          </div>
+  <FormField
+    label="Clinic Name *"
+    name="clinicName"
+    value={form.clinicName}
+    onChange={handleInput}
+    placeholder="Happy Pets Clinic"
+    error={errors.clinicName}
+  />
+
+  <FormField
+    label="City *"
+    name="city"
+    value={form.city}
+    onChange={handleInput}
+    placeholder="New Delhi"
+  />
+</div>
+
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  <StateSelect
+    label="State *"
+    value={form.state}
+    onChange={(value) => set("state", value)}
+    placeholder="Select State"
+    error={errors.state}
+  />
+
+  <FormField
+    label="Pincode *"
+    name="pincode"
+     type="text"
+     inputMode="numeric"
+     pattern="[0-9]*"
+    value={form.pincode}
+    onChange={handleInput}
+    placeholder="110001"
+  />
+</div>
+
+<FormField
+  label="Clinic Address *"
+  
+  name="clinicAddress"
+  value={form.clinicAddress}
+  onChange={handleInput}
+  placeholder="Full clinic address"
+  error={errors.clinicAddress}
+/>
+<p className="mt-1 text-xs text-slate-400">
+  Example: C-319 Street No 11, Ganga Vihar, Delhi
+</p>
         </div>
       )}
 
@@ -916,9 +1049,187 @@ interface FormFieldProps {
   readOnly?: boolean;
   required?: boolean;
   error?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+pattern?: string;
 }
 
-function FormField({ label, name, type = "text", value, onChange, placeholder, readOnly = false, required = true, error }: FormFieldProps) {
+interface StateSelectProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  error?: string;
+}
+
+function StateSelect({ label, value, onChange, placeholder = "Select State", error }: StateSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const filtered = INDIAN_STATES.filter((state) =>
+    state.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      const selectedIndex = INDIAN_STATES.findIndex((s) => s === value);
+      setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+      requestAnimationFrame(() => searchRef.current?.focus());
+    }
+  }, [open, value]);
+
+  useEffect(() => {
+    if (open) setActiveIndex(0);
+  }, [open, query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const target = optionRefs.current[activeIndex];
+    if (target) {
+      target.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeIndex, open]);
+
+  const selectState = (state: string) => {
+    onChange(state);
+    setOpen(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      setOpen(true);
+      return;
+    }
+
+    if (!open) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (filtered.length === 0) return;
+      setActiveIndex((i) => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (filtered.length === 0) return;
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const selected = filtered[activeIndex];
+      if (selected) selectState(selected);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+        {label}
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={handleKeyDown}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`input-field w-full rounded-xl px-4 py-3 text-sm font-medium border transition-all duration-200 text-left flex items-center justify-between gap-3 ${
+          error
+            ? "bg-red-50 border-red-300 text-slate-900"
+            : "bg-slate-50 border-slate-200 text-slate-900 hover:border-slate-300 focus:bg-white"
+        }`}
+      >
+        <span className={value ? "text-slate-900" : "text-slate-400"}>
+          {value || placeholder}
+        </span>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl">
+          <div className="p-2">
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Search state"
+              className="input-field w-full rounded-lg px-3 py-2 text-sm font-medium border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white"
+              aria-label="Search state"
+            />
+          </div>
+          <div
+            role="listbox"
+            aria-label="Indian states"
+            className="max-h-60 overflow-y-auto py-1"
+          >
+            {filtered.length === 0 && (
+              <div className="px-3 py-2 text-sm text-slate-400">No matches found</div>
+            )}
+            {filtered.map((state, index) => (
+              <button
+                type="button"
+                key={state}
+                role="option"
+                aria-selected={state === value}
+                ref={(el) => { optionRefs.current[index] = el; }}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => selectState(state)}
+                onKeyDown={handleKeyDown}
+                className={`w-full text-left px-3 py-2 text-sm font-medium transition-colors ${
+                  index === activeIndex
+                    ? "bg-orange-50 text-orange-700"
+                    : state === value
+                    ? "bg-slate-50 text-slate-900"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {state}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {error ? (
+        <p className="mt-1 text-xs text-red-500 font-medium">{error}</p>
+      ) : (
+        <p className="mt-1 text-xs text-slate-400">Type to search</p>
+      )}
+    </div>
+  );
+}
+
+function FormField({
+  label,
+  name,
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+  readOnly = false,
+  required = true,
+  error,
+  inputMode,
+  pattern,
+}: FormFieldProps){
   return (
     <div>
       <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-2">
@@ -926,7 +1237,12 @@ function FormField({ label, name, type = "text", value, onChange, placeholder, r
         {readOnly && <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full tracking-normal normal-case font-semibold">locked</span>}
       </label>
       <input
-        type={type} name={name} value={value} onChange={onChange}
+  type={type}
+  name={name}
+  value={value}
+  inputMode={inputMode}
+  pattern={pattern}
+  onChange={onChange}
         readOnly={readOnly} required={required} placeholder={placeholder}
         className={`input-field w-full rounded-xl px-4 py-3 text-sm font-medium border transition-all duration-200 ${
           error

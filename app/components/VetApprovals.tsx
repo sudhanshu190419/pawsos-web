@@ -12,6 +12,9 @@ interface VetData {
   fullName?: string;
   email?: string;
   phone?: string;
+  clinicName?: string;
+state?: string;
+pincode?: string;
   city?: string;
   clinicAddress?: string;
   profilePhotoURL?: string;
@@ -70,26 +73,119 @@ export default function VetApprovals() {
 
   const handleApprove = async () => {
     if (!selectedVet) return;
+
     setIsProcessing(true);
+
+    const debugId = `vet-approve-${selectedVet.uid || selectedVet.id}-${Date.now()}`;
+    const requiredFields: Array<keyof VetData> = [
+      "clinicName",
+      "fullName",
+      "email",
+      "phone",
+      "clinicAddress",
+      "city",
+      "state",
+      "pincode",
+    ];
+
     try {
-      // 1. Update the Vet Application document
-      await updateDoc(doc(db, COLLECTION_NAME, selectedVet.id), { 
-        verificationStatus: 'approved',
-        status: 'active'
+      console.group(`[VetApprove] ${debugId}`);
+      console.log("Selected vet:", selectedVet);
+
+      const missingFields = requiredFields.filter((key) => {
+        const value = selectedVet[key];
+        return value === undefined || value === null || value === "";
       });
 
-      // 2. Update the main user document so the Mobile App unlocks Vet features!
-      await updateDoc(doc(db, "users", selectedVet.uid), { 
+      if (!selectedVet.uid || missingFields.length > 0) {
+        console.error("Missing Shiprocket fields:", missingFields);
+        alert("Vet is missing required Shiprocket fields. Check console logs.");
+        return;
+      }
+
+      const payload = {
+        vetId: selectedVet.uid,
+        clinicName: selectedVet.clinicName,
+        fullName: selectedVet.fullName,
+        email: selectedVet.email,
+        phone: selectedVet.phone,
+        clinicAddress: selectedVet.clinicAddress,
+        city: selectedVet.city,
+        state: selectedVet.state,
+        pincode: selectedVet.pincode,
+      };
+
+      console.log("Shiprocket payload:", payload);
+      console.log("Calling /api/shiprocket/create-pickup ...");
+
+      const pickupResponse = await fetch("/api/shiprocket/create-pickup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log("Pickup response status:", pickupResponse.status, pickupResponse.statusText);
+
+      const contentType = pickupResponse.headers.get("content-type") || "";
+      let pickupData: any = null;
+
+      if (contentType.includes("application/json")) {
+        pickupData = await pickupResponse.json();
+      } else {
+        const text = await pickupResponse.text();
+        console.error("Non-JSON response from pickup API:", text);
+        throw new Error("Shiprocket pickup API returned non-JSON response.");
+      }
+
+      console.log("Pickup response body:", pickupData);
+
+      if (!pickupResponse.ok) {
+        const message = pickupData?.message || pickupData?.error || "Unknown pickup error";
+        console.error("Shiprocket pickup failed (non-2xx):", message);
+        throw new Error(message);
+      }
+
+      const pickupSuccess = pickupData?.success === true;
+      const pickupId = pickupData?.data?.pickup_id;
+      const pickupCode = pickupData?.data?.address?.pickup_code || pickupData?.data?.pickup_code;
+
+      if (!pickupSuccess || !pickupId) {
+        console.error("Shiprocket pickup response indicates failure:", {
+          pickupSuccess,
+          pickupId,
+          pickupCode,
+          error: pickupData?.error,
+          message: pickupData?.message,
+        });
+        throw new Error("Shiprocket pickup creation failed.");
+      }
+
+      console.log("Shiprocket pickup created:", { pickupId, pickupCode });
+
+      await updateDoc(doc(db, COLLECTION_NAME, selectedVet.id), {
+        verificationStatus: "approved",
+        status: "active",
+        shiprocketPickupCreated: true,
+        shiprocketPickupId: pickupId,
+        shiprocketPickupName: pickupCode,
+      });
+
+      await updateDoc(doc(db, "users", selectedVet.uid), {
         vetApproved: true,
-        vetApprovedSince: new Date()
+        vetApprovedSince: new Date(),
       });
 
-      setSelectedVet(null); 
+      alert("Vet approved successfully!");
+      setSelectedVet(null);
     } catch (error) {
       console.error("Error approving vet:", error);
-      alert("Failed to approve veterinarian.");
+      alert("Failed to approve veterinarian. Check console logs.");
+    } finally {
+      console.groupEnd();
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
   const handleReject = async () => {
@@ -98,6 +194,8 @@ export default function VetApprovals() {
     if (reason === null) return; 
 
     setIsProcessing(true);
+
+    
     try {
       // 1. Update the Vet Application document
       await updateDoc(doc(db, COLLECTION_NAME, selectedVet.id), { 

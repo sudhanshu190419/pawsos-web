@@ -14,11 +14,13 @@ import {
   Shield,
   Star,
   Menu as MenuIcon,
+  ArrowRight,
+  Package,
 } from "lucide-react";
 import { User as FirebaseUser } from "firebase/auth";
 
 /* ═══════════════════════════════════════════════════
-   STATIC DATA (outside component to avoid re-creation)
+   STATIC DATA
    ═══════════════════════════════════════════════════ */
 const MENU_DATA = [
   {
@@ -98,7 +100,7 @@ const MENU_DATA = [
 const PROMO_ITEMS = [
   { icon: "🚚", text: "Free delivery on orders above ₹499" },
   { icon: "🩺", text: "Vet-approved products only" },
-  { icon: "🏷️", text: "10% off first order — use NEWPET" },
+  { icon: "🏷️", text: "10% off your first order — use NEWPET" },
   { icon: "⚡", text: "Same-day delivery in select cities" },
   { icon: "🔄", text: "Easy 7-day returns on all products" },
 ] as const;
@@ -129,19 +131,19 @@ type ShopHeaderProps = {
 };
 
 /* ═══════════════════════════════════════════════════
-   PROMO STRIP (memoized)
+   PROMO STRIP
    ═══════════════════════════════════════════════════ */
 const PromoStrip = memo(() => (
-  <div className="bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 overflow-hidden relative">
-    <div className="flex whitespace-nowrap animate-[scroll-promo_28s_linear_infinite] hover:[animation-play-state:paused]">
+  <div className="bg-neutral-900 overflow-hidden select-none">
+    <div className="flex whitespace-nowrap animate-[promo-scroll_32s_linear_infinite] hover:[animation-play-state:paused]">
       {[...PROMO_ITEMS, ...PROMO_ITEMS, ...PROMO_ITEMS].map((item, i) => (
         <span
           key={i}
-          className="inline-flex items-center gap-2 px-6 py-2 text-white text-[11.5px] sm:text-xs font-medium flex-shrink-0"
+          className="inline-flex items-center gap-2 px-8 py-2 text-neutral-300 text-[11px] font-medium flex-shrink-0 tracking-wide"
         >
-          <span className="text-sm">{item.icon}</span>
+          <span className="text-xs opacity-80">{item.icon}</span>
           {item.text}
-          <span className="w-1 h-1 bg-white/30 rounded-full ml-2" />
+          <span className="w-[3px] h-[3px] bg-neutral-600 rounded-full ml-4" />
         </span>
       ))}
     </div>
@@ -150,109 +152,103 @@ const PromoStrip = memo(() => (
 PromoStrip.displayName = "PromoStrip";
 
 /* ═══════════════════════════════════════════════════
-   MEGA MENU PANEL (memoized)
+   BADGE
+   ═══════════════════════════════════════════════════ */
+const Badge = ({ label }: { label: string }) => {
+  if (!label) return null;
+  const styles: Record<string, string> = {
+    New: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
+    Popular: "bg-orange-50 text-orange-600 ring-1 ring-orange-100",
+  };
+  return (
+    <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${styles[label] ?? "bg-neutral-100 text-neutral-500"}`}>
+      {label}
+    </span>
+  );
+};
+
+/* ═══════════════════════════════════════════════════
+   MEGA MENU PANEL
    ═══════════════════════════════════════════════════ */
 const MegaMenuPanel = memo(
   ({
     menu,
     isOpen,
     onClose,
+    anchorRef,
   }: {
     menu: (typeof MENU_DATA)[number];
     isOpen: boolean;
     onClose: () => void;
+    anchorRef?: React.RefObject<HTMLDivElement | null>;
   }) => {
     if (!isOpen) return null;
 
     return (
       <>
-        {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-black/10 backdrop-blur-[1px] z-40"
+          className="fixed inset-0 z-40"
           onClick={onClose}
-          style={{ animation: "megaFadeIn 200ms ease-out" }}
         />
-
-        {/* Panel */}
+        {/* Panel — positioned relative to the nav bar below */}
         <div
-          className="fixed top-[108px] sm:top-[116px] left-1/2 -translate-x-1/2 w-[95vw] max-w-[680px] bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden"
-          style={{ animation: "megaSlideIn 250ms cubic-bezier(0.16,1,0.3,1)" }}
+          className="absolute top-full left-0 mt-1 w-[600px] bg-white rounded-2xl z-50 overflow-hidden"
+          style={{
+            boxShadow: "0 8px 40px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.06)",
+            animation: "panel-in 200ms cubic-bezier(0.16,1,0.3,1)",
+          }}
           role="menu"
           aria-label={menu.title}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-orange-50 to-amber-50/50 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm border border-orange-100">
-                {menu.emoji}
-              </div>
-              <div>
-                <h3 className="font-bold text-base text-slate-900 tracking-tight">
-                  {menu.title}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">{menu.sub}</p>
-              </div>
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
+            <span className="text-2xl">{menu.emoji}</span>
+            <div>
+              <p className="text-sm font-semibold text-neutral-900">{menu.title}</p>
+              <p className="text-xs text-neutral-400 mt-0.5">{menu.sub}</p>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/80 transition-colors"
+              className="ml-auto w-7 h-7 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors"
               aria-label="Close menu"
             >
-              <X className="w-4 h-4 text-slate-400" />
+              <X className="w-3.5 h-3.5 text-neutral-400" />
             </button>
           </div>
 
-          {/* Items Grid */}
-          <div className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-              {menu.items.map((item, idx) => (
-                <a
-                  key={item.label}
-                  href="#"
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 group/item transition-all duration-150 relative"
-                  role="menuitem"
-                  style={{ animation: `megaItemIn 200ms ease-out ${idx * 40}ms both` }}
-                >
-                  <div className="w-10 h-10 bg-slate-50 group-hover/item:bg-orange-100 rounded-xl flex items-center justify-center text-base flex-shrink-0 transition-all duration-150 group-hover/item:scale-105">
-                    {item.icon}
+          {/* Items */}
+          <div className="p-4 grid grid-cols-2 gap-1">
+            {menu.items.map((item) => (
+              <a
+                key={item.label}
+                href="#"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 group/item transition-colors"
+                role="menuitem"
+              >
+                <span className="w-9 h-9 rounded-lg bg-neutral-50 group-hover/item:bg-white flex items-center justify-center text-base flex-shrink-0 transition-colors shadow-none group-hover/item:shadow-sm">
+                  {item.icon}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] font-medium text-neutral-800 leading-tight">{item.label}</span>
+                    <Badge label={item.badge} />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-semibold text-slate-800 leading-tight flex items-center gap-1.5">
-                      {item.label}
-                      {item.badge && (
-                        <span
-                          className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
-                            item.badge === "New"
-                              ? "bg-emerald-50 text-emerald-600"
-                              : item.badge === "Popular"
-                              ? "bg-orange-50 text-orange-600"
-                              : "bg-slate-100 text-slate-500"
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5 truncate">{item.desc}</div>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-300 -rotate-90 opacity-0 group-hover/item:opacity-100 transition-opacity flex-shrink-0" />
-                </a>
-              ))}
-            </div>
+                  <p className="text-[11px] text-neutral-400 mt-0.5 truncate">{item.desc}</p>
+                </div>
+              </a>
+            ))}
           </div>
 
           {/* Footer tags */}
-          <div className="px-6 py-3.5 bg-slate-50/80 border-t border-slate-100 flex gap-2 flex-wrap">
+          <div className="px-5 py-3 border-t border-neutral-100 flex flex-wrap gap-1.5">
             {menu.tags.map((tag) => (
               <a
                 key={tag}
                 href="#"
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-orange-50 text-slate-600 hover:text-orange-600 text-[11px] font-semibold rounded-full border border-slate-200 hover:border-orange-200 cursor-pointer transition-all duration-150"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium text-neutral-500 hover:text-orange-600 hover:bg-orange-50 transition-colors"
               >
                 {tag}
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
+                <ArrowRight className="w-2.5 h-2.5" />
               </a>
             ))}
           </div>
@@ -264,7 +260,7 @@ const MegaMenuPanel = memo(
 MegaMenuPanel.displayName = "MegaMenuPanel";
 
 /* ═══════════════════════════════════════════════════
-   SEARCH OVERLAY (memoized)
+   SEARCH OVERLAY
    ═══════════════════════════════════════════════════ */
 const SearchOverlay = memo(
   ({
@@ -285,15 +281,11 @@ const SearchOverlay = memo(
         requestAnimationFrame(() => inputRef.current?.focus());
         document.body.style.overflow = "hidden";
       }
-      return () => {
-        document.body.style.overflow = "";
-      };
+      return () => { document.body.style.overflow = ""; };
     }, [isOpen]);
 
     useEffect(() => {
-      const handler = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
-      };
+      const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
       if (isOpen) document.addEventListener("keydown", handler);
       return () => document.removeEventListener("keydown", handler);
     }, [isOpen, onClose]);
@@ -302,104 +294,104 @@ const SearchOverlay = memo(
 
     return (
       <div
-        className="fixed inset-0 z-[200000] bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[200000] bg-black/50 backdrop-blur-sm"
         onClick={onClose}
-        style={{ animation: "megaFadeIn 200ms ease-out" }}
+        style={{ animation: "fade-in 150ms ease-out" }}
       >
         <div
-          className="w-full max-w-2xl mx-auto pt-4 sm:pt-20 px-4"
+          className="w-full max-w-xl mx-auto pt-[72px] sm:pt-24 px-4"
           onClick={(e) => e.stopPropagation()}
-          style={{ animation: "searchSlideIn 300ms cubic-bezier(0.16,1,0.3,1)" }}
+          style={{ animation: "slide-down 250ms cubic-bezier(0.16,1,0.3,1)" }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
-            {/* Search Input */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
-              <Search className="w-5 h-5 text-slate-400 flex-shrink-0" strokeWidth={2} />
+          <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+            {/* Input Row */}
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <Search className="w-4.5 h-4.5 text-neutral-400 flex-shrink-0" strokeWidth={2} />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => onChange(e.target.value)}
-                placeholder="Search food, toys, medicines for your pet..."
-                className="flex-1 text-base font-medium text-slate-800 placeholder:text-slate-300 outline-none bg-transparent"
+                placeholder="Search food, toys, medicines for your pet…"
+                className="flex-1 text-[15px] font-medium text-neutral-800 placeholder:text-neutral-300 outline-none bg-transparent"
               />
-              {query && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {query && (
+                  <button
+                    onClick={() => onChange("")}
+                    className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors"
+                    aria-label="Clear"
+                  >
+                    <X className="w-3 h-3 text-neutral-500" strokeWidth={2.5} />
+                  </button>
+                )}
                 <button
-                  onClick={() => onChange("")}
-                  className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                  aria-label="Clear search"
+                  onClick={onClose}
+                  className="text-[11px] font-semibold text-neutral-400 hover:text-neutral-600 transition-colors px-2 py-1 rounded-md hover:bg-neutral-100"
                 >
-                  <X className="w-3.5 h-3.5 text-slate-500" strokeWidth={2.5} />
+                  ESC
                 </button>
-              )}
-              <button
-                onClick={onClose}
-                className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors pl-2 border-l border-slate-100"
-              >
-                ESC
-              </button>
+              </div>
             </div>
 
+            {/* Divider */}
+            <div className="h-px bg-neutral-100 mx-4" />
+
             {/* Body */}
-            <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="px-4 py-4 max-h-[60vh] overflow-y-auto">
               {!query ? (
-                <>
-                  {/* Trending Searches */}
-                  <div className="mb-5">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-                      Trending Searches
+                <div className="space-y-5">
+                  {/* Trending */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-widest mb-2.5">
+                      Trending
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {TRENDING_SEARCHES.map((term) => (
                         <button
                           key={term}
                           onClick={() => onChange(term)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-orange-50 text-slate-600 hover:text-orange-600 text-xs font-medium rounded-xl border border-slate-100 hover:border-orange-200 transition-all"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 hover:bg-orange-50 text-neutral-600 hover:text-orange-600 text-xs font-medium rounded-full border border-neutral-100 hover:border-orange-100 transition-all"
                         >
-                          <Star className="w-3 h-3 text-orange-400" fill="currentColor" strokeWidth={0} />
+                          <Star className="w-2.5 h-2.5 text-orange-400" fill="currentColor" strokeWidth={0} />
                           {term}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Quick Categories */}
+                  {/* Browse Categories */}
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-                      Browse Categories
+                    <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-widest mb-2.5">
+                      Browse
                     </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
                       {MENU_DATA.slice(0, 4).map((cat) => (
                         <a
                           key={cat.id}
                           href="#"
-                          className="flex items-center gap-2.5 p-3 rounded-xl hover:bg-orange-50 transition-colors group"
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-neutral-50 transition-colors group"
                         >
-                          <span className="text-xl">{cat.emoji}</span>
+                          <span className="text-lg leading-none">{cat.emoji}</span>
                           <div>
-                            <p className="text-xs font-semibold text-slate-700 group-hover:text-orange-600 transition-colors">
+                            <p className="text-xs font-semibold text-neutral-700 group-hover:text-neutral-900 transition-colors leading-tight">
                               {cat.label}
                             </p>
-                            <p className="text-[10px] text-slate-400">
-                              {cat.items.length} categories
-                            </p>
+                            <p className="text-[10px] text-neutral-400 mt-0.5">{cat.items.length} types</p>
                           </div>
                         </a>
                       ))}
                     </div>
                   </div>
-                </>
+                </div>
               ) : (
-                /* Search Results Placeholder */
-                <div className="py-8 text-center">
-                  <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3">
-                    <Search className="w-7 h-7 text-slate-200" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-600">
-                    Searching for &quot;{query}&quot;
+                <div className="py-10 text-center">
+                  <Search className="w-8 h-8 text-neutral-200 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-neutral-600">
+                    Results for &ldquo;{query}&rdquo;
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Results would appear here from your product database
+                  <p className="text-xs text-neutral-400 mt-1">
+                    Connect your product database to show results
                   </p>
                 </div>
               )}
@@ -413,7 +405,7 @@ const SearchOverlay = memo(
 SearchOverlay.displayName = "SearchOverlay";
 
 /* ═══════════════════════════════════════════════════
-   MOBILE MENU DRAWER (memoized)
+   MOBILE DRAWER
    ═══════════════════════════════════════════════════ */
 const MobileDrawer = memo(
   ({
@@ -435,15 +427,11 @@ const MobileDrawer = memo(
   }) => {
     useEffect(() => {
       if (isOpen) document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
+      return () => { document.body.style.overflow = ""; };
     }, [isOpen]);
 
     useEffect(() => {
-      const handler = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
-      };
+      const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
       if (isOpen) document.addEventListener("keydown", handler);
       return () => document.removeEventListener("keydown", handler);
     }, [isOpen, onClose]);
@@ -452,112 +440,115 @@ const MobileDrawer = memo(
 
     return (
       <div
-        className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-[2px] md:hidden"
+        className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-[2px] md:hidden"
         onClick={onClose}
-        style={{ animation: "megaFadeIn 200ms ease-out" }}
+        style={{ animation: "fade-in 200ms ease-out" }}
       >
         <aside
-          className="absolute left-0 top-0 h-full w-[85%] max-w-[340px] bg-white shadow-2xl flex flex-col"
+          className="absolute left-0 top-0 h-full w-[80%] max-w-[320px] bg-white flex flex-col"
           onClick={(e) => e.stopPropagation()}
-          style={{ animation: "mobileDrawerIn 300ms cubic-bezier(0.16,1,0.3,1)" }}
+          style={{
+            animation: "drawer-in 280ms cubic-bezier(0.16,1,0.3,1)",
+            boxShadow: "24px 0 60px rgba(0,0,0,0.12)",
+          }}
           role="dialog"
           aria-modal="true"
           aria-label="Navigation menu"
         >
           {/* Drawer Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
-                <span className="text-white text-sm font-black">P</span>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center">
+                <span className="text-white text-xs font-black tracking-tight">A</span>
               </div>
-              <span className="font-black text-slate-800 text-lg tracking-tight">PetShop</span>
+              <span className="font-bold text-neutral-900 text-base tracking-tight">AnimalSathi</span>
             </div>
             <button
               onClick={onClose}
-              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-100 transition-colors"
+              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors"
               aria-label="Close menu"
             >
-              <X className="w-5 h-5 text-slate-400" />
+              <X className="w-4 h-4 text-neutral-500" />
             </button>
           </div>
 
-          {/* Drawer Body */}
-          <div className="flex-1 overflow-y-auto py-3">
-            {/* Quick Actions */}
-            <div className="px-4 mb-4">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => {
-                    onClose();
-                    onCartClick?.();
-                  }}
-                  className="flex items-center gap-2 p-3 rounded-xl bg-orange-50 border border-orange-100 text-orange-600"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span className="text-xs font-semibold">Cart ({cartCount})</span>
-                </button>
-                <button className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-600">
-                  <User className="w-4 h-4" />
-                  <span className="text-xs font-semibold">Account</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Categories */}
-            <div className="px-4">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
-                Shop by Pet
+          {/* Delivery location */}
+          <div className="px-5 py-3 bg-neutral-50 border-b border-neutral-100">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" strokeWidth={2} />
+              <p className="text-xs text-neutral-500">
+                Delivering to <span className="font-semibold text-neutral-800">{locationLabel}</span>
               </p>
-              {MENU_DATA.map((menu, idx) => (
-                <a
-                  key={menu.id}
-                  href="#"
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-orange-50 transition-colors"
-                  style={{ animation: `megaItemIn 200ms ease-out ${idx * 50}ms both` }}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-lg">
-                    {menu.emoji}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-800">{menu.title}</p>
-                    <p className="text-[11px] text-slate-400">{menu.items.length} categories</p>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-slate-300 -rotate-90" />
-                </a>
-              ))}
-            </div>
-
-            {/* Quick Links */}
-            <div className="px-4 mt-6">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
-                Quick Links
-              </p>
-              {QUICK_LINKS.map((link) => (
-                <a
-                  key={link.label}
-                  href="#"
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  <link.icon className="w-4 h-4 text-slate-400" strokeWidth={1.8} />
-                  <span className="text-sm text-slate-600 font-medium">{link.label}</span>
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Drawer Footer */}
-          <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <MapPin className="w-3.5 h-3.5" />
-              <span>Delivering to <strong className="text-slate-600">{locationLabel}</strong></span>
               <button
                 type="button"
                 onClick={onRefreshLocation}
-                className="ml-auto text-orange-500 font-semibold text-[11px] disabled:opacity-60"
                 disabled={isLocating}
+                className="ml-auto text-[11px] font-semibold text-orange-500 hover:text-orange-600 transition-colors disabled:opacity-50"
               >
-                {isLocating ? "Locating..." : "Refresh"}
+                {isLocating ? "Locating…" : "Change"}
               </button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Quick Actions */}
+            <div className="px-4 py-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { onClose(); onCartClick?.(); }}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-semibold shadow-sm shadow-orange-200 active:scale-[0.97] transition-transform"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Cart {cartCount > 0 && `(${cartCount})`}
+              </button>
+              <button className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-neutral-100 text-neutral-700 text-xs font-semibold active:scale-[0.97] transition-transform">
+                <User className="w-4 h-4" />
+                Account
+              </button>
+            </div>
+
+            {/* Section: Shop by Pet */}
+            <div className="px-4 pb-2">
+              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-widest mb-2 px-1">
+                Shop by Pet
+              </p>
+              <div className="space-y-0.5">
+                {MENU_DATA.map((menu) => (
+                  <a
+                    key={menu.id}
+                    href="#"
+                    className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-neutral-100 flex items-center justify-center text-lg flex-shrink-0">
+                      {menu.emoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-neutral-800">{menu.title}</p>
+                      <p className="text-[10px] text-neutral-400">{menu.items.length} categories</p>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-neutral-300 -rotate-90 flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Section: Quick Links */}
+            <div className="px-4 py-4 mt-2 border-t border-neutral-100">
+              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-widest mb-2 px-1">
+                Quick Links
+              </p>
+              <div className="space-y-0.5">
+                {QUICK_LINKS.map((link) => (
+                  <a
+                    key={link.label}
+                    href="#"
+                    className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-neutral-50 transition-colors"
+                  >
+                    <link.icon className="w-4 h-4 text-neutral-400" strokeWidth={1.8} />
+                    <span className="text-sm text-neutral-600 font-medium">{link.label}</span>
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
         </aside>
@@ -568,7 +559,7 @@ const MobileDrawer = memo(
 MobileDrawer.displayName = "MobileDrawer";
 
 /* ═══════════════════════════════════════════════════
-   MAIN HEADER COMPONENT
+   MAIN HEADER
    ═══════════════════════════════════════════════════ */
 export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -576,32 +567,24 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [locationLabel, setLocationLabel] = useState("Finding location...");
+  const [locationLabel, setLocationLabel] = useState("Detecting…");
   const [isLocating, setIsLocating] = useState(false);
+
   const navRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /* ── Location ── */
   const resolveLocationFromCoords = useCallback(async (lat: number, lon: number) => {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`
       );
-      if (!res.ok) throw new Error("Reverse geocoding failed");
+      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
-      const city =
-        data?.address?.city ||
-        data?.address?.town ||
-        data?.address?.village ||
-        data?.address?.county ||
-        "";
+      const city = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county || "";
       const state = data?.address?.state || "";
-      const country = data?.address?.country || "";
-      const parts = [city, state, country].filter(Boolean);
-      if (parts.length > 0) {
-        setLocationLabel(parts.slice(0, 2).join(", "));
-      } else {
-        setLocationLabel("Current location");
-      }
+      const parts = [city, state].filter(Boolean);
+      setLocationLabel(parts.length > 0 ? parts.slice(0, 2).join(", ") : "Current location");
     } catch {
       setLocationLabel("Location unavailable");
     }
@@ -614,166 +597,149 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
     }
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        await resolveLocationFromCoords(latitude, longitude);
+      async (pos) => {
+        await resolveLocationFromCoords(pos.coords.latitude, pos.coords.longitude);
         setIsLocating(false);
       },
-      () => {
-        setLocationLabel("Location access denied");
-        setIsLocating(false);
-      },
+      () => { setLocationLabel("Location denied"); setIsLocating(false); },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
     );
   }, [resolveLocationFromCoords]);
 
-  // Scroll listener for sticky shadow
+  /* ── Scroll shadow ── */
   useEffect(() => {
-    const handler = () => setIsScrolled(window.scrollY > 8);
+    const handler = () => setIsScrolled(window.scrollY > 4);
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  // Click outside to close mega menu
+  /* ── Click outside mega menu ── */
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) {
-        setOpenMenu(null);
-      }
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpenMenu(null);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Keyboard shortcut: Cmd/Ctrl+K opens search
+  /* ── Cmd+K shortcut ── */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setIsSearchOpen(true);
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setIsSearchOpen(true); }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, []);
 
-  const toggleMenu = useCallback(
-    (id: string) => setOpenMenu((prev) => (prev === id ? null : id)),
-    []
-  );
+  /* ── Menu helpers ── */
+  const toggleMenu = useCallback((id: string) => setOpenMenu((prev) => (prev === id ? null : id)), []);
   const closeMenu = useCallback(() => setOpenMenu(null), []);
   const openMenuHover = useCallback((id: string) => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
+    if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
     setOpenMenu(id);
   }, []);
   const scheduleCloseMenu = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(() => {
-      setOpenMenu(null);
-      closeTimerRef.current = null;
-    }, 180);
+    closeTimerRef.current = setTimeout(() => { setOpenMenu(null); closeTimerRef.current = null; }, 160);
   }, []);
-  const closeSearch = useCallback(() => {
-    setIsSearchOpen(false);
-    setSearchQuery("");
-  }, []);
+  const closeSearch = useCallback(() => { setIsSearchOpen(false); setSearchQuery(""); }, []);
   const closeMobile = useCallback(() => setIsMobileOpen(false), []);
 
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    detectLocation();
-  }, [detectLocation]);
+  useEffect(() => { return () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current); }; }, []);
+  useEffect(() => { detectLocation(); }, [detectLocation]);
 
   return (
     <div className="w-full">
-      {/* ═══ PROMO STRIP ═══ */}
+      {/* ── PROMO STRIP ── */}
       <PromoStrip />
 
-      {/* ═══ MAIN BAR ═══ */}
+      {/* ── MAIN BAR ── */}
       <div
-        className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b transition-shadow duration-300 ${
-          isScrolled ? "border-slate-200 shadow-lg shadow-black/[0.04]" : "border-slate-100 shadow-none"
+        className={`sticky top-0 z-50 bg-white transition-all duration-200 ${
+          isScrolled ? "shadow-[0_1px_12px_rgba(0,0,0,0.06)]" : ""
         }`}
       >
-        <div className="max-w-7xl mx-auto flex items-center gap-3 sm:gap-5 px-4 sm:px-6 h-[64px] sm:h-[68px]">
-          {/* Mobile Menu Button */}
+        <div className="max-w-7xl mx-auto flex items-center gap-4 px-4 sm:px-6 h-16 sm:h-[68px]">
+
+          {/* Mobile: Hamburger */}
           <button
             onClick={() => setIsMobileOpen(true)}
-            className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-colors flex-shrink-0"
-            aria-label="Open navigation menu"
+            className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center hover:bg-neutral-100 transition-colors flex-shrink-0"
+            aria-label="Open menu"
           >
-            <MenuIcon className="w-5 h-5 text-slate-700" strokeWidth={2} />
+            <MenuIcon className="w-[18px] h-[18px] text-neutral-700" strokeWidth={2} />
           </button>
 
-          
+          {/* Logo */}
+          <a href="/" className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center shadow-sm shadow-orange-200">
+              <span className="text-white text-xs font-black tracking-tight">A</span>
+            </div>
+            <span className="hidden sm:block font-bold text-neutral-900 text-[15px] tracking-tight">
+              AnimalSathi
+            </span>
+          </a>
 
           {/* Search Bar (desktop) */}
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="flex-1 max-w-[520px] mx-auto relative hidden sm:flex items-center gap-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-xl px-4 py-2.5 cursor-text transition-all duration-200 group"
+            className="hidden sm:flex flex-1 max-w-[480px] mx-auto items-center gap-3 bg-neutral-50 hover:bg-neutral-100 rounded-xl px-4 py-2.5 cursor-text transition-colors group"
             aria-label="Search products"
           >
-            <Search className="w-4 h-4 text-slate-400 flex-shrink-0" strokeWidth={2} />
-            <span className="text-sm text-slate-400 font-medium flex-1 text-left truncate">
-              Search food, toys, medicines...
+            <Search className="w-4 h-4 text-neutral-400 flex-shrink-0" strokeWidth={2} />
+            <span className="text-sm text-neutral-400 flex-1 text-left truncate">
+              Search food, toys, medicines…
             </span>
-            <kbd className="hidden lg:inline-flex items-center gap-0.5 px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] font-semibold text-slate-400 group-hover:border-slate-300 transition-colors">
+            <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-white border border-neutral-200 rounded text-[10px] font-semibold text-neutral-400 transition-colors shadow-sm">
               ⌘K
             </kbd>
           </button>
 
-          {/* Mobile Search Icon */}
+          {/* Mobile: Search icon */}
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="sm:hidden w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-colors ml-auto"
+            className="sm:hidden w-9 h-9 rounded-xl flex items-center justify-center hover:bg-neutral-100 transition-colors ml-auto"
             aria-label="Search"
           >
-            <Search className="w-5 h-5 text-slate-600" strokeWidth={2} />
+            <Search className="w-[18px] h-[18px] text-neutral-700" strokeWidth={2} />
           </button>
 
-          {/* Desktop Actions */}
+          {/* Desktop Right Actions */}
           <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+            {/* Location */}
             <button
               type="button"
               onClick={detectLocation}
               disabled={isLocating}
-              className="flex items-center gap-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 disabled:opacity-60"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 transition-colors disabled:opacity-60"
             >
-              <MapPin className="w-4 h-4 text-orange-500" strokeWidth={1.8} />
-              <span className="max-w-[140px] truncate">{locationLabel}</span>
+              <MapPin className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" strokeWidth={2} />
+              <span className="max-w-[130px] truncate text-[13px] font-medium">{locationLabel}</span>
             </button>
 
-            <div className="w-px h-6 bg-slate-100 mx-1" />
+            <div className="w-px h-5 bg-neutral-200 mx-1" />
 
-            <button className="flex items-center gap-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150">
-              <Heart className="w-4 h-4" strokeWidth={1.8} />
+            {/* Wishlist */}
+            <button className="w-9 h-9 rounded-xl flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50 transition-colors" aria-label="Wishlist">
+              <Heart className="w-[18px] h-[18px]" strokeWidth={1.8} />
             </button>
 
-            <button className="flex items-center gap-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150">
+            {/* Account */}
+            <button className="w-9 h-9 rounded-xl flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50 transition-colors" aria-label="Account">
               <User className="w-[18px] h-[18px]" strokeWidth={1.8} />
             </button>
 
+            {/* Cart */}
             <button
               type="button"
               onClick={onCartClick}
-              aria-label={`Open cart, ${cartCount} items`}
-              className="flex items-center gap-2 text-orange-700 bg-orange-50 hover:bg-orange-100 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-150 relative border border-orange-100 hover:border-orange-200 ml-1"
+              aria-label={`Cart, ${cartCount} items`}
+              className="relative flex items-center gap-2 ml-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white text-[13px] font-semibold rounded-xl transition-colors shadow-sm shadow-orange-200"
             >
-              <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
+              <ShoppingCart className="w-4 h-4" strokeWidth={2} />
               Cart
               {cartCount > 0 && (
-                <span
-                  className="absolute -top-2 -right-2 min-w-5 h-5 px-1.5 bg-orange-600 text-white text-[10px] leading-5 text-center rounded-full font-bold shadow-md shadow-orange-600/30"
-                  style={{ animation: "bounceIn 400ms cubic-bezier(0.68,-0.55,0.27,1.55)" }}
-                >
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-white text-orange-600 text-[9px] leading-[18px] text-center rounded-full font-bold shadow ring-1 ring-orange-100">
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>
               )}
@@ -784,102 +750,89 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
           <button
             type="button"
             onClick={onCartClick}
-            className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-colors relative flex-shrink-0"
+            className="md:hidden relative w-9 h-9 rounded-xl flex items-center justify-center hover:bg-neutral-100 transition-colors flex-shrink-0"
             aria-label={`Cart, ${cartCount} items`}
           >
-            <ShoppingCart className="w-5 h-5 text-slate-700" strokeWidth={2} />
+            <ShoppingCart className="w-[18px] h-[18px] text-neutral-700" strokeWidth={2} />
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-orange-600 text-white text-[9px] leading-[18px] text-center rounded-full font-bold">
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-0.5 bg-orange-500 text-white text-[9px] leading-[16px] text-center rounded-full font-bold">
                 {cartCount > 99 ? "99+" : cartCount}
               </span>
             )}
           </button>
         </div>
+
+        {/* ── Bottom border ── */}
+        <div className="h-px bg-neutral-100" />
       </div>
 
-      {/* ═══ CATEGORY NAV (desktop) ═══ */}
-      <div
-        className="relative z-[90] hidden md:block border-b border-orange-100/70 bg-gradient-to-r from-white via-orange-50/40 to-white"
+      {/* ── CATEGORY NAV (desktop) ── */}
+      <nav
+        className="relative z-[90] hidden md:block bg-white border-b border-neutral-100"
         ref={navRef}
+        aria-label="Product categories"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-orange-100/80 bg-white/90 px-2 shadow-[0_10px_30px_-20px_rgba(249,115,22,0.55)] backdrop-blur-sm">
-          {MENU_DATA.map((menu) => (
-            <div
-              key={menu.id}
-              className="relative flex-shrink-0"
-              onMouseEnter={() => openMenuHover(menu.id)}
-              onMouseLeave={scheduleCloseMenu}
-            >
-              <button
-                onClick={() => toggleMenu(menu.id)}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center gap-0.5">
+            {MENU_DATA.map((menu) => (
+              <div
+                key={menu.id}
+                className="relative flex-shrink-0"
                 onMouseEnter={() => openMenuHover(menu.id)}
-                className={`group flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm lg:text-base font-bold transition-all duration-200 whitespace-nowrap ${
-                  openMenu === menu.id
-                    ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-orange-50"
-                }`}
-                aria-expanded={openMenu === menu.id}
-                aria-haspopup="true"
+                onMouseLeave={scheduleCloseMenu}
               >
-                <span className={`text-lg lg:text-xl transition-transform duration-200 ${openMenu === menu.id ? "scale-110" : "group-hover:scale-110"}`}>
-                  {menu.emoji}
-                </span>
-                {menu.label}
-                <ChevronDown
-                  className={`w-3.5 h-3.5 lg:w-4 lg:h-4 transition-transform duration-200 ${
-                    openMenu === menu.id ? "rotate-180 text-white/90" : "text-slate-400 group-hover:text-orange-500"
+                <button
+                  onClick={() => toggleMenu(menu.id)}
+                  className={`group flex items-center gap-1.5 px-4 py-3 text-[13px] font-medium transition-colors relative ${
+                    openMenu === menu.id
+                      ? "text-orange-600"
+                      : "text-neutral-600 hover:text-neutral-900"
                   }`}
-                  strokeWidth={2.5}
-                />
-              </button>
-
-              {openMenu === menu.id && (
-                <div
-                  className="absolute left-0 top-full z-[120] w-72 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
-                  role="menu"
-                  aria-label={menu.title}
+                  aria-expanded={openMenu === menu.id}
+                  aria-haspopup="true"
                 >
-                  {menu.items.map((item) => (
-                    <a
-                      key={item.label}
-                      href="#"
-                      role="menuitem"
-                      onClick={closeMenu}
-                      className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-orange-50"
-                    >
-                      <span className="mt-0.5 text-base leading-none">{item.icon}</span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-slate-800">{item.label}</span>
-                        <span className="block truncate text-xs text-slate-500">{item.desc}</span>
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                  <span className="text-base leading-none">{menu.emoji}</span>
+                  {menu.label}
+                  <ChevronDown
+                    className={`w-3 h-3 transition-transform duration-200 ${
+                      openMenu === menu.id ? "rotate-180 text-orange-500" : "text-neutral-300 group-hover:text-neutral-500"
+                    }`}
+                    strokeWidth={2.5}
+                  />
+                  {/* Active indicator */}
+                  {openMenu === menu.id && (
+                    <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-orange-500 rounded-full" />
+                  )}
+                </button>
 
-          {/* Spacer + Quick links */}
-          <div className="ml-auto flex items-center gap-2 pl-2">
-            {QUICK_LINKS.slice(0, 2).map((link) => (
-              <a
-                key={link.label}
-                href="#"
-                className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm lg:text-base font-semibold text-slate-600 transition-all duration-200 whitespace-nowrap hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 hover:shadow-sm"
-              >
-                <span className="inline-flex h-6 w-6 lg:h-7 lg:w-7 items-center justify-center rounded-md bg-slate-100 text-slate-500 transition-colors duration-200 group-hover:bg-orange-100 group-hover:text-orange-600">
-                  <link.icon className="w-4 h-4 lg:w-[18px] lg:h-[18px]" strokeWidth={1.9} />
-                </span>
-                {link.label}
-              </a>
+                {openMenu === menu.id && (
+                  <MegaMenuPanel
+                    menu={menu}
+                    isOpen={true}
+                    onClose={closeMenu}
+                  />
+                )}
+              </div>
             ))}
+
+            {/* Spacer + quick links */}
+            <div className="ml-auto flex items-center gap-1 pl-4">
+              {QUICK_LINKS.slice(0, 2).map((link) => (
+                <a
+                  key={link.label}
+                  href="#"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-colors"
+                >
+                  <link.icon className="w-3.5 h-3.5" strokeWidth={2} />
+                  {link.label}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
-        </div>
-      </div>
+      </nav>
 
-      {/* ═══ SEARCH OVERLAY ═══ */}
+      {/* ── SEARCH OVERLAY ── */}
       <SearchOverlay
         isOpen={isSearchOpen}
         query={searchQuery}
@@ -887,7 +840,7 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
         onClose={closeSearch}
       />
 
-      {/* ═══ MOBILE DRAWER ═══ */}
+      {/* ── MOBILE DRAWER ── */}
       <MobileDrawer
         isOpen={isMobileOpen}
         onClose={closeMobile}
@@ -898,36 +851,27 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
         isLocating={isLocating}
       />
 
-      {/* ═══ KEYFRAMES ═══ */}
+      {/* ── KEYFRAMES ── */}
       <style>{`
-        @keyframes scroll-promo {
+        @keyframes promo-scroll {
           from { transform: translateX(0); }
           to   { transform: translateX(-33.333%); }
         }
-        @keyframes megaFadeIn {
+        @keyframes fade-in {
           from { opacity: 0; }
           to   { opacity: 1; }
         }
-        @keyframes megaSlideIn {
-          from { opacity: 0; transform: translate(-50%, 8px) scale(0.98); }
-          to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
-        }
-        @keyframes megaItemIn {
-          from { opacity: 0; transform: translateY(6px); }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translateY(-10px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes searchSlideIn {
-          from { opacity: 0; transform: translateY(-12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes mobileDrawerIn {
+        @keyframes drawer-in {
           from { transform: translateX(-100%); }
           to   { transform: translateX(0); }
         }
-        @keyframes bounceIn {
-          0%   { transform: scale(0); }
-          50%  { transform: scale(1.2); }
-          100% { transform: scale(1); }
+        @keyframes panel-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

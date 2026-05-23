@@ -1,83 +1,144 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import Link from "next/link";
 import { Playdate, Pet } from "../hooks/usePlaydates";
 
-const PET_TYPE_CONFIG: Record<
-  string,
-  { emoji: string; color: string; bg: string; border: string; dot: string }
-> = {
-  dog: {
-    emoji: "🐕",
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    dot: "#f59e0b",
-  },
-  cat: {
-    emoji: "🐱",
-    color: "text-violet-600",
-    bg: "bg-violet-50",
-    border: "border-violet-200",
-    dot: "#8b5cf6",
-  },
-  bird: {
-    emoji: "🐦",
-    color: "text-sky-600",
-    bg: "bg-sky-50",
-    border: "border-sky-200",
-    dot: "#0ea5e9",
-  },
-  rabbit: {
-    emoji: "🐰",
-    color: "text-pink-600",
-    bg: "bg-pink-50",
-    border: "border-pink-200",
-    dot: "#ec4899",
-  },
-  all: {
-    emoji: "🐾",
-    color: "text-orange-600",
-    bg: "bg-orange-50",
-    border: "border-orange-200",
-    dot: "#f97316",
-  },
-  other: {
-    emoji: "🐾",
-    color: "text-slate-600",
-    bg: "bg-slate-50",
-    border: "border-slate-200",
-    dot: "#64748b",
-  },
-};
+// ─── Types & Constants ────────────────────────────────────────────────────────
 
-function formatPlaydateDate(timestamp: any): string {
+type PetType = "dog" | "cat" | "bird" | "rabbit" | "all" | "other";
+
+interface PetConfig {
+  emoji: string;
+  accent: string;
+  label: string;
+}
+
+const PET_CONFIG = {
+  dog:    { emoji: "🐕", accent: "#f59e0b", label: "Dogs" },
+  cat:    { emoji: "🐱", accent: "#8b5cf6", label: "Cats" },
+  bird:   { emoji: "🐦", accent: "#0ea5e9", label: "Birds" },
+  rabbit: { emoji: "🐰", accent: "#ec4899", label: "Rabbits" },
+  all:    { emoji: "🐾", accent: "#f97316", label: "All Pets" },
+  other:  { emoji: "🐾", accent: "#64748b", label: "Pets" },
+} as const satisfies Record<PetType, PetConfig>;
+
+const FALLBACK_CONFIG = PET_CONFIG.other;
+
+const MAX_VISIBLE_ATTENDEES = 4;
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function formatPlaydateDate(timestamp: unknown): string {
   if (!timestamp) return "TBD";
-  const date =
-    typeof timestamp.toDate === "function"
-      ? timestamp.toDate()
-      : new Date(timestamp);
-  const now = new Date();
-  const diff = date.getTime() - now.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  const timeStr = date.toLocaleTimeString("en-IN", {
+  const date =
+    typeof (timestamp as { toDate?: () => Date }).toDate === "function"
+      ? (timestamp as { toDate: () => Date }).toDate()
+      : new Date(timestamp as string | number | Date);
+
+  const now = new Date();
+  const diffDays = Math.floor((date.getTime() - now.getTime()) / 86_400_000);
+
+  const time = date.toLocaleTimeString("en-IN", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   });
 
-  if (days === 0) return `Today, ${timeStr}`;
-  if (days === 1) return `Tomorrow, ${timeStr}`;
-  if (days < 7) {
-    const dayName = date.toLocaleDateString("en-IN", { weekday: "short" });
-    return `${dayName}, ${timeStr}`;
-  }
-  return date.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-  }) + `, ${timeStr}`;
+  if (diffDays === 0) return `Today · ${time}`;
+  if (diffDays === 1) return `Tomorrow · ${time}`;
+  if (diffDays < 7)
+    return `${date.toLocaleDateString("en-IN", { weekday: "short" })} · ${time}`;
+
+  return `${date.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${time}`;
 }
+
+function getPetConfig(type: string): PetConfig {
+  return (PET_CONFIG as Record<string, PetConfig>)[type] ?? FALLBACK_CONFIG;
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
+interface AvatarProps {
+  src?: string | null;
+  name: string;
+  emoji?: string;
+  size: number;
+  className?: string;
+}
+
+const Avatar = memo<AvatarProps>(({ src, name, emoji = "🐾", size, className = "" }) =>
+  src ? (
+    <img
+      src={src}
+      alt={name}
+      width={size}
+      height={size}
+      className={`rounded-full object-cover ${className}`}
+      style={{ width: size, height: size, flexShrink: 0 }}
+    />
+  ) : (
+    <span
+      className={`rounded-full bg-slate-100 flex items-center justify-center leading-none ${className}`}
+      style={{ width: size, height: size, flexShrink: 0, fontSize: size * 0.5 }}
+      aria-label={name}
+    >
+      {emoji}
+    </span>
+  )
+);
+Avatar.displayName = "Avatar";
+
+// ─── Attendee Stack ───────────────────────────────────────────────────────────
+
+interface AttendeeStackProps {
+  pets: Pet[];
+  total: number;
+  max: number;
+}
+
+const AttendeeStack = memo<AttendeeStackProps>(({ pets, total, max }) => {
+  const visible = pets.slice(0, MAX_VISIBLE_ATTENDEES);
+  const extra = pets.length - MAX_VISIBLE_ATTENDEES;
+
+  return (
+    <div className="flex items-center gap-2">
+      {visible.length > 0 ? (
+        <div className="flex -space-x-1.5" role="list" aria-label="Attendee pets">
+          {visible.map((pet) => (
+            <div
+              key={pet.id}
+              role="listitem"
+              className="rounded-full border-2 border-white overflow-hidden bg-slate-100 ring-0"
+              style={{ width: 24, height: 24 }}
+              title={pet.name}
+            >
+              <Avatar src={pet.photoURL} name={pet.name} emoji={getPetConfig(pet.type).emoji} size={24} />
+            </div>
+          ))}
+          {extra > 0 && (
+            <div
+              className="rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-500"
+              style={{ width: 24, height: 24 }}
+              aria-label={`${extra} more attendees`}
+            >
+              +{extra}
+            </div>
+          )}
+        </div>
+      ) : (
+        <span className="text-[12px] text-slate-400">No attendees yet</span>
+      )}
+      <span className="text-[11px] text-slate-400 tabular-nums">
+        {total}/{max}
+      </span>
+    </div>
+  );
+});
+AttendeeStack.displayName = "AttendeeStack";
+
+// ─── PlayDateCard ─────────────────────────────────────────────────────────────
 
 interface PlayDateCardProps {
   playdate: Playdate;
@@ -85,168 +146,122 @@ interface PlayDateCardProps {
   attendeePets?: Pet[];
 }
 
-export default function PlayDateCard({
-  playdate,
-  hostPet,
-  attendeePets = [],
-}: PlayDateCardProps) {
-  const config = PET_TYPE_CONFIG[playdate.petType] || PET_TYPE_CONFIG.all;
-  const isFull = playdate.attendeeCount >= playdate.maxPets;
+const PlayDateCard = memo<PlayDateCardProps>(({ playdate, hostPet, attendeePets = [] }) => {
+  const config = useMemo(() => getPetConfig(playdate.petType), [playdate.petType]);
+  const formattedDate = useMemo(() => formatPlaydateDate(playdate.date), [playdate.date]);
+
   const spotsLeft = playdate.maxPets - playdate.attendeeCount;
+  const isFull = spotsLeft <= 0;
 
   return (
-    <Link href={`/playdate/${playdate.id}`} className="group block h-full">
-      <div className="relative h-full rounded-2xl sm:rounded-3xl overflow-hidden bg-white pet-card-glow border border-slate-100 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl flex flex-col">
-        {/* Top gradient strip */}
+    <Link
+      href={`/playdate/${playdate.id}`}
+      className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded-2xl"
+    >
+      <article className="relative h-full flex flex-col bg-white border border-slate-100 rounded-2xl overflow-hidden transition-all duration-200 group-hover:border-slate-200 group-hover:shadow-lg group-hover:-translate-y-px">
+
+        {/* Accent strip */}
         <div
-          className="h-1.5 w-full"
-          style={{
-            background: `linear-gradient(90deg, ${config.dot}, ${config.dot}88)`,
-          }}
+          className="h-[3px] w-full flex-shrink-0"
+          style={{ backgroundColor: config.accent }}
+          aria-hidden="true"
         />
 
-        <div className="p-5 sm:p-6 flex flex-col flex-1">
-          {/* Top row: Type badge + spots */}
-          <div className="flex items-center justify-between mb-4">
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${config.bg} ${config.color} ${config.border} border`}
-            >
-              <span className="text-sm">{config.emoji}</span>
-              {playdate.petType === "all"
-                ? "All Pets"
-                : playdate.petType.charAt(0).toUpperCase() +
-                  playdate.petType.slice(1) +
-                  "s"}
+        <div className="flex flex-col flex-1 p-5 gap-4">
+
+          {/* Row 1: Type pill + Availability */}
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-100">
+              <span aria-hidden="true">{config.emoji}</span>
+              {config.label}
             </span>
 
-            {isFull ? (
-              <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-100">
-                Full
-              </span>
-            ) : (
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-green-50 text-green-600 border border-green-100">
-                {spotsLeft} spot{spotsLeft !== 1 ? "s" : ""} left
-              </span>
+            <span
+              className={[
+                "inline-block px-2.5 py-1 rounded-full text-[11px] font-bold leading-none border",
+                isFull
+                  ? "bg-red-50 text-red-500 border-red-100"
+                  : "bg-emerald-50 text-emerald-600 border-emerald-100",
+              ].join(" ")}
+            >
+              {isFull ? "Full" : `${spotsLeft} left`}
+            </span>
+          </div>
+
+          {/* Row 2: Title + Description */}
+          <div className="space-y-1.5">
+            <h3 className="font-bold text-[15px] leading-snug text-slate-900 line-clamp-2 transition-colors group-hover:text-orange-600">
+              {playdate.title}
+            </h3>
+            {playdate.description && (
+              <p className="text-[13px] text-slate-500 leading-relaxed line-clamp-2">
+                {playdate.description}
+              </p>
             )}
           </div>
 
-          {/* Title */}
-          <h3 className="font-bold text-lg text-slate-800 mb-1.5 leading-tight tracking-tight group-hover:text-orange-600 transition-colors line-clamp-2">
-            {playdate.title}
-          </h3>
-
-          {/* Description preview */}
-          {playdate.description && (
-            <p className="text-sm text-slate-500 mb-4 line-clamp-2 leading-relaxed">
-              {playdate.description}
-            </p>
-          )}
-
-          {/* Host Pet info */}
+          {/* Row 3: Host pet */}
           {hostPet && (
-            <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-3 py-2.5 mb-4 border border-slate-100">
-              {hostPet.photoURL ? (
-                <img
-                  src={hostPet.photoURL}
-                  alt={hostPet.name}
-                  className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm"
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-lg">
-                  {PET_TYPE_CONFIG[hostPet.type]?.emoji || "🐾"}
-                </div>
-              )}
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-800 truncate">
+            <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl p-3">
+              <Avatar
+                src={hostPet.photoURL}
+                name={hostPet.name}
+                emoji={getPetConfig(hostPet.type).emoji}
+                size={36}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-slate-800 truncate">
                   {hostPet.name}
                 </p>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-400 truncate">
                   {hostPet.breed} · {hostPet.age}
                 </p>
               </div>
-              <span className="ml-auto text-[10px] font-black text-orange-500 uppercase">
+              <span className="text-[10px] font-black text-orange-500 uppercase tracking-wide">
                 Host
               </span>
             </div>
           )}
 
-          {/* Meta: Date + Location */}
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="text-base">📅</span>
-              <span className="font-semibold">
-                {formatPlaydateDate(playdate.date)}
-              </span>
+          {/* Row 4: Date + Location */}
+          <dl className="space-y-1.5">
+            <div className="flex items-center gap-2 text-[13px]">
+              <dt className="sr-only">Date</dt>
+              <span aria-hidden="true" className="text-slate-400 leading-none">📅</span>
+              <dd className="font-medium text-slate-700">{formattedDate}</dd>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <span className="text-base">📍</span>
-              <span className="truncate">{playdate.locationName}</span>
+            <div className="flex items-center gap-2 text-[13px]">
+              <dt className="sr-only">Location</dt>
+              <span aria-hidden="true" className="text-slate-400 leading-none">📍</span>
+              <dd className="text-slate-500 truncate">{playdate.locationName}</dd>
             </div>
-          </div>
+          </dl>
 
-          {/* Footer: Attendee pets + CTA */}
-          <div className="mt-auto pt-3 border-t border-slate-50 flex items-center justify-between">
-            {/* Attendee pet avatars */}
-            <div className="flex items-center gap-2">
-              {attendeePets.length > 0 ? (
-                <div className="flex -space-x-2">
-                  {attendeePets.slice(0, 4).map((pet) => (
-                    <div
-                      key={pet.id}
-                      className="w-7 h-7 rounded-full border-2 border-white overflow-hidden bg-slate-100"
-                      title={pet.name}
-                    >
-                      {pet.photoURL ? (
-                        <img
-                          src={pet.photoURL}
-                          alt={pet.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs">
-                          {PET_TYPE_CONFIG[pet.type]?.emoji || "🐾"}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {attendeePets.length > 4 && (
-                    <div className="w-7 h-7 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                      +{attendeePets.length - 4}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <span className="text-xs text-slate-400 font-medium">
-                  No attendees yet
-                </span>
-              )}
-              <span className="text-[10px] text-slate-400 font-bold">
-                {playdate.attendeeCount}/{playdate.maxPets}
-              </span>
-            </div>
+          {/* Row 5: Footer — attendees + arrow */}
+          <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+            <AttendeeStack
+              pets={attendeePets}
+              total={playdate.attendeeCount}
+              max={playdate.maxPets}
+            />
 
-            {/* Arrow indicator */}
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-900 text-white shadow-md opacity-0 -translate-x-1.5 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-              <svg
-                width="10"
-                height="10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
+            <div
+              className="w-6 h-6 rounded-md bg-slate-900 text-white flex items-center justify-center opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0"
+              aria-hidden="true"
+            >
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 5l7 7-7 7" />
               </svg>
             </div>
           </div>
+
         </div>
-      </div>
+      </article>
     </Link>
   );
-}
+});
 
-export { PET_TYPE_CONFIG, formatPlaydateDate };
+PlayDateCard.displayName = "PlayDateCard";
+
+export default PlayDateCard;
+export { PET_CONFIG as PET_TYPE_CONFIG, formatPlaydateDate };
