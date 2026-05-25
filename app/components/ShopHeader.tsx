@@ -9,7 +9,6 @@ import {
   ChevronDown,
   X,
   Heart,
-  Phone,
   Truck,
   Shield,
   Star,
@@ -106,10 +105,10 @@ const PROMO_ITEMS = [
 ] as const;
 
 const QUICK_LINKS = [
-  { icon: Truck, label: "Track Order" },
-  { icon: Phone, label: "Vet Help" },
-  { icon: Heart, label: "Wishlist" },
-  { icon: Shield, label: "PetCare+" },
+  { icon: Truck, label: "Track Order", href: "/orders" },
+  { icon: Package, label: "My Orders", href: "/orders" },
+  { icon: Heart, label: "Wishlist", href: "#" },
+  { icon: Shield, label: "PetCare+", href: "#" },
 ] as const;
 
 const TRENDING_SEARCHES = [
@@ -541,7 +540,7 @@ const MobileDrawer = memo(
                 {QUICK_LINKS.map((link) => (
                   <a
                     key={link.label}
-                    href="#"
+                    href={link.href}
                     className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-neutral-50 transition-colors"
                   >
                     <link.icon className="w-4 h-4 text-neutral-400" strokeWidth={1.8} />
@@ -820,7 +819,7 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
               {QUICK_LINKS.slice(0, 2).map((link) => (
                 <a
                   key={link.label}
-                  href="#"
+                  href={link.href}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-colors"
                 >
                   <link.icon className="w-3.5 h-3.5" strokeWidth={2} />

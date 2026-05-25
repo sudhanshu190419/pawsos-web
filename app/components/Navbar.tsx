@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { MapPin, RefreshCw, ChevronDown } from "lucide-react";
 import { fetchVetVerificationStatus, VetVerificationStatus } from "../lib/vet";
+import { fetchSellerVerificationStatus } from "../lib/seller";
+import type { SellerVerificationStatus } from "../lib/seller";
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
@@ -16,6 +18,9 @@ export default function Navbar() {
   const [vetStatus, setVetStatus] = useState<VetVerificationStatus | null>(null);
   const [vetStatusLoading, setVetStatusLoading] = useState(false);
   const vetStatusFetchedFor = useRef<string | null>(null);
+  const [sellerStatus, setSellerStatus] = useState<SellerVerificationStatus | null>(null);
+  const [sellerStatusLoading, setSellerStatusLoading] = useState(false);
+  const sellerStatusFetchedFor = useRef<string | null>(null);
   
   // Controls whether the mobile menu is open or closed
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -116,6 +121,34 @@ useEffect(() => {
       .finally(() => {
         if (cancelled) return;
         setVetStatusLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  // Fetch seller status
+  useEffect(() => {
+    if (!user?.uid) {
+      setSellerStatus(null);
+      sellerStatusFetchedFor.current = null;
+      return;
+    }
+    if (sellerStatusFetchedFor.current === user.uid) return;
+    let cancelled = false;
+    setSellerStatusLoading(true);
+    fetchSellerVerificationStatus(user.uid)
+      .then((status) => {
+        if (cancelled) return;
+        setSellerStatus(status);
+        sellerStatusFetchedFor.current = user.uid;
+      })
+      .catch((err) => {
+        console.error("Seller status check failed:", err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setSellerStatusLoading(false);
       });
     return () => {
       cancelled = true;
@@ -282,6 +315,8 @@ hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 
 hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Hospital Onboarding</Link>
                 <Link href="/vets" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
 hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
+                <Link href="/become-seller" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
+hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏪</span> Become a Seller</Link>
               </div>
             </div>
           </div>
@@ -372,9 +407,14 @@ backdrop-blur-sm w-60 flex flex-col overflow-hidden">
                       <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
                     </div>
                     <div className="py-2 flex flex-col">
-                      {vetStatus === "approved" && !vetStatusLoading && (
-                        <Link href="/vet-dashboard" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
-                          <span className="text-lg">🏥</span> Vet Dashboard
+                      {sellerStatus === "approved" && !sellerStatusLoading && (
+                        <Link href="/seller-dashboard" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
+                          <span className="text-lg">🏪</span> Seller Dashboard
+                        </Link>
+                      )}
+                      {(!sellerStatus || (sellerStatus !== "approved" && sellerStatus !== "pending")) && !sellerStatusLoading && (
+                        <Link href="/become-seller" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
+                          <span className="text-lg">🛍️</span> Become a Seller
                         </Link>
                       )}
                       <Link href="/dashboard?tab=profile" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
@@ -455,8 +495,11 @@ transition-all duration-200 shimmer-btn"
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                {vetStatus === "approved" && !vetStatusLoading && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/vet-dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Vet Dashboard</Link>
+                {sellerStatus === "approved" && !sellerStatusLoading && (
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/seller-dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🏪 Seller Dashboard</Link>
+                )}
+                {(!sellerStatus || (sellerStatus !== "approved" && sellerStatus !== "pending")) && !sellerStatusLoading && (
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/become-seller" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🛍️ Become a Seller</Link>
                 )}
                 <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=profile" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">👤 My Profile</Link>
                 <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=reports" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">📋 My SOS Reports</Link>
@@ -479,6 +522,7 @@ transition-all duration-200 shimmer-btn"
               <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏢 NGO Partnerships</Link>
               <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding/organization" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Hospital Onboarding</Link>
               <Link onClick={() => setIsMobileMenuOpen(false)} href="/vets" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Register as a Vet</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/become-seller" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏪 Become a Seller</Link>
             </div>
           </div>
 

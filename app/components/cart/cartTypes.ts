@@ -4,8 +4,12 @@ export type CartItem = {
   price: number;
   qty: number;
   imageUrl: string;
-  vetClinicName: string;
-  vetId: string;
+  brandName: string;
+  brandId: string;
+  weight: number;
+  length: number | null;
+  breadth: number | null;
+  height: number | null;
   shiprocketPickupId: number | null;
   stockQty: number;
 };

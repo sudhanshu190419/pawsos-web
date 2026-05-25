@@ -8,11 +8,11 @@ import {
   InfoTile,
   MetricCard,
   StatusPill,
-} from "./components/VetDashboardCards";
-import { useVetDashboard } from "./components/VetDashboardContext";
+} from "./components/SellerDashboardCards";
+import { useSellerDashboard } from "./components/SellerDashboardContext";
 
-export default function VetDashboardPage() {
-  const { displayName } = useVetDashboard();
+export default function SellerDashboardPage() {
+  const { displayName } = useSellerDashboard();
 
   return (
     <div className="space-y-6">
@@ -20,10 +20,10 @@ export default function VetDashboardPage() {
         <div>
           <p className="text-xs font-semibold text-orange-600 uppercase tracking-widest">Welcome</p>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">Hi {displayName}</h2>
-          <p className="text-sm text-slate-500 mt-1">Here is your live vet seller workspace.</p>
+          <p className="text-sm text-slate-500 mt-1">Here is your live seller workspace.</p>
         </div>
         <Link
-          href="/vet-dashboard/products"
+          href="/seller-dashboard/products"
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 text-white px-5 py-3 text-sm font-semibold shadow-lg shadow-orange-500/25 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/30 transition-all"
         >
           + Add Product
@@ -37,7 +37,7 @@ export default function VetDashboardPage() {
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Overview</p>
               <h3 className="text-lg font-bold text-slate-900 mt-2">Seller Status</h3>
             </div>
-            <StatusPill tone="success" label="Approved Vet" />
+            <StatusPill tone="success" label="Approved Seller" />
           </div>
           <div className="mt-5 grid sm:grid-cols-2 gap-3">
             <InfoTile label="Shiprocket" value="Not Connected" tone="warning" />

@@ -1,6 +1,6 @@
-import { DashboardCard, EmptyState, InfoTile } from "../components/VetDashboardCards";
+import { DashboardCard, EmptyState, InfoTile } from "../components/SellerDashboardCards";
 
-export default function VetSettingsPage() {
+export default function SellerSettingsPage() {
   return (
     <div className="space-y-6">
       <div>

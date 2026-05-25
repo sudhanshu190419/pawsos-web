@@ -6,12 +6,12 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 import { auth } from "../lib/firebase";
-import { fetchVetVerificationStatus } from "../lib/vet";
-import VetSidebar from "./components/VetSidebar";
-import VetMobileNav from "./components/VetMobileNav";
-import { VetDashboardProvider } from "./components/VetDashboardContext";
+import { fetchSellerVerificationStatus } from "../lib/seller";
+import SellerSidebar from "./components/SellerSidebar";
+import SellerMobileNav from "./components/SellerMobileNav";
+import { SellerDashboardProvider } from "./components/SellerDashboardContext";
 
-export default function VetDashboardLayout({ children }: { children: ReactNode }) {
+export default function SellerDashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isChecking, setIsChecking] = useState(true);
@@ -24,23 +24,23 @@ export default function VetDashboardLayout({ children }: { children: ReactNode }
       setUser(currentUser);
 
       if (!currentUser) {
-        router.replace("/vets");
+        router.replace("/become-seller");
         setIsChecking(false);
         return;
       }
 
       try {
-        const status = await fetchVetVerificationStatus(currentUser.uid);
+        const status = await fetchSellerVerificationStatus(currentUser.uid);
         if (cancelled) return;
         if (status !== "approved") {
-          router.replace("/vets");
+          router.replace("/become-seller");
           setIsChecking(false);
           return;
         }
         setIsApproved(true);
       } catch (err) {
-        console.error("Vet dashboard access check failed:", err);
-        router.replace("/vets");
+        console.error("Seller dashboard access check failed:", err);
+        router.replace("/become-seller");
       } finally {
         if (!cancelled) setIsChecking(false);
       }
@@ -52,7 +52,7 @@ export default function VetDashboardLayout({ children }: { children: ReactNode }
     };
   }, [router]);
 
-  const displayName = useMemo(() => user?.displayName ?? "Vet Partner", [user?.displayName]);
+  const displayName = useMemo(() => user?.displayName ?? "Brand Seller", [user?.displayName]);
 
   if (isChecking) {
     return (
@@ -68,22 +68,22 @@ export default function VetDashboardLayout({ children }: { children: ReactNode }
   if (!isApproved) return null;
 
   return (
-    <VetDashboardProvider value={{ displayName }}>
+    <SellerDashboardProvider value={{ displayName }}>
       <main className="min-h-screen bg-[#FAFAF8] text-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid lg:grid-cols-[240px_1fr] gap-6">
             <aside className="hidden lg:flex">
-              <VetSidebar />
+              <SellerSidebar />
             </aside>
             <section className="space-y-6">
               <div className="lg:hidden">
-                <VetMobileNav />
+                <SellerMobileNav />
               </div>
               {children}
             </section>
           </div>
         </div>
       </main>
-    </VetDashboardProvider>
+    </SellerDashboardProvider>
   );
 }

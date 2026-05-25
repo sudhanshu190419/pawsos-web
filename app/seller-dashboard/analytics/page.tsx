@@ -1,6 +1,6 @@
-import { DashboardCard, EmptyState, MetricCard } from "../components/VetDashboardCards";
+import { DashboardCard, EmptyState, MetricCard } from "../components/SellerDashboardCards";
 
-export default function VetAnalyticsPage() {
+export default function SellerAnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>

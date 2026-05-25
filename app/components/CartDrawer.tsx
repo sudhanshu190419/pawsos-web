@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 
 type CartItem = {
@@ -9,7 +10,7 @@ type CartItem = {
   price: number | string;
   qty?: number;
   imageUrl?: string;
-  vetClinicName?: string;
+  brandName?: string;
 };
 
 type CartDrawerProps = {
@@ -35,15 +36,16 @@ const CartDrawer = memo(
       };
     }, [onClose]);
 
-    return (
+    const panel = (
       <div
-        className="fixed inset-0 z-[100000] bg-slate-900/50 backdrop-blur-[2px]"
+        className="fixed inset-0 z-[100000]"
         onClick={onClose}
         style={{ animation: "cart-backdrop-in 220ms ease-out" }}
         role="dialog"
         aria-modal="true"
         aria-label="Shopping cart"
       >
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]" />
         <aside
           className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
           onClick={(e) => e.stopPropagation()}
@@ -116,7 +118,7 @@ const CartDrawer = memo(
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800 line-clamp-1">{item.name}</p>
                       <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
-                        {item.vetClinicName || "Verified Clinic"}
+                        {item.brandName || "Verified Store"}
                       </p>
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-sm font-extrabold text-slate-900">
@@ -186,6 +188,8 @@ const CartDrawer = memo(
         </aside>
       </div>
     );
+
+    return createPortal(panel, document.body);
   }
 );
 

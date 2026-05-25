@@ -29,6 +29,7 @@ import PendingApprovals from "../components/PendingApprovals";
 import VolunteerApprovals from "../components/VolunteerApprovals";
 import VetApprovals from "../components/VetApprovals"; 
 import OrganizationApprovals from "../components/OrganizationApprovals";
+import SellerApprovals from "../components/SellerApprovals";
 
 import { useUserMeta } from "../hooks/useUserMeta";
 
@@ -52,6 +53,7 @@ export default function AdminDashboard() {
   const [activeSOSCount, setActiveSOSCount] = useState(0);
   const [pendingVetCount, setPendingVetCount] = useState(0);
   const [pendingOrgCount, setPendingOrgCount] = useState(0);
+  const [pendingSellerCount, setPendingSellerCount] = useState(0);
 
   // Existing Data Fetching (Only runs if authorized)
   useEffect(() => {
@@ -77,11 +79,17 @@ export default function AdminDashboard() {
       setPendingOrgCount(snapshot.size);
     });
 
+    const sellerQuery = query(collection(db, "brands"), where("verificationStatus", "==", "pending"));
+    const unsubSeller = onSnapshot(sellerQuery, (snapshot) => {
+      setPendingSellerCount(snapshot.size);
+    });
+
     return () => {
       unsubNGO();
       unsubSOS();
       unsubVet();
       unsubOrg();
+      unsubSeller();
     };
   }, [isAdminAuthorized]);
 
@@ -130,6 +138,9 @@ export default function AdminDashboard() {
           </div>
           <div onClick={() => setActiveTab("vets")}>
             <NavItem icon={Stethoscope} label="Veterinarians" badge={pendingVetCount > 0 ? pendingVetCount : null} active={activeTab === "vets"} isOpen={isSidebarOpen} />
+          </div>
+          <div onClick={() => setActiveTab("sellers")}>
+            <NavItem icon={ShoppingBag} label="Sellers" badge={pendingSellerCount > 0 ? pendingSellerCount : null} active={activeTab === "sellers"} isOpen={isSidebarOpen} />
           </div>
           <div onClick={() => setActiveTab("shop")}>
             <NavItem icon={ShoppingBag} label="Marketplace" active={activeTab === "shop"} isOpen={isSidebarOpen} />
@@ -265,6 +276,19 @@ export default function AdminDashboard() {
                 </div>
                 <div className="p-6">
                    <VolunteerApprovals />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "sellers" && (
+            <div className="max-w-4xl mx-auto animate-fadeUp">
+              <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden min-h-[600px]">
+                <div className="px-8 py-6 border-b border-slate-200 bg-slate-50/50">
+                  <h2 className="text-lg font-bold text-slate-800">Seller / Brand Approvals</h2>
+                </div>
+                <div className="p-6">
+                  <SellerApprovals />
                 </div>
               </div>
             </div>

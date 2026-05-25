@@ -44,7 +44,7 @@ export default function ConfirmDialog({
             className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
             disabled={loading}
           >
-            {loading ? "Please wait…" : confirmLabel}
+            {loading ? "Please wait\u2026" : confirmLabel}
           </button>
         </div>
       </div>

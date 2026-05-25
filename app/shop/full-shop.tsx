@@ -387,8 +387,8 @@ const CATEGORIES: { name: string; icon: React.ElementType }[] = [
    ═══════════════════════════════════════════════════ */
 function ShopPageContent() {
   const [user, setUser] = useState<User | null>(null);
-  const [isVet, setIsVet] = useState(false);
-  const [vetClinicName, setVetClinicName] = useState("");
+  const [isSeller, setIsSeller] = useState(false);
+  const [sellerBrandName, setSellerBrandName] = useState("");
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -425,12 +425,12 @@ function ShopPageContent() {
       setUser(currentUser);
       if (currentUser) {
         try {
-          const vetDoc = await getDoc(doc(db, "vets_web", currentUser.uid));
-          if (vetDoc.exists() && vetDoc.data().verificationStatus === "approved") {
-            setIsVet(true);
-            setVetClinicName(vetDoc.data().clinicName || "Verified Clinic");
+          const brandDoc = await getDoc(doc(db, "brands", currentUser.uid));
+          if (brandDoc.exists() && brandDoc.data().verificationStatus === "approved") {
+            setIsSeller(true);
+            setSellerBrandName(brandDoc.data().brandName || "Verified Store");
           }
-        } catch (e) { console.error("Vet check failed:", e); }
+        } catch (e) { console.error("Seller check failed:", e); }
       }
     });
     return () => unsub();
@@ -450,9 +450,8 @@ function ShopPageContent() {
       const mapped = raw.map((item: any) => ({
         ...item,
         images: Array.isArray(item.images) ? item.images : item.imageUrl ? [item.imageUrl] : [],
-        clinicName: item.clinicName ?? item.vetClinicName ?? "",
+        brandName: item.brandName ?? item.vetName ?? item.clinicName ?? item.vetClinicName ?? "",
         imageUrl: item.imageUrl ?? item.images?.[0] ?? "",
-        vetClinicName: item.vetClinicName ?? item.clinicName ?? "",
       }));
       console.log("[Shop] fetched products raw:", raw);
       console.log("[Shop] mapped products:", mapped);
@@ -500,7 +499,7 @@ function ShopPageContent() {
         cartCount={totals.itemCount}
         onCartClick={() => setIsCartOpen(true)}
         user={user}
-        onAddProduct={isVet ? () => setShowAddModal(true) : undefined}
+        onAddProduct={isSeller ? () => setShowAddModal(true) : undefined}
       />
 
       {/* ══════════════════════════════════════════
@@ -705,8 +704,8 @@ function ShopPageContent() {
                 animal: data.animal,
                 description: data.description,
                 imageUrl,
-                vetClinicName,
-                vetUserId: user?.uid,
+                brandName: sellerBrandName,
+                brandId: user?.uid,
                 createdAt: serverTimestamp(),
               });
               showToast("Product listed successfully");
@@ -724,10 +723,9 @@ function ShopPageContent() {
       {isCheckoutOpen && (
         <CheckoutPanel
           items={cartItems}
-          total={cartTotal}
           onBackToCart={() => { setIsCheckoutOpen(false); setIsCartOpen(true); }}
           onClose={() => setIsCheckoutOpen(false)}
-          onOrderPlaced={() => { clear(); setIsCheckoutOpen(false); showToast("Order placed successfully!"); }}
+          onOrderPlaced={(orderId) => { clear(); setIsCheckoutOpen(false); }}
         />
       )}
     </div>

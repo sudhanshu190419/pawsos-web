@@ -4,9 +4,8 @@ export type ProductStatus = "active" | "inactive";
 
 export interface ProductRecord {
   id: string;
-  vetId: string;
-  vetName: string;
-  clinicName: string;
+  brandId: string;
+  brandName: string;
   shiprocketPickupId: number | null;
   name: string;
   description: string;

@@ -3,21 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { VET_DASHBOARD_NAV } from "./vetNavItems";
+import { SELLER_DASHBOARD_NAV } from "./sellerNavItems";
 
-export default function VetSidebar() {
+export default function SellerSidebar() {
   const pathname = usePathname();
 
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-xs font-semibold text-orange-600 uppercase tracking-widest">Seller Hub</p>
-        <h1 className="mt-2 text-lg font-extrabold text-slate-900">Vet Dashboard</h1>
-        <p className="text-xs text-slate-500 mt-1">Marketplace-grade controls for verified vets.</p>
+        <h1 className="mt-2 text-lg font-extrabold text-slate-900">Seller Dashboard</h1>
+        <p className="text-xs text-slate-500 mt-1">Marketplace-grade controls for verified sellers.</p>
       </div>
       <nav className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col gap-1">
-        {VET_DASHBOARD_NAV.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/vet-dashboard" && pathname.startsWith(item.href));
+        {SELLER_DASHBOARD_NAV.map((item) => {
+          const isActive = pathname === item.href || (item.href !== "/seller-dashboard" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.label}

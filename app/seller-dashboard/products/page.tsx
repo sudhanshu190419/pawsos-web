@@ -17,21 +17,21 @@ import {
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 
 import { auth, db, storage } from "../../lib/firebase";
-import { fetchVetProfile } from "../../lib/vet";
+import { fetchBrandProfile } from "../../lib/seller";
 import ProductsHeader from "./components/ProductsHeader";
 import ProductFormModal from "./components/ProductFormModal";
 import ProductCard from "./components/ProductCard";
 import ProductsEmptyState from "./components/ProductsEmptyState";
 import ConfirmDialog from "./components/ConfirmDialog";
 import type { ProductFormValues, ProductImageItem, ProductRecord } from "./productTypes";
-import type { VetProfile } from "../../lib/vet";
+import type { BrandProfile } from "../../lib/seller";
 
 type ProductFormErrors = Partial<Record<keyof ProductFormValues | "images" | "shiprocket", string>>;
 
-export default function VetProductsPage() {
+export default function SellerProductsPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [vetProfile, setVetProfile] = useState<VetProfile | null>(null);
-  const [vetLoading, setVetLoading] = useState(true);
+  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
+  const [brandLoading, setBrandLoading] = useState(true);
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [search, setSearch] = useState("");
@@ -52,15 +52,15 @@ export default function VetProductsPage() {
 
   useEffect(() => {
     if (!user?.uid) {
-      setVetProfile(null);
-      setVetLoading(false);
+      setBrandProfile(null);
+      setBrandLoading(false);
       return;
     }
-    setVetLoading(true);
-    fetchVetProfile(user.uid)
-      .then((profile) => setVetProfile(profile))
-      .catch((err) => console.error("Vet profile fetch failed:", err))
-      .finally(() => setVetLoading(false));
+    setBrandLoading(true);
+    fetchBrandProfile(user.uid)
+      .then((profile) => setBrandProfile(profile))
+      .catch((err) => console.error("Brand profile fetch failed:", err))
+      .finally(() => setBrandLoading(false));
   }, [user?.uid]);
 
   useEffect(() => {
@@ -72,7 +72,7 @@ export default function VetProductsPage() {
     setLoadingProducts(true);
     const q = query(
       collection(db, "products"),
-      where("vetId", "==", user.uid),
+      where("brandId", "==", user.uid),
       orderBy("createdAt", "desc")
     );
     const unsub = onSnapshot(
@@ -93,7 +93,7 @@ export default function VetProductsPage() {
     return () => unsub();
   }, [user?.uid]);
 
-  const canUpload = vetProfile?.verificationStatus === "approved";
+  const canUpload = brandProfile?.verificationStatus === "approved";
 
   const filteredProducts = useMemo(() => {
     if (!search.trim()) return products;
@@ -161,16 +161,16 @@ export default function VetProductsPage() {
       }
       if (images.length === 0) errors.images = "Add at least one product image";
       if (images.length > 6) errors.images = "You can upload up to 6 images";
-      if (!vetProfile?.shiprocketPickupId) {
+      if (!brandProfile?.shiprocketPickupId) {
         errors.shiprocket = "Shiprocket pickup ID is missing. Contact support to reconnect logistics.";
       }
       if (!canUpload) {
-        errors.shiprocket = "Only approved vets can upload products.";
+        errors.shiprocket = "Only approved sellers can upload products.";
       }
 
       return { errors, price, discount, stock, weight, length, breadth, height };
     },
-    [vetProfile?.shiprocketPickupId, canUpload]
+    [brandProfile?.shiprocketPickupId, canUpload]
   );
 
   const uploadImages = async (productId: string, items: ProductImageItem[]) => {
@@ -215,7 +215,7 @@ export default function VetProductsPage() {
       return;
     }
 
-    if (!user?.uid || !vetProfile) return;
+    if (!user?.uid || !brandProfile) return;
 
     setIsSaving(true);
     setUploadProgress(undefined);
@@ -223,9 +223,8 @@ export default function VetProductsPage() {
 
     try {
       const existingUrls = images.filter((img) => !img.isNew).map((img) => img.url);
-      const vetName = vetProfile.fullName || user.displayName || "Vet Partner";
-      const clinicName = vetProfile.clinicName || "";
-      const shiprocketPickupId = vetProfile.shiprocketPickupId ?? null;
+      const brandName = brandProfile.brandName || user.displayName || "Brand Seller";
+      const shiprocketPickupId = brandProfile.shiprocketPickupId ?? null;
 
       if (editingProduct) {
         const newUrls = await uploadImages(editingProduct.id, images);
@@ -241,16 +240,14 @@ export default function VetProductsPage() {
           breadth,
           height,
           images: [...existingUrls, ...newUrls],
-          vetName,
-          clinicName,
+          brandName,
           shiprocketPickupId,
           updatedAt: serverTimestamp(),
         });
       } else {
         const docRef = await addDoc(collection(db, "products"), {
-          vetId: user.uid,
-          vetName,
-          clinicName,
+          brandId: user.uid,
+          brandName,
           shiprocketPickupId,
           name: values.name.trim(),
           description: values.description.trim(),
@@ -307,13 +304,13 @@ export default function VetProductsPage() {
         onAdd={openCreateModal}
       />
 
-      {!vetLoading && !vetProfile?.shiprocketPickupId && (
+      {!brandLoading && !brandProfile?.shiprocketPickupId && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Shiprocket pickup ID is missing. Product publishing will be paused until logistics are connected.
         </div>
       )}
 
-      {vetLoading || loadingProducts ? (
+      {brandLoading || loadingProducts ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm animate-pulse">

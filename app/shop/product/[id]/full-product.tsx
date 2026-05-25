@@ -15,7 +15,6 @@ import {
   Heart,
   Share2,
   CheckCircle2,
-  Stethoscope,
   Minus,
   Plus,
   Package,
@@ -329,9 +328,8 @@ export default function ProductDetailPage() {
           const data = {
             ...raw,
             images: Array.isArray(raw.images) ? raw.images : raw.imageUrl ? [raw.imageUrl] : [],
-            clinicName: raw.clinicName ?? raw.vetClinicName ?? "",
+            brandName: raw.brandName ?? raw.vetName ?? raw.clinicName ?? raw.vetClinicName ?? "",
             imageUrl: raw.imageUrl ?? raw.images?.[0] ?? "",
-            vetClinicName: raw.vetClinicName ?? raw.clinicName ?? "",
           } as any;
           console.log("[Shop] product raw:", raw);
           console.log("[Shop] product mapped:", data);
@@ -349,9 +347,8 @@ export default function ProductDetailPage() {
               return {
                 ...item,
                 images: Array.isArray(item.images) ? item.images : item.imageUrl ? [item.imageUrl] : [],
-                clinicName: item.clinicName ?? item.vetClinicName ?? "",
+                brandName: item.brandName ?? item.vetName ?? item.clinicName ?? item.vetClinicName ?? "",
                 imageUrl: item.imageUrl ?? item.images?.[0] ?? "",
-                vetClinicName: item.vetClinicName ?? item.clinicName ?? "",
               };
             })
             .filter((p) => p.id !== id);
@@ -419,11 +416,11 @@ export default function ProductDetailPage() {
           {/* RIGHT: Info */}
           <div className="flex flex-col gap-4">
 
-            {/* Clinic badge */}
-            {product.vetClinicName && (
+            {/* Store badge */}
+            {product.brandName && (
               <div className="inline-flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100">
-                <Stethoscope className="w-3 h-3 text-emerald-600" strokeWidth={2} />
-                <span className="text-[10px] font-semibold text-emerald-700 tracking-wide">{product.vetClinicName}</span>
+                <Package className="w-3 h-3 text-emerald-600" strokeWidth={2} />
+                <span className="text-[10px] font-semibold text-emerald-700 tracking-wide">{product.brandName}</span>
               </div>
             )}
 
@@ -596,10 +593,9 @@ export default function ProductDetailPage() {
       {isCheckoutOpen && (
         <CheckoutPanel
           items={cartItems}
-          total={cartTotal}
           onBackToCart={() => { setIsCheckoutOpen(false); setIsCartOpen(true); }}
           onClose={() => setIsCheckoutOpen(false)}
-          onOrderPlaced={() => { clear(); setIsCheckoutOpen(false); }}
+          onOrderPlaced={(orderId) => { clear(); setIsCheckoutOpen(false); }}
         />
       )}
     </div>

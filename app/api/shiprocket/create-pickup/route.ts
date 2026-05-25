@@ -13,8 +13,11 @@ export async function POST(req: Request) {
   "Shiprocket token generated:",
   token.substring(0, 15) + "..."
 );
+const brandName = body.brandName || body.clinicName;
+const brandId = body.brandId || body.vetId;
+
 if (
-  !body.clinicName ||
+  !brandName ||
   !body.fullName ||
   !body.email ||
   !body.phone ||
@@ -34,7 +37,7 @@ const sanitizedPhone = body.phone.replace(/\D/g, "");
       "https://apiv2.shiprocket.in/v1/external/settings/company/addpickup",
       {
   pickup_location:
-`${body.clinicName.replace(/\s+/g, "")}_${body.vetId.slice(0,6)}_${Date.now()}`,
+`${brandName.replace(/\s+/g, "")}_${brandId.slice(0,6)}_${Date.now()}`,
 
   name: body.fullName,
 

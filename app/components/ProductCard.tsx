@@ -67,9 +67,9 @@ export default function ProductCard({
         {/* ── CONTENT ── */}
         <div className="px-2.5 pt-2 pb-1">
           {/* Clinic name */}
-          {product.clinicName && (
+          {product.brandName && (
             <p className="text-[10px] font-semibold text-orange-500 truncate leading-none mb-1">
-              {product.clinicName}
+              {product.brandName}
             </p>
           )}
 

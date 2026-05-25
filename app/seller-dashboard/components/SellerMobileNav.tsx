@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { VET_DASHBOARD_NAV } from "./vetNavItems";
+import { SELLER_DASHBOARD_NAV } from "./sellerNavItems";
 
-export default function VetMobileNav() {
+export default function SellerMobileNav() {
   const pathname = usePathname();
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-2">
-      {VET_DASHBOARD_NAV.map((item) => {
-        const isActive = pathname === item.href || (item.href !== "/vet-dashboard" && pathname.startsWith(item.href));
+      {SELLER_DASHBOARD_NAV.map((item) => {
+        const isActive = pathname === item.href || (item.href !== "/seller-dashboard" && pathname.startsWith(item.href));
         return (
           <Link
             key={item.label}
