@@ -7,6 +7,25 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    const ENABLE_SHIPROCKET =
+  process.env.NEXT_PUBLIC_ENABLE_SHIPROCKET === "true";
+
+if (!ENABLE_SHIPROCKET) {
+  console.log("🧪 TEST MODE: Shiprocket pickup creation skipped");
+
+  return Response.json({
+    success: true,
+    mock: true,
+    data: {
+      pickup_id: "TEST_PICKUP_ID",
+      pickup_code: "TEST_PICKUP_CODE",
+      address: {
+        pickup_code: "TEST_PICKUP_CODE",
+      },
+    },
+  });
+}
+
     const token = await getShiprocketToken();
 
     console.log(

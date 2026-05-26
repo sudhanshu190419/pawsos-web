@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
@@ -64,6 +64,12 @@ export default function CheckoutPanel({
   const [promoApplied, setPromoApplied] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
   const [orderError, setOrderError] = useState("");
+
+  // Razorpay online payment state
+  const [paymentState, setPaymentState] = useState<
+    "idle" | "creating_order" | "processing_payment" | "verifying"
+  >("idle");
+
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -162,19 +168,9 @@ export default function CheckoutPanel({
       ),
     },
     {
-      id: "upi",
-      label: "UPI Payment",
-      desc: "Google Pay, PhonePe, Paytm",
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-        </svg>
-      ),
-    },
-    {
-      id: "card",
-      label: "Credit / Debit Card",
-      desc: "Visa, Mastercard, RuPay",
+      id: "online",
+      label: "Online Payment",
+      desc: "UPI, Credit/Debit Card, Net Banking",
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
@@ -365,79 +361,106 @@ export default function CheckoutPanel({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handlePlaceOrder = async () => {
-    setOrderError("");
-    if (!userId) {
-      setOrderError("Please sign in to place your order.");
-      return;
-    }
-    if (items.length === 0) {
-      setOrderError("Your cart is empty.");
-      return;
-    }
-    const address = getCurrentAddress();
-    if (!address) {
-      setOrderError("Please select a delivery address.");
-      return;
-    }
+  // ── Razorpay: load checkout script ──
+  const loadRazorpayScript = useCallback(async (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }, []);
 
-    const paymentStatus = selectedPayment === "cod" ? "pending" : "pending";
+  // ── Create Firestore order (shared by COD & Online) ──
+  const createFirestoreOrder = useCallback(
+    async (params: {
+      address: AddressType;
+      paymentMethod: string;
+      paymentStatus: string;
+      razorpayOrderId?: string;
+      razorpayPaymentId?: string;
+      paidAt?: any;
+    }): Promise<string> => {
+      const { address, paymentMethod, paymentStatus, razorpayOrderId, razorpayPaymentId, paidAt } = params;
 
-    const orderItems = items.map((item) => ({
-      productId: item.id,
-      productName: item.name,
-      productImage: item.imageUrl || "",
-      quantity: item.qty,
-      price: item.price,
-      weight: item.weight ?? 0.5,
-      length: item.length ?? null,
-      breadth: item.breadth ?? null,
-      height: item.height ?? null,
-      brandId: item.brandId,
-      brandName: item.brandName || "Verified Store",
-      shiprocketPickupId: item.shiprocketPickupId,
-    }));
+      const orderItems = items.map((item) => ({
+        productId: item.id,
+        productName: item.name,
+        productImage: item.imageUrl || "",
+        quantity: item.qty,
+        price: item.price,
+        weight: item.weight ?? 0.5,
+        length: item.length ?? null,
+        breadth: item.breadth ?? null,
+        height: item.height ?? null,
+        brandId: item.brandId,
+        brandName: item.brandName || "Verified Store",
+        shiprocketPickupId: item.shiprocketPickupId,
+      }));
 
-    const vendorGroups = Object.values(
-      items.reduce<Record<string, { brandId: string; brandName: string; shiprocketPickupId: number | null; shiprocketPickupName: string | null; items: typeof orderItems; subtotal: number }>>(
-        (acc, item) => {
-          const key = item.brandId || "unknown";
-          if (!acc[key]) {
-            acc[key] = { brandId: item.brandId, brandName: item.brandName || "Verified Store", shiprocketPickupId: item.shiprocketPickupId, shiprocketPickupName: null, items: [], subtotal: 0 };
-          }
-          acc[key].items.push({
-            productId: item.id,
-            productName: item.name,
-            productImage: item.imageUrl || "",
-            quantity: item.qty,
-            price: item.price,
-            weight: item.weight ?? 0.5,
-            length: item.length ?? null,
-            breadth: item.breadth ?? null,
-            height: item.height ?? null,
-            brandId: item.brandId,
-            brandName: item.brandName || "Verified Store",
-            shiprocketPickupId: item.shiprocketPickupId,
-          });
-          acc[key].subtotal += item.price * item.qty;
-          return acc;
-        }, {})
-    );
+      const vendorGroups = Object.values(
+        items.reduce<Record<string, { brandId: string; brandName: string; shiprocketPickupId: number | null; shiprocketPickupName: string | null; items: typeof orderItems; subtotal: number }>>(
+          (acc, item) => {
+            const key = item.brandId || "unknown";
+            if (!acc[key]) {
+              acc[key] = { brandId: item.brandId, brandName: item.brandName || "Verified Store", shiprocketPickupId: item.shiprocketPickupId, shiprocketPickupName: null, items: [], subtotal: 0 };
+            }
+            acc[key].items.push({
+              productId: item.id,
+              productName: item.name,
+              productImage: item.imageUrl || "",
+              quantity: item.qty,
+              price: item.price,
+              weight: item.weight ?? 0.5,
+              length: item.length ?? null,
+              breadth: item.breadth ?? null,
+              height: item.height ?? null,
+              brandId: item.brandId,
+              brandName: item.brandName || "Verified Store",
+              shiprocketPickupId: item.shiprocketPickupId,
+            });
+            acc[key].subtotal += item.price * item.qty;
+            return acc;
+          }, {})
+      );
 
-    setIsPlacing(true);
-    let orderRefId = "";
-    try {
+      let orderRefId = "";
       const orderRef = doc(collection(db, "orders"));
       orderRefId = orderRef.id;
+
       await runTransaction(db, async (transaction) => {
-        for (const item of items) {
-          const productRef = doc(db, "products", item.id);
-          const snap = await transaction.get(productRef);
-          if (!snap.exists()) throw new Error("Product not found");
-          const currentStock = Number(snap.data().stockQty ?? 0);
-          if (currentStock < item.qty) throw new Error(`Insufficient stock for ${item.name}`);
+        // Step 1: READ all product documents FIRST (all reads before any writes)
+        const productSnapshots = await Promise.all(
+          items.map(async (item) => {
+            const productRef = doc(db, "products", item.id);
+            const snap = await transaction.get(productRef);
+            return { item, productRef, snap };
+          })
+        );
+
+        // Step 2: Validate ALL stock levels after all reads are done
+        const stockValues: number[] = [];
+        for (const { item, snap } of productSnapshots) {
+          if (!snap.exists()) throw new Error(`Product not found: ${item.name}`);
+          const currentStock = Number(snap.data()!.stockQty ?? 0);
+          if (currentStock < item.qty) {
+            throw new Error(`Insufficient stock for ${item.name}`);
+          }
+          stockValues.push(currentStock);
+        }
+
+        // Step 3: WRITE all updates (all writes after all reads)
+        for (let i = 0; i < productSnapshots.length; i++) {
+          const { item, productRef } = productSnapshots[i];
+          const currentStock = stockValues[i];
           transaction.update(productRef, { stockQty: currentStock - item.qty });
         }
+
         transaction.set(orderRef, {
           orderId: orderRef.id,
           userId,
@@ -450,8 +473,11 @@ export default function CheckoutPanel({
           taxes,
           totalAmount: total,
           address,
-          paymentMethod: selectedPayment,
+          paymentMethod,
           paymentStatus,
+          razorpayOrderId: razorpayOrderId || null,
+          razorpayPaymentId: razorpayPaymentId || null,
+          paidAt: paidAt || null,
           orderStatus: "placed",
           createdAt: serverTimestamp(),
         });
@@ -462,14 +488,11 @@ export default function CheckoutPanel({
         const shipmentResults: any[] = [];
         for (const group of vendorGroups) {
           try {
-            // Fetch brand profile to get pickup location name
             const brandProfile = await fetchBrandProfile(group.brandId);
             if (!brandProfile?.shiprocketPickupName) {
               console.warn(`[Shiprocket] No pickup location name for brand ${group.brandId}, skipping`);
               continue;
             }
-
-            // Calculate aggregate dimensions
             const totalWeight = group.items.reduce((sum, i) => sum + (i.weight || 0.5) * i.quantity, 0);
             const dims = group.items.map((i) => ({
               length: i.length || null,
@@ -486,13 +509,8 @@ export default function CheckoutPanel({
               ? Math.max(...dims.filter((d) => d.height !== null).map((d) => d.height!))
               : 10;
 
-            const address = getCurrentAddress();
-
-            // Extract city from line2 (state comes from address.state field with fallback)
             const lineParts = (address?.line2 || "").split(",").map((s: string) => s.trim()).filter(Boolean);
             const detectedCity = lineParts.length > 1 ? lineParts[lineParts.length - 2] : lineParts[0] || "";
-            // Use the address.state field directly (populated at save time)
-            // Falls back: address.state → pincode lookup → extract from line2 → empty
             const detectedState = address?.state || extractPincodeState(address?.pincode || "") || (lineParts.length > 1 ? lineParts[lineParts.length - 1] : "");
 
             const response = await fetch("/api/shiprocket/create-order", {
@@ -510,7 +528,7 @@ export default function CheckoutPanel({
                 city: detectedCity,
                 state: detectedState,
                 pincode: address?.pincode || "",
-                paymentMethod: selectedPayment,
+                paymentMethod,
                 subtotal: group.subtotal,
                 items: group.items.map((i) => ({
                   productId: i.productId,
@@ -536,7 +554,6 @@ export default function CheckoutPanel({
           }
         }
 
-        // Save shipment data to the order
         if (shipmentResults.length > 0) {
           try {
             await updateDoc(doc(db, "orders", orderRefId), {
@@ -548,15 +565,173 @@ export default function CheckoutPanel({
         }
       };
 
-      // Fire and forget — don't block the user from seeing success
       createShipmentsAsync();
 
-      onOrderPlaced(orderRef.id);
-      router.push(`/order-success/${orderRef.id}`);
-    } catch (err: any) {
-      setOrderError(err?.message || "Failed to place order. Please try again.");
-    } finally {
-      setIsPlacing(false);
+      return orderRefId;
+    },
+    [items, userId, userName, subtotal, deliveryFee, taxes, total, customerPhone]
+  );
+
+  // ── Razorpay online payment handler ──
+  const handleOnlinePayment = useCallback(
+    async (address: AddressType) => {
+      try {
+        // Step 1: Create Razorpay order (amount in paise)
+        setPaymentState("creating_order");
+        const orderRes = await fetch("/api/razorpay/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: Math.round(total * 100),
+            currency: "INR",
+          }),
+        });
+
+        if (!orderRes.ok) {
+          const errData = await orderRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to initialize payment");
+        }
+
+        const orderData = await orderRes.json();
+        if (!orderData.success) {
+          throw new Error(orderData.error || "Failed to create payment order");
+        }
+
+        // Step 2: Load Razorpay checkout script
+        setPaymentState("processing_payment");
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+          throw new Error("Failed to load payment gateway. Please check your internet connection.");
+        }
+
+        // Step 3: Open Razorpay checkout popup
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!keyId) {
+          throw new Error("Payment gateway key not configured");
+        }
+
+        const options = {
+          key: keyId,
+          amount: orderData.amount,
+          currency: orderData.currency || "INR",
+          name: "AnimalSathi",
+          description: "Pet Supplies Marketplace",
+          order_id: orderData.orderId,
+          prefill: {
+            name: userName || "",
+            email: auth.currentUser?.email || "",
+            contact: customerPhone,
+          },
+          theme: {
+            color: "#F97316",
+          },
+          handler: async (response: any) => {
+            try {
+              // Step 4: Verify payment signature
+              setPaymentState("verifying");
+              const verifyRes = await fetch("/api/razorpay/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+
+              if (!verifyRes.ok) {
+                const errData = await verifyRes.json().catch(() => ({}));
+                throw new Error(errData.error || "Payment verification failed");
+              }
+
+              const verifyData = await verifyRes.json();
+              if (!verifyData.success) {
+                throw new Error("Payment verification failed");
+              }
+
+              // Step 5: Create Firestore order after successful verification
+              const orderRefId = await createFirestoreOrder({
+                address,
+                paymentMethod: "online",
+                paymentStatus: "paid",
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                paidAt: serverTimestamp(),
+              });
+
+              onOrderPlaced(orderRefId);
+              router.push(`/order-success/${orderRefId}`);
+            } catch (err: any) {
+              setOrderError(err?.message || "Payment verification failed. Please contact support.");
+              setPaymentState("idle");
+              setIsPlacing(false);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setOrderError("Payment cancelled. You can try again.");
+              setPaymentState("idle");
+              setIsPlacing(false);
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+
+        rzp.on("payment.failed", (response: any) => {
+          setOrderError(
+            response.error?.description || "Payment failed. Please try again."
+          );
+          setPaymentState("idle");
+          setIsPlacing(false);
+        });
+
+        rzp.open();
+      } catch (err: any) {
+        setOrderError(err?.message || "An error occurred during payment processing.");
+        setPaymentState("idle");
+        setIsPlacing(false);
+      }
+    },
+    [total, userName, customerPhone, createFirestoreOrder, onOrderPlaced, router, loadRazorpayScript]
+  );
+
+  const handlePlaceOrder = async () => {
+    setOrderError("");
+    if (!userId) {
+      setOrderError("Please sign in to place your order.");
+      return;
+    }
+    if (items.length === 0) {
+      setOrderError("Your cart is empty.");
+      return;
+    }
+    const address = getCurrentAddress();
+    if (!address) {
+      setOrderError("Please select a delivery address.");
+      return;
+    }
+
+    setIsPlacing(true);
+
+    if (selectedPayment === "cod") {
+      // COD flow – create order directly
+      try {
+        const orderRefId = await createFirestoreOrder({
+          address,
+          paymentMethod: "cod",
+          paymentStatus: "pending",
+        });
+        onOrderPlaced(orderRefId);
+        router.push(`/order-success/${orderRefId}`);
+      } catch (err: any) {
+        setOrderError(err?.message || "Failed to place order. Please try again.");
+      } finally {
+        setIsPlacing(false);
+      }
+    } else {
+      // Online payment flow via Razorpay
+      await handleOnlinePayment(address);
     }
   };
 
@@ -1133,8 +1308,8 @@ export default function CheckoutPanel({
                       <p className="text-xs font-semibold text-slate-800">{method.label}</p>
                       <p className="text-[11px] text-slate-400">{method.desc}</p>
                     </div>
-                    {method.id === "upi" && (
-                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Popular</span>
+                    {method.id === "online" && (
+                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Secure</span>
                     )}
                   </label>
                 ))}
@@ -1304,14 +1479,41 @@ export default function CheckoutPanel({
             <button
               type="button"
               onClick={handlePlaceOrder}
-              disabled={isPlacing}
+              disabled={isPlacing || paymentState !== "idle"}
               className={`col-span-4 relative overflow-hidden rounded-xl py-3 text-sm font-bold text-white transition-all active:scale-[0.98] ${
-                isPlacing
+                isPlacing || paymentState !== "idle"
                   ? "bg-orange-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25"
               }`}
             >
-              {isPlacing ? (
+              {paymentState === "creating_order" && (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Initializing Payment...
+                </span>
+              )}
+              {paymentState === "processing_payment" && (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Processing Payment...
+                </span>
+              )}
+              {paymentState === "verifying" && (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Verifying Payment...
+                </span>
+              )}
+              {isPlacing && paymentState === "idle" ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -1319,9 +1521,10 @@ export default function CheckoutPanel({
                   </svg>
                   Placing Order...
                 </span>
-              ) : (
+              ) : null}
+              {!isPlacing && paymentState === "idle" && (
                 <span className="flex items-center justify-center gap-2">
-                  Place Order
+                  {selectedPayment === "cod" ? "Place Order" : "Pay Now"}
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                   </svg>

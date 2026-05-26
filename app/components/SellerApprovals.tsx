@@ -82,8 +82,25 @@ export default function SellerApprovals() {
         return;
       }
 
+      const ENABLE_SHIPROCKET =
+  process.env.NEXT_PUBLIC_ENABLE_SHIPROCKET === "true";
+
+if (!ENABLE_SHIPROCKET) {
+  await updateDoc(doc(db, "brands", selectedSeller.uid), {
+    verificationStatus: "approved",
+    shiprocketPickupCreated: false,
+    shiprocketPickupId: null,
+    shiprocketPickupName: null,
+  });
+
+  alert("Seller approved in TEST MODE (Shiprocket disabled).");
+  setSelectedSeller(null);
+  setIsProcessing(false);
+  return;
+}
       // Create Shiprocket pickup
       const pickupResponse = await fetch("/api/shiprocket/create-pickup", {
+        
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

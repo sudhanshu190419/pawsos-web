@@ -1,6 +1,18 @@
 import axios from "axios";
 
 /* ═══════════════════════════════════════════════════
+   SHIPROCKET TOKEN CACHE (server-side only)
+   ═══════════════════════════════════════════════════
+   Caches the Shiprocket auth token in memory to avoid
+   repeated authentication requests. The token is refreshed
+   after 23 hours (Shiprocket tokens last ~240 hours).
+   ═══════════════════════════════════════════════════ */
+
+let cachedToken: string | null = null;
+let tokenExpiry = 0;
+const TOKEN_REFRESH_MS = 23 * 60 * 60 * 1000; // 23 hours in milliseconds
+
+/* ═══════════════════════════════════════════════════
    PINCODE TO STATE MAPPING (India)
    ═══════════════════════════════════════════════════
    Maps first-2-digit pincode prefixes to state names.
@@ -197,7 +209,15 @@ export function isValidIndianPhone(phone: string): boolean {
   return sanitized.length === 10;
 }
 
-export async function getShiprocketToken() {
+export async function getShiprocketToken(): Promise<string> {
+  // Return cached token if still valid
+  if (cachedToken && Date.now() < tokenExpiry) {
+    console.log("[Shiprocket] Using cached token");
+    return cachedToken!;
+  }
+
+  console.log("[Shiprocket] Refreshing token");
+
   try {
     const response = await axios.post(
       "https://apiv2.shiprocket.in/v1/external/auth/login",
@@ -207,8 +227,15 @@ export async function getShiprocketToken() {
       }
     );
 
-    return response.data.token;
+    cachedToken = response.data.token;
+    tokenExpiry = Date.now() + TOKEN_REFRESH_MS;
+
+    console.log("[Shiprocket] Token refreshed successfully");
+    return cachedToken!;
   } catch (error: any) {
+    // Clear cache on auth failure
+    cachedToken = null;
+    tokenExpiry = 0;
     console.error("Shiprocket Auth Error:", error.response?.data || error.message);
     throw new Error("Failed to authenticate Shiprocket");
   }

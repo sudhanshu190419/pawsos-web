@@ -135,6 +135,28 @@ async function generateAWB(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const ENABLE_SHIPROCKET =
+  process.env.NEXT_PUBLIC_ENABLE_SHIPROCKET === "true";
+
+if (!ENABLE_SHIPROCKET) {
+  console.log("🧪 TEST MODE: Shiprocket disabled");
+
+  return Response.json({
+    success: true,
+    mock: true,
+    data: {
+      brandId: "TEST_BRAND",
+      brandName: "Test Brand",
+      shiprocketOrderId: "TEST_ORDER_123",
+      shipmentId: "TEST_SHIPMENT_123",
+      awbCode: "TESTAWB123456",
+      courierName: "Test Courier",
+      trackingUrl: "https://example.com/tracking",
+      shipmentStatus: "NEW",
+      createdAt: Date.now(),
+    },
+  });
+}
     const {
       brandId,
       brandName,
