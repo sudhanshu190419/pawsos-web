@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, memo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   MapPin,
@@ -127,6 +128,8 @@ type ShopHeaderProps = {
   cartCount?: number;
   user?: FirebaseUser | null;
   onAddProduct?: () => void;
+  onSearch?: (query: string) => void;
+  products?: any[];
 };
 
 /* ═══════════════════════════════════════════════════
@@ -267,13 +270,31 @@ const SearchOverlay = memo(
     query,
     onChange,
     onClose,
+    onSubmit,
+    products,
   }: {
     isOpen: boolean;
     query: string;
     onChange: (val: string) => void;
     onClose: () => void;
+    onSubmit?: (query: string) => void;
+    products?: any[];
   }) => {
+    const router = useRouter();
     const inputRef = useRef<HTMLInputElement>(null);
+
+    const results = useMemo(() => {
+      if (!query.trim() || !products) return [];
+      const q = query.toLowerCase();
+      return products
+        .filter((p) =>
+          (p.name?.toLowerCase() ?? '').includes(q) ||
+          (p.description?.toLowerCase() ?? '').includes(q) ||
+          (p.brandName?.toLowerCase() ?? '').includes(q) ||
+          (p.category?.toLowerCase() ?? '').includes(q)
+        )
+        .slice(0, 8);
+    }, [query, products]);
 
     useEffect(() => {
       if (isOpen) {
@@ -311,8 +332,14 @@ const SearchOverlay = memo(
                 type="text"
                 value={query}
                 onChange={(e) => onChange(e.target.value)}
-                placeholder="Search food, toys, medicines for your pet…"
+                placeholder="Search products…"
                 className="flex-1 text-[15px] font-medium text-neutral-800 placeholder:text-neutral-300 outline-none bg-transparent"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && query.trim()) {
+                    onSubmit?.(query.trim());
+                    onClose();
+                  }
+                }}
               />
               <div className="flex items-center gap-2 flex-shrink-0">
                 {query && (
@@ -383,14 +410,64 @@ const SearchOverlay = memo(
                     </div>
                   </div>
                 </div>
+              ) : results.length > 0 ? (
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-widest mb-2 px-0.5">
+                    Products
+                  </p>
+                  {results.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => {
+                        router.push(`/shop/product/${product.id}`);
+                        onClose();
+                      }}
+                      className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-all text-left group"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-neutral-100 flex-shrink-0 overflow-hidden">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name || ''}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-300">
+                            <Package className="w-4 h-4" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-neutral-800 truncate group-hover:text-orange-600 transition-colors">
+                          {product.name || 'Unnamed Product'}
+                        </p>
+                        <p className="text-[12px] font-semibold text-neutral-500 mt-0.5">
+                          ₹{product.price?.toLocaleString('en-IN') ?? '0'}
+                        </p>
+                      </div>
+                      <Search className="w-3.5 h-3.5 text-neutral-300 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
+                  <div className="pt-2 pb-1 text-center">
+                    <button
+                      onClick={() => {
+                        onSubmit?.(query.trim());
+                        onClose();
+                      }}
+                      className="text-[12px] font-semibold text-orange-500 hover:text-orange-600 transition-colors"
+                    >
+                      View all {results.length > 1 ? `${results.length} results` : 'result'}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="py-10 text-center">
                   <Search className="w-8 h-8 text-neutral-200 mx-auto mb-3" />
                   <p className="text-sm font-medium text-neutral-600">
-                    Results for &ldquo;{query}&rdquo;
+                    No products found for &ldquo;{query}&rdquo;
                   </p>
                   <p className="text-xs text-neutral-400 mt-1">
-                    Connect your product database to show results
+                    Try a different search term
                   </p>
                 </div>
               )}
@@ -560,7 +637,7 @@ MobileDrawer.displayName = "MobileDrawer";
 /* ═══════════════════════════════════════════════════
    MAIN HEADER
    ═══════════════════════════════════════════════════ */
-export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderProps) {
+export default function ShopHeader({ onCartClick, cartCount = 0, onSearch, products }: ShopHeaderProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -837,6 +914,8 @@ export default function ShopHeader({ onCartClick, cartCount = 0 }: ShopHeaderPro
         query={searchQuery}
         onChange={setSearchQuery}
         onClose={closeSearch}
+        onSubmit={onSearch}
+        products={products}
       />
 
       {/* ── MOBILE DRAWER ── */}

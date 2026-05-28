@@ -211,6 +211,10 @@ if (!ENABLE_SHIPROCKET) {
     console.log("[4/7] PHONE VALID: ready for Shiprocket payload");
 
     const token = await getShiprocketToken();
+    console.log(
+  "FINAL PASSWORD:",
+  process.env.SHIPROCKET_PASSWORD
+);
 
     const shippingParts = (shippingAddress || "").split(", ");
     const shippingLine1 = shippingParts[0] || shippingAddress || "";

@@ -473,7 +473,15 @@ function ShopPageContent() {
     result = result.filter((p) => (p.status ?? "active") === "active");
     if (activeCategory !== "All") result = result.filter((p) => p.category === activeCategory);
     if (activeAnimal) result = result.filter((p) => p.animal === activeAnimal);
-    if (searchQuery) result = result.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((p) =>
+        (p.name?.toLowerCase() ?? '').includes(q) ||
+        (p.description?.toLowerCase() ?? '').includes(q) ||
+        (p.brandName?.toLowerCase() ?? '').includes(q) ||
+        (p.category?.toLowerCase() ?? '').includes(q)
+      );
+    }
     return result;
   }, [products, activeCategory, activeAnimal, searchQuery]);
 
@@ -500,6 +508,11 @@ function ShopPageContent() {
         onCartClick={() => setIsCartOpen(true)}
         user={user}
         onAddProduct={isSeller ? () => setShowAddModal(true) : undefined}
+        onSearch={(q) => {
+          setSearchQuery(q);
+          scrollToProducts();
+        }}
+        products={products}
       />
 
       {/* ══════════════════════════════════════════
@@ -515,49 +528,20 @@ function ShopPageContent() {
           ══════════════════════════════════════════ */}
       <main
         ref={productsRef}
-        className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6"
+        className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-0 pb-0.5 sm:pt-0 sm:pb-1"
       >
         {/* ── Search + Filters ── */}
-        <div className="mb-4 sm:mb-6 space-y-2.5 sm:space-y-3">
+        <div className="mb-0.5 sm:mb-1 space-y-0.5 sm:space-y-1">
 
-          {/* Search row */}
-          <div className="flex gap-2">
-            <div className="relative flex-1 sm:max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search products…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 sm:py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-[14px] sm:text-[13px] font-medium text-neutral-800 placeholder:text-neutral-400 outline-none focus:ring-1 focus:ring-neutral-900/20 focus:border-neutral-400 transition-all"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 p-0.5">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => setShowFilterDrawer(true)}
-              className="sm:hidden flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 border border-neutral-200 rounded-lg text-[13px] font-semibold text-neutral-700 bg-white relative"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-          </div>
+         
 
           {/* Category filter — desktop */}
-          <div className="hidden sm:flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+          <div className="hidden sm:flex gap-1 overflow-x-auto pb-0.5 scrollbar-hide">
             {CATEGORIES.map(({ name, icon: Icon }) => (
               <button
                 key={name}
                 onClick={() => setActiveCategory(name)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap border transition-all ${
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap border transition-all ${
                   activeCategory === name
                     ? "bg-neutral-900 text-white border-neutral-900"
                     : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400 hover:text-neutral-900"
@@ -570,12 +554,12 @@ function ShopPageContent() {
           </div>
 
           {/* Animal filter — desktop */}
-          <div className="hidden sm:flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+          <div className="hidden sm:flex gap-1 overflow-x-auto pb-0.5 scrollbar-hide">
             {ANIMALS.map((animal) => (
               <button
                 key={animal.name}
                 onClick={() => setActiveAnimal(activeAnimal === animal.filterValue ? "" : animal.filterValue)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium whitespace-nowrap border transition-all ${
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap border transition-all ${
                   activeAnimal === animal.filterValue
                     ? "bg-orange-500 text-white border-orange-500"
                     : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300"
@@ -619,9 +603,9 @@ function ShopPageContent() {
         </div>
 
         {/* ── Products Grid ── */}
-        <div className="mb-6 sm:mb-8">
-          {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
+        <div className="mb-1 sm:mb-3">
+            {loading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
               {Array.from({ length: 10 }).map((_, i) => <ProductCardSkeleton key={i} />)}
             </div>
           ) : visibleProducts.length === 0 ? (
@@ -633,7 +617,7 @@ function ShopPageContent() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
               {visibleProducts.map((product, index) => (
                 <ProductCard
                   key={product.id}
