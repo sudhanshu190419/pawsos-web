@@ -46,3 +46,8 @@ PRODUCT.md
 
 #grapgify
 /graphify-out
+
+.antigravitycli/
+.gemini/
+.graphifyignore
+GEMINI.md
