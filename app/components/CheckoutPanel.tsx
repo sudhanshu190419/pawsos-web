@@ -461,10 +461,14 @@ export default function CheckoutPanel({
           transaction.update(productRef, { stockQty: currentStock - item.qty });
         }
 
+        // Extract unique vendor (brand) IDs for seller order access via security rules
+        const vendorIds = [...new Set(orderItems.map((item) => item.brandId).filter(Boolean))];
+
         transaction.set(orderRef, {
           orderId: orderRef.id,
           userId,
           userName: userName ?? "",
+          vendorIds,
           items: orderItems,
           vendorGroups,
           shipments: [],

@@ -1,7 +1,7 @@
 "use client";
 
 import { Logo } from "../components/Logo";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -18,6 +18,12 @@ import { httpsCallable } from "firebase/functions";
 
 /* --- Types */
 
+/* --- Constants */
+
+const OTP_LENGTH = 6;
+const OTP_EXPIRY_SECONDS = 5 * 60; // 5 minutes
+const RESEND_COOLDOWN = 60;
+
 type ToastData = { msg: string; type: "error" | "success" } | null;
 
 /* PAGE */
@@ -27,6 +33,7 @@ export default function AuthPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
 
@@ -37,135 +44,372 @@ export default function AuthPage() {
   const [step, setStep] = useState<"form" | "otp">("form");
   const [verificationId, setVerificationId] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpExpiryTimer, setOtpExpiryTimer] = useState(0);
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  const otpAttemptsRef = useRef(0);
+
+  /* ── Toast helper ── */
+
+  const showToast = useCallback((msg: string, type: "error" | "success" = "error") => {
+    console.log(`[AUTH] 🍞 Toast: [${type}] ${msg}`);
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
+
+  /* ── Auth state check ── */
+
+  useEffect(() => {
+    console.log("[AUTH] 🔍 Checking auth state...");
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      console.log("[AUTH] 👤 Auth state changed:", user ? `uid=${user.uid}` : "no user");
+      setChecking(false);
+    });
+    return () => unsub();
+  }, []);
+
+  /* ── Resend cooldown timer ── */
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
+    console.log(`[AUTH] ⏱ Resend cooldown started: ${resendCooldown}s`);
     const timer = setInterval(() => {
       setResendCooldown((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  const showToast = (msg: string, type: "error" | "success" = "error") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/";
+  /* ── OTP expiry timer ── */
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async () => {
-      setChecking(false);
-    });
-    return () => unsub();
-  }, []);
+    if (step !== "otp" || otpExpiryTimer <= 0) return;
+    console.log(`[AUTH] ⏱ OTP expiry timer started: ${otpExpiryTimer}s`);
 
-  /* Email auth */
+    const timer = setInterval(() => {
+      setOtpExpiryTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          console.log("[AUTH] ⏱ OTP EXPIRED");
+          showToast("OTP has expired. Please request a new one.", "error");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [step, otpExpiryTimer, showToast]);
+
+  /* ── Auto-submit OTP when 6 digits entered ── */
+
+  useEffect(() => {
+    if (otp.length === OTP_LENGTH && step === "otp" && !loadingText) {
+      console.log("[AUTH] 🔢 6 digits entered — auto-submitting OTP");
+      handleOtpVerify();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp]);
+
+  /* ── Form validation ── */
+
+  const validateForm = useCallback((): boolean => {
+    console.log("[AUTH] 🔍 Validating signup form...");
+
+    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+      console.warn("[AUTH] ❌ Validation failed: missing fields", {
+        name: !!name.trim(),
+        email: !!email.trim(),
+        password: !!password.trim(),
+        confirmPassword: !!confirmPassword.trim(),
+      });
+      showToast("Please fill in all fields.");
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      console.warn("[AUTH] ❌ Validation failed: invalid email", { email: email.trim() });
+      showToast("Please enter a valid email address.");
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      console.warn("[AUTH] ❌ Validation failed: passwords do not match");
+      showToast("Passwords do not match.");
+      return false;
+    }
+
+    if (password.length < 6) {
+      console.warn("[AUTH] ❌ Validation failed: password too short", { length: password.length });
+      showToast("Password must be at least 6 characters.");
+      return false;
+    }
+
+    console.log("[AUTH] ✅ Form validation passed");
+    return true;
+  }, [name, email, password, confirmPassword, showToast]);
+
+  /* ── Email auth (signup sends OTP, login signs in) ── */
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[AUTH] ════════════════════════════════════════");
+    console.log(`[AUTH] 🚀 handleEmailAuth called — mode: ${isSignup ? "signup" : "login"}`);
+
+    if (isSignup && !validateForm()) {
+      console.log("[AUTH] 🛑 Signup aborted — validation failed");
+      return;
+    }
+
     setLoadingText("Wait a moment...");
 
     try {
       if (isSignup) {
         setLoadingText("Sending code...");
+        console.log("[AUTH] 📤 Calling cloud function: sendOtp", {
+          email: email.trim().toLowerCase(),
+          name: name.trim(),
+          passwordLength: password.length,
+        });
+
         const sendOtp = httpsCallable(functions, "sendOtp");
+        const startTime = Date.now();
         const res = await sendOtp({ email, name, password });
+        const duration = Date.now() - startTime;
         const resData = res.data as { success: boolean; verificationId: string; expiresAt: number };
-        
+
+        console.log(`[AUTH] ✅ sendOtp response received in ${duration}ms`, {
+          success: resData.success,
+          verificationId: resData.verificationId ? resData.verificationId.substring(0, 8) + "..." : "N/A",
+          hasExpiresAt: !!resData.expiresAt,
+          expiresAt: resData.expiresAt ? new Date(resData.expiresAt).toISOString() : "N/A",
+        });
+
         if (resData.success) {
           setVerificationId(resData.verificationId);
+          setOtp("");
+          setOtpError("");
+          otpAttemptsRef.current = 0;
           setStep("otp");
-          setResendCooldown(60);
+          setResendCooldown(RESEND_COOLDOWN);
+
+          // Sync expiry timer with server timestamp
+          if (resData.expiresAt) {
+            const remaining = Math.max(Math.floor((resData.expiresAt - Date.now()) / 1000), 0);
+            console.log(`[AUTH] ⏱ Setting OTP expiry timer: ${remaining}s (from server)`);
+            setOtpExpiryTimer(remaining);
+          } else {
+            console.log(`[AUTH] ⏱ Setting OTP expiry timer: ${OTP_EXPIRY_SECONDS}s (default)`);
+            setOtpExpiryTimer(OTP_EXPIRY_SECONDS);
+          }
+
           showToast("Verification code sent to your email.", "success");
+          console.log("[AUTH] ✅ OTP sent — switched to OTP verification step");
         } else {
+          console.error("[AUTH] ❌ sendOtp returned success=false", { data: resData });
           showToast("Failed to send verification code.");
         }
       } else {
+        console.log("[AUTH] 🔐 Attempting email/password login...", { email });
         const userCred = await signInWithEmailAndPassword(auth, email, password);
+        console.log("[AUTH] ✅ Login successful", { uid: userCred.user.uid, emailVerified: userCred.user.emailVerified });
+
         if (!userCred.user.emailVerified) {
+          console.warn("[AUTH] ⚠️ User email not verified");
           showToast("Please verify your email first.");
           setLoadingText("");
           return;
         }
+
         await setDoc(
           doc(db, "users", userCred.user.uid),
           { lastLoginAt: serverTimestamp() },
           { merge: true },
         );
+        console.log("[AUTH] ✅ Firestore lastLoginAt updated, redirecting to:", redirectTo);
         router.push(redirectTo);
       }
     } catch (err: any) {
-      showToast(err.message || "Authentication failed.");
+      console.error("[AUTH] ❌❌❌ handleEmailAuth failed");
+      console.error("[AUTH] ❌ error?.code:", err?.code || "N/A");
+      console.error("[AUTH] ❌ error?.message:", err?.message || "N/A");
+      console.error("[AUTH] ❌ error?.details:", err?.details || "N/A");
+      if (err?.stack) console.error("[AUTH] ❌ error?.stack:", err.stack);
+
+      const message = err?.details?.message || err?.message || "Authentication failed.";
+      showToast(message);
     } finally {
       setLoadingText("");
     }
   };
 
-  const handleOtpVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp || otp.length !== 6) {
-      showToast("Please enter a valid 6-digit OTP code.");
+  /* ── Verify OTP ── */
+
+  const handleOtpVerify = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    const otpStr = otp.trim();
+
+    if (!otpStr || otpStr.length !== OTP_LENGTH || !/^\d{6}$/.test(otpStr)) {
+      console.warn("[AUTH] ⚠️ OTP validation failed: invalid format", {
+        length: otpStr.length,
+        matchesRegex: /^\d{6}$/.test(otpStr),
+      });
+      setOtpError("Please enter a valid 6-digit verification code.");
       return;
     }
+
+    if (otpExpiryTimer <= 0) {
+      console.warn("[AUTH] ⚠️ OTP already expired — cannot verify");
+      setOtpError("This code has expired. Please request a new one.");
+      showToast("OTP has expired. Please request a new one.");
+      return;
+    }
+
+    setOtpError("");
     setLoadingText("Verifying code...");
+
+    console.log("[AUTH] ════════════════════════════════════════");
+    console.log("[AUTH] 🔐 Calling cloud function: verifyOtp", {
+      verificationId: verificationId ? verificationId.substring(0, 8) + "..." : "N/A",
+      verificationIdFull: verificationId,
+      otpLength: otpStr.length,
+      expiryTimer: otpExpiryTimer,
+    });
 
     try {
       const verifyOtp = httpsCallable(functions, "verifyOtp");
-      const res = await verifyOtp({ verificationId, otp });
+      const startTime = Date.now();
+      const res = await verifyOtp({ verificationId, otp: otpStr });
+      const duration = Date.now() - startTime;
       const resData = res.data as { success: boolean };
 
+      console.log(`[AUTH] ✅ verifyOtp response received in ${duration}ms`, {
+        success: resData.success,
+        fullData: JSON.stringify(resData),
+      });
+
       if (resData.success) {
+        console.log("[AUTH] ✅ OTP verified — signing in with email+password", { email });
+
         setLoadingText("Signing in...");
+        const signInStartTime = Date.now();
         await signInWithEmailAndPassword(auth, email, password);
+        console.log(`[AUTH] ✅ Sign-in successful in ${Date.now() - signInStartTime}ms`);
+
         showToast("Account verified and created successfully!", "success");
+        console.log("[AUTH] ✅ Redirecting to:", redirectTo);
         router.push(redirectTo);
       } else {
+        console.error("[AUTH] ❌ verifyOtp returned success=false", { data: resData });
         showToast("Verification failed. Please try again.");
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to verify verification code.");
+      console.error("[AUTH] ❌❌❌ verifyOtp failed");
+      console.error("[AUTH] ❌ error?.code:", err?.code || "N/A");
+      console.error("[AUTH] ❌ error?.message:", err?.message || "N/A");
+      console.error("[AUTH] ❌ error?.details:", err?.details || "N/A");
+      console.error("[AUTH] ❌ error?.details?.message:", err?.details?.message || "N/A");
+      if (err?.stack) console.error("[AUTH] ❌ error?.stack:", err.stack);
+
+      const errorMsg = err?.details?.message || err?.message || "Failed to verify verification code.";
+      setOtpError(errorMsg);
+
+      // Track attempts and show remaining count
+      otpAttemptsRef.current += 1;
+      const attemptsUsed = otpAttemptsRef.current;
+      console.log(`[AUTH] 🔢 OTP attempt #${attemptsUsed} failed`);
+
+      const remainingAttempts = Math.max(0, 5 - attemptsUsed);
+      if (remainingAttempts > 0 && !errorMsg.toLowerCase().includes("attempt")) {
+        setOtpError(`${errorMsg} (${remainingAttempts} attempt${remainingAttempts === 1 ? "" : "s"} remaining)`);
+      } else {
+        setOtpError(errorMsg);
+      }
+
+      showToast(errorMsg);
     } finally {
       setLoadingText("");
     }
   };
 
+  /* ── Resend OTP ── */
+
   const handleResendOtp = async () => {
-    if (resendCooldown > 0) return;
+    if (resendCooldown > 0) {
+      console.log(`[AUTH] ⏳ Resend blocked — cooldown: ${resendCooldown}s`);
+      return;
+    }
+
+    console.log("[AUTH] ════════════════════════════════════════");
+    console.log("[AUTH] 🔄 Resending OTP...", { email, name });
     setLoadingText("Resending code...");
 
     try {
       const sendOtp = httpsCallable(functions, "sendOtp");
+      const startTime = Date.now();
       const res = await sendOtp({ email, name, password });
+      const duration = Date.now() - startTime;
       const resData = res.data as { success: boolean; verificationId: string; expiresAt: number };
+
+      console.log(`[AUTH] ✅ Resend response received in ${duration}ms`, {
+        success: resData.success,
+        newVerificationId: resData.verificationId ? resData.verificationId.substring(0, 8) + "..." : "N/A",
+        hasExpiresAt: !!resData.expiresAt,
+      });
 
       if (resData.success) {
         setVerificationId(resData.verificationId);
-        setResendCooldown(60);
+        setOtp("");
+        setOtpError("");
+        otpAttemptsRef.current = 0;
+        setResendCooldown(RESEND_COOLDOWN);
+
+        if (resData.expiresAt) {
+          const remaining = Math.max(Math.floor((resData.expiresAt - Date.now()) / 1000), 0);
+          console.log(`[AUTH] ⏱ Reset OTP expiry timer: ${remaining}s`);
+          setOtpExpiryTimer(remaining);
+        } else {
+          setOtpExpiryTimer(OTP_EXPIRY_SECONDS);
+        }
+
         showToast("A new verification code has been sent.", "success");
+        console.log("[AUTH] ✅ OTP resent successfully");
       } else {
+        console.error("[AUTH] ❌ Resend returned success=false", { data: resData });
         showToast("Failed to resend verification code.");
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to resend verification code.");
+      console.error("[AUTH] ❌❌❌ Resend OTP failed");
+      console.error("[AUTH] ❌ error?.code:", err?.code || "N/A");
+      console.error("[AUTH] ❌ error?.message:", err?.message || "N/A");
+
+      const message = err?.details?.message || err?.message || "Failed to resend verification code.";
+      showToast(message);
     } finally {
       setLoadingText("");
     }
   };
 
-  /* Google auth */
+  /* ── Google auth ── */
 
   const handleGoogleLogin = async () => {
+    console.log("[AUTH] 🚀 Google sign-in initiated");
     setLoadingText("Connecting...");
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
+      console.log("[AUTH] ✅ Google sign-in successful", { uid: user.uid, email: user.email });
+
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
       if (!userSnap.exists()) {
+        console.log("[AUTH] 📝 Creating new Firestore user document for Google user");
         await setDoc(userRef, {
           uid: user.uid,
           name: user.displayName || "",
@@ -179,16 +423,30 @@ export default function AuthPage() {
           createdAt: serverTimestamp(),
           lastLoginAt: serverTimestamp(),
         });
+        console.log("[AUTH] ✅ Firestore user document created");
       } else {
+        console.log("[AUTH] 📝 Updating lastLoginAt for existing user");
         await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
       }
+      console.log("[AUTH] ✅ Redirecting to:", redirectTo);
       router.push(redirectTo);
     } catch (err: any) {
+      console.error("[AUTH] ❌ Google sign-in error:", err.message);
       showToast(err.message);
     } finally {
       setLoadingText("");
     }
   };
+
+  /* ── Format timer ── */
+
+  const formatTimer = (seconds: number): string => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const isOtpExpired = step === "otp" && otpExpiryTimer <= 0;
 
   /* Loading state */
 
@@ -284,34 +542,69 @@ export default function AuthPage() {
                         placeholder="123456"
                         value={otp}
                         required
-                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                        onChange={(e) => {
+                          setOtp(e.target.value.replace(/\D/g, ""));
+                          if (otpError) setOtpError("");
+                        }}
                         className="w-full pl-12 pr-4 py-3.5 rounded-xl outline-none transition-all text-center tracking-[0.5em] font-bold placeholder:opacity-50 placeholder:tracking-normal placeholder:font-normal"
                         style={{
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: "20px",
                           lineHeight: "28px",
                           color: "#1c1c13",
-                          backgroundColor: "#f6f4e5",
-                          border: "1px solid rgba(193, 201, 190, 0.4)",
+                          backgroundColor: isOtpExpired ? "#fef2f2" : "#f6f4e5",
+                          border: otpError ? "1px solid #dc2626" : isOtpExpired ? "1px solid #fca5a5" : "1px solid rgba(193, 201, 190, 0.4)",
                         }}
                         onFocus={(e) => {
-                          e.target.style.borderColor = "#325b38";
-                          e.target.style.boxShadow = "0 0 0 2px rgba(50, 91, 56, 0.1)";
-                          e.target.style.backgroundColor = "#ffffff";
+                          if (!isOtpExpired) {
+                            e.target.style.borderColor = "#325b38";
+                            e.target.style.boxShadow = "0 0 0 2px rgba(50, 91, 56, 0.1)";
+                            e.target.style.backgroundColor = "#ffffff";
+                          }
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = "rgba(193, 201, 190, 0.4)";
+                          e.target.style.borderColor = otpError ? "#dc2626" : isOtpExpired ? "#fca5a5" : "rgba(193, 201, 190, 0.4)";
                           e.target.style.boxShadow = "none";
-                          e.target.style.backgroundColor = "#f6f4e5";
+                          e.target.style.backgroundColor = isOtpExpired ? "#fef2f2" : "#f6f4e5";
                         }}
                       />
                     </div>
+
+                    {/* OTP Error message */}
+                    {otpError && (
+                      <p className="ml-1 mt-2 text-sm font-medium" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#dc2626" }}>
+                        {otpError}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Expiry timer / Expired state */}
+                  <div className="flex items-center justify-center gap-2">
+                    {isOtpExpired ? (
+                      <>
+                        <svg className="w-4 h-4" style={{ color: "#dc2626" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                        </svg>
+                        <span className="text-sm font-semibold" style={{ color: "#dc2626" }}>
+                          Code expired — please request a new one
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" style={{ color: "#835500" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium" style={{ color: "#835500" }}>
+                          Code expires in {formatTimer(otpExpiryTimer)}
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-3">
                     <button
                       type="submit"
-                      disabled={!!loadingText}
+                      disabled={!!loadingText || isOtpExpired}
                       className="w-full py-3.5 md:py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                       style={{
                         fontFamily: "'Plus Jakarta Sans', sans-serif",
@@ -322,8 +615,8 @@ export default function AuthPage() {
                         color: "#ffffff",
                         boxShadow: "0 8px 16px rgba(50, 91, 56, 0.1)",
                       }}
-                      onMouseEnter={(e) => { if (!loadingText) e.currentTarget.style.backgroundColor = "#264f2e"; }}
-                      onMouseLeave={(e) => { if (!loadingText) e.currentTarget.style.backgroundColor = "#325b38"; }}
+                      onMouseEnter={(e) => { if (!loadingText && !isOtpExpired) e.currentTarget.style.backgroundColor = "#264f2e"; }}
+                      onMouseLeave={(e) => { if (!loadingText && !isOtpExpired) e.currentTarget.style.backgroundColor = "#325b38"; }}
                     >
                       {loadingText || "Verify Code"}
                       {!loadingText && (
@@ -336,8 +629,11 @@ export default function AuthPage() {
                     <button
                       type="button"
                       onClick={() => {
+                        console.log("[AUTH] 🔙 Going back to signup form");
                         setStep("form");
                         setOtp("");
+                        setOtpError("");
+                        setOtpExpiryTimer(0);
                       }}
                       className="w-full py-3.5 md:py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors border"
                       style={{
@@ -352,6 +648,7 @@ export default function AuthPage() {
                     </button>
                   </div>
 
+                  {/* Resend section */}
                   <div className="text-center pt-2">
                     <p style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "14px", color: "#727970" }}>
                       Didn't receive the code?{" "}
@@ -362,11 +659,22 @@ export default function AuthPage() {
                           type="button"
                           onClick={handleResendOtp}
                           className="font-bold hover:underline"
-                          style={{ color: "#325b38" }}
+                          style={{ color: isOtpExpired ? "#9ca3af" : "#325b38" }}
+                          disabled={!!loadingText}
                         >
                           Resend Code
                         </button>
                       )}
+                    </p>
+                  </div>
+
+                  {/* Spam folder hint */}
+                  <div className="flex items-center justify-center gap-1.5 pt-2">
+                    <svg className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                    </svg>
+                    <p className="text-xs" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#9ca3af" }}>
+                      Please check your spam folder if you don't see the email.
                     </p>
                   </div>
                 </form>
@@ -406,6 +714,27 @@ export default function AuthPage() {
                     </div>
                   </div>
 
+                  {/* Confirm Password — only on signup */}
+                  {isSignup && (
+                    <div className="space-y-2">
+                      <label className="ml-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "14px", lineHeight: "20px", letterSpacing: "0.05em", fontWeight: 500, color: "#424941" }}>Confirm Password</label>
+                      <div className="relative group">
+                        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: "#727970" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder={String.fromCharCode(8226,8226,8226,8226,8226,8226,8226,8226)}
+                          value={confirmPassword}
+                          required
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full pl-12 pr-12 py-3.5 rounded-xl outline-none transition-all placeholder:opacity-50"
+                          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "16px", lineHeight: "24px", fontWeight: 400, color: "#1c1c13", backgroundColor: "#f6f4e5", border: "1px solid rgba(193, 201, 190, 0.4)" }}
+                          onFocus={(e) => { e.target.style.borderColor = "#325b38"; e.target.style.boxShadow = "0 0 0 2px rgba(50, 91, 56, 0.1)"; e.target.style.backgroundColor = "#ffffff"; }}
+                          onBlur={(e) => { e.target.style.borderColor = "rgba(193, 201, 190, 0.4)"; e.target.style.boxShadow = "none"; e.target.style.backgroundColor = "#f6f4e5"; }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {!isSignup && (
                     <div className="flex items-center justify-between">
                       <label className="flex items-center gap-3 cursor-pointer select-none group">
@@ -444,7 +773,7 @@ export default function AuthPage() {
                 <p style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "15px", lineHeight: "22px", fontWeight: 400, color: "#424941" }}>
                   {step === "otp" ? "" : (isSignup ? "Already have an account?" : "Don't have an account?")}
                   {step !== "otp" && (
-                    <button onClick={() => { setIsSignup(!isSignup); setName(""); }} className="font-bold ml-1 hover:underline" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "14px", lineHeight: "20px", letterSpacing: "0.05em", fontWeight: 700, color: "#325b38" }}>
+                    <button onClick={() => { setIsSignup(!isSignup); setName(""); setConfirmPassword(""); }} className="font-bold ml-1 hover:underline" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "14px", lineHeight: "20px", letterSpacing: "0.05em", fontWeight: 700, color: "#325b38" }}>
                       {isSignup ? "Sign In" : "Sign Up"}
                     </button>
                   )}
