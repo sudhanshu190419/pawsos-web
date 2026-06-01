@@ -119,7 +119,7 @@ exports.sendOtp = onCall(
     // -----------------------------------------------------------------------
     // 1. Input validation
     // -----------------------------------------------------------------------
-    const { email, name, password } = request.data;
+    const { email, name, password } = request.data || {};
 
     logger.info("[PAWSOS-OTP] 📥 Request payload received", {
       hasEmail: !!email,
@@ -371,7 +371,7 @@ exports.verifyOtp = onCall(
     // -----------------------------------------------------------------------
     // 1. Input validation
     // -----------------------------------------------------------------------
-    const { verificationId, otp } = request.data;
+    const { verificationId, otp } = request.data || {};
 
     logger.info("[PAWSOS-OTP] 📥 Request payload received", {
       hasVerificationId: !!verificationId,
@@ -522,6 +522,16 @@ exports.verifyOtp = onCall(
       logger.error("[PAWSOS-OTP] ❌ Firebase Auth user creation FAILED");
       logger.error("[PAWSOS-OTP] ❌ error?.code:", createErr.code || "N/A");
       logger.error("[PAWSOS-OTP] ❌ error?.message:", createErr.message || "N/A");
+
+      if (createErr.code === "auth/email-already-exists") {
+        throw new HttpsError("already-exists", "This email address is already registered.");
+      }
+      if (createErr.code === "auth/invalid-email") {
+        throw new HttpsError("invalid-argument", "The email address is invalid.");
+      }
+      if (createErr.code === "auth/weak-password") {
+        throw new HttpsError("invalid-argument", "The password is too weak.");
+      }
 
       throw new HttpsError("internal", "Failed to create account. Please try again.");
     }

@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore, setLogLevel } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -21,6 +22,9 @@ export const googleProvider = new GoogleAuthProvider();
 
 // 🔹 Export Firestore
 export const db = getFirestore(app);
+
+// 🔹 Export Functions
+export const functions = getFunctions(app);
 
 // Silence verbose WebChannel / stream debug logs in dev
 setLogLevel("error");
