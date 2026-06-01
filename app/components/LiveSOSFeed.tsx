@@ -72,6 +72,7 @@ export default function LiveSOSFeed({
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const [roleUpdates, setRoleUpdates] = useState<Record<string, boolean>>({});
   const [visibleCount, setVisibleCount] = useState(initialLimit);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const roleOptions = ["Dispatcher", "Senior Vet", "Ambulance Driver", "Rescue Volunteer", "Staff"];
 
@@ -168,6 +169,9 @@ export default function LiveSOSFeed({
   };
 
   const handleAssign = async (alert: SOSAlert) => {
+  // Prevent assigning to already-resolved or already-responding alerts
+  if (alert.status !== "active") return;
+
   const selection = assignments[alert.id];
 
   if (
@@ -370,9 +374,9 @@ const handleDeassign = async (alert: SOSAlert) => {
     <div className="flex flex-col h-full">
       
       {/* 🔥 NEW: Filter Bar */}
-      <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center gap-2 overflow-x-auto">
+      <div className="px-2 sm:px-6 py-2 sm:py-4 border-b border-slate-100 bg-white flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
         <FilterPill 
-          label="All Alerts" 
+          label="All" 
           count={alerts.length} 
           isActive={activeFilter === "all"} 
           onClick={() => setActiveFilter("all")} 
@@ -400,12 +404,12 @@ const handleDeassign = async (alert: SOSAlert) => {
         />
 
         {showDispatchControls && (
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Alert Radius</span>
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 hidden sm:inline">Radius</span>
             <select
               value={alertRadiusKm}
               onChange={(e) => setAlertRadiusKm(Number(e.target.value))}
-              className="bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-full text-slate-600 hover:border-slate-300"
+              className="bg-white border border-slate-200 text-[8px] sm:text-xs font-bold px-1.5 sm:px-3 py-1 sm:py-2 rounded-full text-slate-600 hover:border-slate-300"
             >
               {[5, 10, 25, 50].map((km) => (
                 <option key={km} value={km}>{km} km</option>
@@ -420,12 +424,12 @@ const handleDeassign = async (alert: SOSAlert) => {
         <table className="w-full text-left text-sm text-slate-600">
           <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold border-b border-slate-100 sticky top-0 z-10">
             <tr>
-              <th className="px-6 py-4">Alert Info</th>
-              <th className="px-6 py-4">Details</th>
-              <th className="px-6 py-4">Location</th>
-              <th className="px-6 py-4">Time</th>
-              <th className="px-6 py-4">Responder</th>
-              {showDispatchControls && <th className="px-6 py-4">Dispatch</th>}
+              <th className="px-2 sm:px-6 py-2 sm:py-4 text-[8px] sm:text-xs">Alert Info</th>
+              <th className="px-2 sm:px-6 py-2 sm:py-4 text-[8px] sm:text-xs">Details</th>
+              <th className="px-2 sm:px-6 py-2 sm:py-4 text-[8px] sm:text-xs hidden md:table-cell">Location</th>
+              <th className="px-2 sm:px-6 py-2 sm:py-4 text-[8px] sm:text-xs hidden sm:table-cell">Time</th>
+              <th className="px-2 sm:px-6 py-2 sm:py-4 text-[8px] sm:text-xs">Responder</th>
+              {showDispatchControls && <th className="px-2 sm:px-6 py-2 sm:py-4 text-[8px] sm:text-xs">Dispatch</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -443,34 +447,36 @@ const handleDeassign = async (alert: SOSAlert) => {
                 <tr key={alert.id} className="hover:bg-slate-50/80 transition-colors group">
                   
                   {/* 1. Alert Info (Photo + Urgency/Status) */}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-4">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4">
+                    <div className="flex items-center gap-2 sm:gap-4">
                       {alert.photoURL ? (
-                        <img 
-                          src={alert.photoURL} 
-                          alt="SOS" 
-                          className="w-14 h-14 rounded-xl object-cover border border-slate-200 shadow-sm"
-                        />
+                        <button onClick={() => setLightboxImage(alert.photoURL)} className="outline-none shrink-0" aria-label="View full image">
+                          <img 
+                            src={alert.photoURL} 
+                            alt="SOS" 
+                            className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-primary transition-all"
+                          />
+                        </button>
                       ) : (
-                        <div className="w-14 h-14 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-2xl">
+                        <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-lg sm:text-2xl shrink-0">
                           🐾
                         </div>
                       )}
                       
-                      <div className="flex flex-col gap-1.5 items-start">
+                      <div className="flex flex-col gap-1 sm:gap-1.5 items-start">
                         {/* Urgency Badge */}
                         {alert.urgency === "high" || alert.urgency === "critical" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> {alert.urgency}
+                          <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700">
+                            <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-red-500 animate-pulse"></span> {alert.urgency}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                          <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
                             {alert.urgency || "Normal"}
                           </span>
                         )}
                         
                         {/* Status Badge */}
-                        <span className={`px-2 py-0.5 border rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusStyle(alert.status)}`}>
+                        <span className={`px-1.5 sm:px-2 py-0.5 border rounded text-[8px] sm:text-[10px] font-black uppercase tracking-wider ${getStatusStyle(alert.status)}`}>
                           {alert.status || "Unknown"}
                         </span>
                       </div>
@@ -478,36 +484,36 @@ const handleDeassign = async (alert: SOSAlert) => {
                   </td>
 
                   {/* 2. Details (Title + Description) */}
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-slate-900 mb-1 truncate max-w-[200px] text-base group-hover:text-orange-600 transition-colors cursor-pointer">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4">
+                    <p className="font-bold text-slate-900 mb-0.5 sm:mb-1 truncate max-w-[100px] sm:max-w-[200px] text-xs sm:text-base group-hover:text-orange-600 transition-colors cursor-pointer">
                       {alert.title}
                     </p>
-                    <p className="text-xs text-slate-500 truncate max-w-[200px]">
+                    <p className="text-[10px] sm:text-xs text-slate-500 truncate max-w-[100px] sm:max-w-[200px] hidden sm:block">
                       {alert.description}
                     </p>
-                    <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wider flex items-center gap-1">
-                      <span>👤</span> {alert.reportedByName || "Anonymous"}
+                    <p className="text-[8px] sm:text-[10px] font-bold text-slate-400 mt-1 sm:mt-2 uppercase tracking-wider flex items-center gap-1">
+                      <span>👤</span> <span className="truncate max-w-[60px] sm:max-w-none">{alert.reportedByName || "Anonymous"}</span>
                     </p>
                   </td>
 
                   {/* 3. Location (Address) */}
-                  <td className="px-6 py-4">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 hidden md:table-cell">
                     <div className="flex items-start gap-2">
-                      <span className="text-slate-400 mt-0.5">📍</span>
-                      <p className="font-medium text-slate-700 line-clamp-2 max-w-[220px] text-xs leading-relaxed">
+                      <span className="text-slate-400 mt-0.5 shrink-0">📍</span>
+                      <p className="font-medium text-slate-700 line-clamp-2 max-w-[180px] text-xs leading-relaxed">
                         {alert.address}
                       </p>
                     </div>
                   </td>
 
                   {/* 4. Timestamp */}
-                  <td className="px-6 py-4">
-                    <span className="font-bold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 hidden sm:table-cell">
+                    <span className="font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[9px] sm:text-xs whitespace-nowrap">
                       {formatTime(alert.time)}
                     </span>
                   </td>
 
-                  <td className="px-6 py-4">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4">
                     {(() => {
                       const assigned = getAssignedResponder(alert);
                       if (!assigned) {
@@ -525,125 +531,145 @@ const handleDeassign = async (alert: SOSAlert) => {
                   </td>
 
                   {showDispatchControls && (
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-2 min-w-[220px]">
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={assignments[alert.id]?.task || ""}
-                            onChange={(e) =>
-                              setAssignments((prev) => ({
-                                ...prev,
-                                [alert.id]: {
-                                  responderId: prev[alert.id]?.responderId || "",
-                                  role: prev[alert.id]?.role || "",
-                                  task: e.target.value,
-                                },
-                              }))
-                            }
-                            className="w-full bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg text-slate-600"
-                          >
-                            <option value="">Select task</option>
-                            <option value="Responding">Responding to SOS</option>
-                            <option value="Transport">Ambulance transport</option>
-                            <option value="Vet Care">Assign vet care</option>
-                          </select>
-                          <select
-                            value={assignments[alert.id]?.role || ""}
-                            onChange={(e) =>
-                              setAssignments((prev) => ({
-                                ...prev,
-                                [alert.id]: {
-                                  responderId: "",
-                                  role: e.target.value,
-                                  task: prev[alert.id]?.task || "",
-                                },
-                              }))
-                            }
-                            className="w-full bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg text-slate-600"
-                          >
-                            <option value="">Select role</option>
-                            {roleOptions.map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={assignments[alert.id]?.responderId || ""}
-                            onChange={(e) =>
-                              setAssignments((prev) => ({
-                                ...prev,
-                                [alert.id]: {
-                                  responderId: e.target.value,
-                                  role: prev[alert.id]?.role || "",
-                                  task: prev[alert.id]?.task || "",
-                                },
-                              }))
-                            }
-                            className="w-full bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg text-slate-600"
-                            disabled={!assignments[alert.id]?.role || !isOwner}
-                          >
-                            <option value="">Select responder</option>
-                            {getAvailableResponders(alert.id).map((responder) => (
-                              <option key={responder.id} value={responder.id}>
-                                {responder.name} {responder.role ? `• ${responder.role}` : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {isOwner && assignments[alert.id]?.responderId && (
-                          <div className="flex items-center gap-2">
+                    <td className="px-2 sm:px-6 py-2 sm:py-4">
+                      {alert.status === "active" ? (
+                        /* Active — show full dispatch controls */
+                        <div className="flex flex-col gap-1 sm:gap-2 min-w-0 sm:min-w-[220px]">
+                          <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                             <select
-                              value={
-                                responders.find((r) => r.id === assignments[alert.id]?.responderId)?.role ||
-                                "Staff"
+                              value={assignments[alert.id]?.task || ""}
+                              onChange={(e) =>
+                                setAssignments((prev) => ({
+                                  ...prev,
+                                  [alert.id]: {
+                                    responderId: prev[alert.id]?.responderId || "",
+                                    role: prev[alert.id]?.role || "",
+                                    task: e.target.value,
+                                  },
+                                }))
                               }
-                              onChange={(e) => handleRoleUpdate(assignments[alert.id]?.responderId, e.target.value)}
-                              className="w-full bg-white border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg text-slate-600"
+                              className="w-full bg-white border border-slate-200 text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-slate-600"
                             >
+                              <option value="">Task</option>
+                              <option value="Responding">Responding to SOS</option>
+                              <option value="Transport">Ambulance transport</option>
+                              <option value="Vet Care">Assign vet care</option>
+                            </select>
+                            <select
+                              value={assignments[alert.id]?.role || ""}
+                              onChange={(e) =>
+                                setAssignments((prev) => ({
+                                  ...prev,
+                                  [alert.id]: {
+                                    responderId: "",
+                                    role: e.target.value,
+                                    task: prev[alert.id]?.task || "",
+                                  },
+                                }))
+                              }
+                              className="w-full bg-white border border-slate-200 text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-slate-600"
+                            >
+                              <option value="">Role</option>
                               {roleOptions.map((role) => (
                                 <option key={role} value={role}>
                                   {role}
                                 </option>
                               ))}
                             </select>
-                            <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
-                              {roleUpdates[assignments[alert.id]?.responderId] ? "Updating..." : "Role"}
+                            <select
+                              value={assignments[alert.id]?.responderId || ""}
+                              onChange={(e) =>
+                                setAssignments((prev) => ({
+                                  ...prev,
+                                  [alert.id]: {
+                                    responderId: e.target.value,
+                                    role: prev[alert.id]?.role || "",
+                                    task: prev[alert.id]?.task || "",
+                                  },
+                                }))
+                              }
+                              className="w-full bg-white border border-slate-200 text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-slate-600"
+                              disabled={!assignments[alert.id]?.role || !isOwner}
+                            >
+                              <option value="">Responder</option>
+                              {getAvailableResponders(alert.id).map((responder) => (
+                                <option key={responder.id} value={responder.id}>
+                                  {responder.name} {responder.role ? `• ${responder.role}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {isOwner && assignments[alert.id]?.responderId && (
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <select
+                                value={
+                                  responders.find((r) => r.id === assignments[alert.id]?.responderId)?.role ||
+                                  "Staff"
+                                }
+                                onChange={(e) => handleRoleUpdate(assignments[alert.id]?.responderId, e.target.value)}
+                                className="w-full bg-white border border-slate-200 text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-slate-600"
+                              >
+                                {roleOptions.map((role) => (
+                                  <option key={role} value={role}>
+                                    {role}
+                                  </option>
+                                ))}
+                              </select>
+                              <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 whitespace-nowrap shrink-0">
+                                {roleUpdates[assignments[alert.id]?.responderId] ? "Updating..." : "Role"}
+                              </span>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => handleAssign(alert)}
+                            disabled={
+                              isAssigning === alert.id ||
+                              !assignments[alert.id]?.responderId ||
+                              !assignments[alert.id]?.task ||
+                              !assignments[alert.id]?.role
+                            }
+                            className="w-full px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg bg-slate-900 text-white hover:bg-primary transition-colors disabled:opacity-50"
+                          >
+                            {isAssigning === alert.id ? "Assigning..." : "Assign"}
+                          </button>
+                        </div>
+                      ) : alert.status === "responding" ? (
+                        /* Responding — show deassign only */
+                        <div className="flex flex-col gap-1 sm:gap-2 min-w-0 sm:min-w-[220px]">
+                          <div className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-3 py-1 sm:py-2 rounded-lg bg-blue-50 border border-blue-200">
+                            <span className="text-[10px] sm:text-xs font-bold text-blue-700 whitespace-nowrap">
+                              🏃 Responding
                             </span>
                           </div>
-                        )}
-                        <div className="flex items-center justify-between gap-2">
-
-  <button
-    onClick={() => handleAssign(alert)}
-    disabled={
-      isAssigning === alert.id ||
-      !assignments[alert.id]?.responderId ||
-      !assignments[alert.id]?.task ||
-      !assignments[alert.id]?.role
-    }
-    className="px-3 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-slate-900 text-white hover:bg-primary transition-colors disabled:opacity-50"
-  >
-    {isAssigning === alert.id ? "Assigning..." : "Assign"}
-  </button>
-
-  {alert.assignedResponderId && (
-    <button
-      onClick={() => handleDeassign(alert)}
-      className="px-3 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
-    >
-      Deassign
-    </button>
-  )}
-
-  {(alert.assignedResponderName || alert.assignedTask) && (
-    <span className="text-[10px] font-bold text-slate-400">
-      {alert.assignedTask || "Assigned"} • {alert.assignedResponderName || "Responder"}
-    </span>
-  )}
-
-</div>
-                      </div>
+                          {alert.assignedResponderId && (
+                            <button
+                              onClick={() => handleDeassign(alert)}
+                              className="w-full px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                            >
+                              Deassign
+                            </button>
+                          )}
+                          {(alert.assignedResponderName || alert.assignedTask) && (
+                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 truncate max-w-[100px] sm:max-w-none">
+                              {alert.assignedTask || "Assigned"} • {alert.assignedResponderName || "Responder"}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        /* Resolved — no controls */
+                        <div className="flex flex-col gap-1 sm:gap-2 min-w-0 sm:min-w-[220px]">
+                          <div className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-3 py-1 sm:py-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                            <span className="text-[10px] sm:text-xs font-bold text-emerald-700 whitespace-nowrap">
+                              ✅ Resolved
+                            </span>
+                          </div>
+                          {(alert.assignedResponderName || alert.assignedTask) && (
+                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 truncate max-w-[100px] sm:max-w-none">
+                              {alert.assignedTask || "Assigned"} • {alert.assignedResponderName || "Responder"}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                   )}
                   
@@ -662,6 +688,31 @@ const handleDeassign = async (alert: SOSAlert) => {
           >
             Load 10 more
           </button>
+        </div>
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="relative max-w-3xl w-full max-h-[90vh] flex items-center justify-center animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+            >
+              <svg className="w-4 h-4 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <img
+              src={lightboxImage}
+              alt="SOS full size"
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
         </div>
       )}
     </div>

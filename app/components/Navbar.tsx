@@ -21,6 +21,9 @@ export default function Navbar() {
   const [sellerStatus, setSellerStatus] = useState<SellerVerificationStatus | null>(null);
   const [sellerStatusLoading, setSellerStatusLoading] = useState(false);
   const sellerStatusFetchedFor = useRef<string | null>(null);
+  const [orgApproved, setOrgApproved] = useState(false);
+  const [orgApprovedLoading, setOrgApprovedLoading] = useState(false);
+  const orgApprovedFetchedFor = useRef<string | null>(null);
   
   // Controls whether the mobile menu is open or closed
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -149,6 +152,39 @@ useEffect(() => {
       .finally(() => {
         if (cancelled) return;
         setSellerStatusLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  // Fetch orgApproved status
+  useEffect(() => {
+    if (!user?.uid) {
+      setOrgApproved(false);
+      orgApprovedFetchedFor.current = null;
+      return;
+    }
+    if (orgApprovedFetchedFor.current === user.uid) return;
+    let cancelled = false;
+    setOrgApprovedLoading(true);
+    import("firebase/firestore")
+      .then(({ doc, getDoc }) =>
+        import("../lib/firebase").then(({ db }) =>
+          getDoc(doc(db, "users", user.uid!)).then((snap) => {
+            if (cancelled) return;
+            const approved = snap.exists() && snap.data().orgApproved === true;
+            setOrgApproved(approved);
+            orgApprovedFetchedFor.current = user.uid;
+          })
+        )
+      )
+      .catch((err) => {
+        console.error("Org approved check failed:", err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setOrgApprovedLoading(false);
       });
     return () => {
       cancelled = true;
@@ -407,6 +443,11 @@ backdrop-blur-sm w-60 flex flex-col overflow-hidden">
                       <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
                     </div>
                     <div className="py-2 flex flex-col">
+                      {orgApproved && !orgApprovedLoading && (
+                        <Link href="/organization/dashboard" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
+                          <span className="text-lg">🏥</span> Organization Dashboard
+                        </Link>
+                      )}
                       {sellerStatus === "approved" && !sellerStatusLoading && (
                         <Link href="/seller-dashboard" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
                           <span className="text-lg">🏪</span> Seller Dashboard
@@ -495,6 +536,9 @@ transition-all duration-200 shimmer-btn"
                 </div>
               </div>
               <div className="flex flex-col gap-1">
+                {orgApproved && !orgApprovedLoading && (
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/organization/dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Organization Dashboard</Link>
+                )}
                 {sellerStatus === "approved" && !sellerStatusLoading && (
                   <Link onClick={() => setIsMobileMenuOpen(false)} href="/seller-dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🏪 Seller Dashboard</Link>
                 )}
