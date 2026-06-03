@@ -155,7 +155,7 @@ export default function VetAppointmentsPage() {
           if (userSnap.exists() && userSnap.data().phone) {
             setBookingPhone(userSnap.data().phone);
           }
-        } catch (e) {
+        } catch {
           console.warn("Could not fetch user phone number");
         }
       };
@@ -263,10 +263,15 @@ export default function VetAppointmentsPage() {
     setIsSubmittingBooking(true);
 
     try {
+      const firebaseIdToken = await currentUser.getIdToken();
+
       // Step 1: Create Razorpay order (amount in paise, validated server side)
       const response = await fetch("/api/razorpay/create-order", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${firebaseIdToken}`,
+        },
         body: JSON.stringify({
           purpose: "vet_appointment",
           vetId: selectedVet.uid,
