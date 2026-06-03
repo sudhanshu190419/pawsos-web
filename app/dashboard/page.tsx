@@ -27,12 +27,14 @@ import ProfileContent from "./components/ProfileContent";
 import ReportsContent from "./components/ReportsContent";
 import SettingsContent from "./components/SettingsContent";
 import MyPetsContent from "./components/MyPetsContent";
+import MyAppointmentsContent from "./components/MyAppointmentsContent";
+import VetAppointmentsContent from "./components/VetAppointmentsContent";
 
 /* =========================================
    TYPES & INTERFACES
    ========================================= */
 
-type TabId = "profile" | "pets" | "reports" | "credentials" | "settings";
+type TabId = "profile" | "pets" | "reports" | "credentials" | "settings" | "vet-appointments" | "my-appointments";
 type VerificationStatus = "approved" | "rejected" | "pending";
 
 interface UserData {
@@ -328,6 +330,10 @@ function ProfilePageContent() {
                 <SidebarButton icon="👤" label="Personal Info" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
                 <SidebarButton icon="🐾" label="My Pets" isActive={activeTab === "pets"} onClick={() => setActiveTab("pets")} />
                 <SidebarButton icon="📋" label="My SOS Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
+                <SidebarButton icon="🩺" label="My Appointments" isActive={activeTab === "my-appointments"} onClick={() => setActiveTab("my-appointments")} />
+                {vetData?.verificationStatus === "approved" && (
+                  <SidebarButton icon="📅" label="Vet Bookings" isActive={activeTab === "vet-appointments"} onClick={() => setActiveTab("vet-appointments")} />
+                )}
                 {isVolunteer && (
                   <>
                     <SidebarButton icon="🎖️" label="My Credentials" isActive={activeTab === "credentials"} onClick={() => setActiveTab("credentials")} />
@@ -359,6 +365,8 @@ function ProfilePageContent() {
             {activeTab === "pets" && <MyPetsContent user={user} />}
             {activeTab === "reports" && <ReportsContent user={user} isVolunteer={isVolunteer} />}
             {activeTab === "settings" && <SettingsContent user={user} showToast={showToast} />}
+            {activeTab === "my-appointments" && <MyAppointmentsContent user={user} />}
+            {activeTab === "vet-appointments" && vetData?.verificationStatus === "approved" && <VetAppointmentsContent user={user} />}
             {isVolunteer && activeTab === "credentials" && <CredentialsContent userData={userData} />}
           </div>
         </div>

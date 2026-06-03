@@ -165,6 +165,43 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────
+    // VET APPOINTMENTS
+    // ─────────────────────────────────────────────
+    match /vet_appointments/{appointmentId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == resource.data.vetId ||
+        isAdmin()
+      );
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && (
+        // User cancelling
+        (request.auth.uid == resource.data.userId && 
+         request.resource.data.appointmentStatus == 'cancelled' &&
+         (resource.data.appointmentStatus == 'requested' || resource.data.appointmentStatus == 'payment_pending')) ||
+        // Vet updating status
+        (request.auth.uid == resource.data.vetId &&
+         (request.resource.data.appointmentStatus == 'accepted' || 
+          request.resource.data.appointmentStatus == 'rejected' || 
+          request.resource.data.appointmentStatus == 'completed' ||
+          request.resource.data.reviewSubmitted == true)) ||
+        isAdmin()
+      );
+    }
+
+    // ─────────────────────────────────────────────
+    // VET REVIEWS
+    // ─────────────────────────────────────────────
+    match /vet_reviews/{reviewId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid &&
+        get(/databases/$(database)/documents/vet_appointments/$(request.resource.data.appointmentId)).data.appointmentStatus == 'completed' &&
+        get(/databases/$(database)/documents/vet_appointments/$(request.resource.data.appointmentId)).data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && isAdmin();
+    }
+
+    // ─────────────────────────────────────────────
     // INVITATIONS
     // ─────────────────────────────────────────────
     // Any authenticated user can create an invitation.
