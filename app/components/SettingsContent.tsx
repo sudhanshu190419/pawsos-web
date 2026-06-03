@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { User, signOut, GoogleAuthProvider, reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider, deleteUser } from "firebase/auth";
-import { doc, deleteDoc } from "firebase/firestore";
-import { db, auth } from "@/app/lib/firebase";
+import { User, signOut, GoogleAuthProvider, reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { auth } from "@/app/lib/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 
@@ -38,36 +38,55 @@ export default function SettingsContent({
     }
   }, [router, showToast]);
 
-  const executeGoogleDelete = useCallback(async () => {
+  /**
+   * Call the deleteUserAccount Cloud Function which handles:
+   * - Seller/volunteer pre-checks
+   * - Deleting personal data (users doc, subcollections, Storage files)
+   * - Anonymizing business records (orders, donations, SOS alerts)
+   * - Deleting Firebase Auth account
+   */
+  const callDeleteFunction = useCallback(async () => {
     setIsDeleting(true);
+    try {
+      const functions = getFunctions();
+      const deleteFn = httpsCallable<{ uid: string }, { success: boolean; summary?: any }>(functions, "deleteUserAccount");
+      const result = await deleteFn({ uid: user.uid });
+      const data = result.data;
+
+      if (data.success) {
+        showToast("Account deleted successfully.");
+        setTimeout(() => router.push("/auth"), 1500);
+      } else {
+        showToast("Failed to delete account.", "error");
+      }
+    } catch (err: any) {
+      const message = err?.message || "Failed to delete account. Please try again.";
+      showToast(message, "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [user.uid, router, showToast]);
+
+  const executeGoogleDelete = useCallback(async () => {
     try {
       const provider = new GoogleAuthProvider();
       await reauthenticateWithPopup(user, provider);
-      await deleteDoc(doc(db, "users", user.uid));
-      await deleteUser(user);
-      router.push("/auth");
+      await callDeleteFunction();
     } catch {
-      showToast("Failed to delete account. Log out and back in, then try again.", "error");
-    } finally {
-      setIsDeleting(false);
+      showToast("Re-authentication failed. Log out and back in, then try again.", "error");
     }
-  }, [user, router, showToast]);
+  }, [user, callDeleteFunction, showToast]);
 
   const executePasswordDelete = useCallback(async () => {
     if (!password) return;
-    setIsDeleting(true);
     try {
       const credential = EmailAuthProvider.credential(user.email!, password);
       await reauthenticateWithCredential(user, credential);
-      await deleteDoc(doc(db, "users", user.uid));
-      await deleteUser(user);
-      router.push("/auth");
+      await callDeleteFunction();
     } catch {
       showToast("Incorrect password or failed to delete account.", "error");
-    } finally {
-      setIsDeleting(false);
     }
-  }, [user, password, router, showToast]);
+  }, [user, password, callDeleteFunction, showToast]);
 
   const handleDeleteClick = useCallback(() => {
     if (isGoogleUser) {
