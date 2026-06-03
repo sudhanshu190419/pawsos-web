@@ -185,32 +185,78 @@ export default function VolunteerFormPage() {
 
   if (status === "pending") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <h2 className="text-xl font-semibold text-center">
-          Your application is under review ⏳
-        </h2>
-      </div>
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4 sm:px-6 py-10 relative overflow-hidden">
+        {/* Subtle Background Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-96 sm:h-96 bg-orange-400/10 rounded-full blur-[80px] -z-10"></div>
+
+        <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl border border-slate-100 p-6 sm:p-10 w-full max-w-md text-center relative overflow-hidden group">
+          
+          {/* Top decorative gradient bar */}
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-amber-500"></div>
+
+          {/* Icon Badge */}
+          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-5 sm:mb-6 border-8 border-white shadow-lg relative animate-pulse">
+            <span className="text-3xl sm:text-4xl">⏳</span>
+          </div>
+
+          <h1 className="text-xl sm:text-2xl font-extrabold mb-2 sm:mb-3 text-slate-800 tracking-tight">
+            Application Under Review
+          </h1>
+
+          <p className="text-sm sm:text-base text-slate-600 mb-6 sm:mb-8 leading-relaxed">
+            Thank you for stepping up! We are verifying your details and preparing your official volunteer credentials. This typically takes up to 24 hours.
+          </p>
+
+          <Link
+            href="/"
+            className="flex items-center justify-center gap-2 w-full bg-slate-900 text-white py-3.5 sm:py-4 rounded-xl font-bold text-base sm:text-lg hover:bg-slate-800 transition-all shadow-lg hover:shadow-slate-900/20 hover:-translate-y-1"
+          >
+            Return to Homepage
+          </Link>
+        </div>
+      </main>
     );
   }
 
   if (status === "rejected") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg text-center w-full max-w-md">
-          <h2 className="text-xl font-bold text-red-600 mb-2">
-            Application Rejected ❌
-          </h2>
-          <p className="text-gray-600 mb-6 text-sm sm:text-base">
-            Unfortunately, your volunteer request was not approved.
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4 sm:px-6 py-10 relative overflow-hidden">
+        {/* Subtle Background Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-96 sm:h-96 bg-red-400/10 rounded-full blur-[80px] -z-10"></div>
+
+        <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl border border-slate-100 p-6 sm:p-10 w-full max-w-md text-center relative overflow-hidden group">
+          
+          {/* Top decorative gradient bar */}
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-rose-600"></div>
+
+          {/* Icon Badge */}
+          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5 sm:mb-6 border-8 border-white shadow-lg relative">
+            <span className="text-3xl sm:text-4xl">❌</span>
+          </div>
+
+          <h1 className="text-xl sm:text-2xl font-extrabold mb-2 sm:mb-3 text-slate-800 tracking-tight">
+            Application Rejected
+          </h1>
+
+          <p className="text-sm sm:text-base text-slate-600 mb-6 sm:mb-8 leading-relaxed">
+            Unfortunately, your request to become a verified volunteer was not approved by our moderation team.
           </p>
+
           <button
             onClick={() => setStatus(null)}
-            className="w-full bg-orange-500 hover:bg-orange-600 transition text-white px-4 py-3 rounded-xl font-semibold shadow-md"
+            className="flex items-center justify-center gap-2 w-full bg-orange-500 text-white py-3.5 sm:py-4 rounded-xl font-bold text-base sm:text-lg hover:bg-orange-600 transition-all shadow-lg hover:shadow-orange-500/20 hover:-translate-y-1"
           >
             Apply Again
           </button>
+          
+          <Link
+            href="/"
+            className="block mt-5 sm:mt-6 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            Return to Homepage
+          </Link>
         </div>
-      </div>
+      </main>
     );
   }
 

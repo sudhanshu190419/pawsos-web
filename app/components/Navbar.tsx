@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { MapPin, RefreshCw, ChevronDown } from "lucide-react";
+import { MapPin, RefreshCw } from "lucide-react";
 import { fetchVetVerificationStatus, VetVerificationStatus } from "../lib/vet";
 import { fetchSellerVerificationStatus } from "../lib/seller";
 import type { SellerVerificationStatus } from "../lib/seller";
@@ -66,7 +66,7 @@ useEffect(() => {
         displayName: parsed.name,
         email: parsed.email,
         photoURL: parsed.photo,
-      } as any);
+      } as User);
 
       setLoading(false);
     }
@@ -302,7 +302,7 @@ ${scrolled ? "bg-white/80 shadow-md" : "bg-white/60"}
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
-after:bg-blue-600 
+after:bg-primary 
 after:transition-all after:duration-300 
 group-hover:after:w-full transition-colors">Home</Link>
 
@@ -310,17 +310,45 @@ group-hover:after:w-full transition-colors">Home</Link>
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
-after:bg-blue-600 
+after:bg-primary 
 after:transition-all after:duration-300 
 group-hover:after:w-full transition-colors">How It Works</Link>
 
-          <Link href="/playdate" prefetch={false} className="relative group text-slate-600
+          {/* SERVICES DROPDOWN */}
+          <div className="relative group transition-all duration-300">
+            <span className="cursor-pointer relative group text-slate-600
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
-after:bg-orange-500 
+after:bg-primary 
 after:transition-all after:duration-300 
-group-hover:after:w-full transition-colors flex items-center gap-1"><span className="text-sm">🐾</span>Play Date</Link>
+group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
+              Services
+              <svg 
+                className="w-4 h-4 text-slate-400 transition-transform duration-300 group-hover:rotate-180"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+            <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
+opacity-0 translate-y-3 scale-95 
+group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
+transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+pointer-events-none group-hover:pointer-events-auto">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
+backdrop-blur-sm w-56 py-3 flex flex-col">
+                <Link href="/playdate" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700">
+                  <span className="mr-2 text-base">🐾</span> Play Date
+                </Link>
+                <Link href="/vet-appointments" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700">
+                  <span className="mr-2 text-base">🩺</span> Vet Appointments
+                </Link>
+              </div>
+            </div>
+          </div>
 
           {/* JOIN US DROPDOWN */}
           <div className="relative group transition-all duration-300">
@@ -328,7 +356,7 @@ group-hover:after:w-full transition-colors flex items-center gap-1"><span classN
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
-after:bg-blue-600 
+after:bg-primary 
 after:transition-all after:duration-300 
 group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
               Join Us
@@ -343,16 +371,11 @@ transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
 pointer-events-none group-hover:pointer-events-auto">
               <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
 backdrop-blur-sm w-56 py-3 flex flex-col">
-                <Link href="/volunteer-form" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
-hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
-                <Link href="/onboarding" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
-hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
-                <Link href="/onboarding/organization" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
-hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Hospital Onboarding</Link>
-                <Link href="/vets" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
-hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
-                <Link href="/become-seller" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg
-hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 font-semibold text-slate-700 transition-colors"><span className="mr-2 text-base">🏪</span> Become a Seller</Link>
+                <Link href="/volunteer-form" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
+                <Link href="/onboarding" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
+                <Link href="/onboarding/organization" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🏥</span> Hospital Onboarding</Link>
+                <Link href="/vets" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
+                <Link href="/become-seller" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🏪</span> Become a Seller</Link>
               </div>
             </div>
           </div>
@@ -363,7 +386,7 @@ hover:bg-orange-50 transition-all group hover:bg-slate-100 hover:text-slate-900 
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
-after:bg-blue-600 
+after:bg-primary 
 after:transition-all after:duration-300 
 group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
               About Us
@@ -414,7 +437,7 @@ backdrop-blur-sm w-48 py-3 flex flex-col">
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
-after:bg-blue-600 
+after:bg-primary 
 after:transition-all after:duration-300 
 group-hover:after:w-full transition-colors">Shop</Link>
         </nav>
@@ -483,7 +506,7 @@ backdrop-blur-sm w-60 flex flex-col overflow-hidden">
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
-after:bg-blue-600 
+after:bg-primary 
 after:transition-all after:duration-300 
 group-hover:after:w-full transition-colors">
               Log In
@@ -555,7 +578,14 @@ transition-all duration-200 shimmer-btn"
 
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">🏠 Home</Link>
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/how-it-works" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">How It Works</Link>
-          <Link onClick={() => setIsMobileMenuOpen(false)} href="/playdate" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50 flex items-center gap-2">🐾 Play Date</Link>
+          {/* Mobile Services Section */}
+          <div className="py-3 border-b border-slate-50">
+            <p className="text-xs font-black text-orange-500 uppercase tracking-wider mb-2">Services</p>
+            <div className="flex flex-col gap-2 pl-2">
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/playdate" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🐾 Play Date</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/vet-appointments" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🩺 Vet Appointments</Link>
+            </div>
+          </div>
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/shop" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">Shop Marketplace</Link>
           
           {/* Mobile Join Us Section */}

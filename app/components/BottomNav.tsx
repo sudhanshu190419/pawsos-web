@@ -37,6 +37,11 @@ export default function BottomNav() {
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /> 
     },
     { 
+      name: "Vet", 
+      href: "/vet-appointments", 
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /> 
+    },
+    { 
       name: "Play Date", 
       href: "/playdate", 
       icon: <><path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3.75a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 5.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48a4.53 4.53 0 01-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.09 4.17 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665 8.97 8.97 0 00.654 3.375z" /></>
@@ -54,7 +59,7 @@ export default function BottomNav() {
         isVisible ? "translate-y-0" : "translate-y-full"
       }`}
     >
-      <div className="bg-white border-t border-gray-200 rounded-t-[1.5rem] shadow-[0_-4px_20px_rgba(0,0,0,0.08)] flex items-center justify-around h-16 px-2 pb-safe">
+      <div className="bg-warm-surface/95 backdrop-blur-md border-t border-warm-line rounded-t-[1.5rem] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] flex items-center justify-around h-16 px-2 pb-safe">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -65,7 +70,7 @@ export default function BottomNav() {
             >
               <svg
                 className={`w-6 h-6 transition-colors duration-300 ${
-                  isActive ? "text-orange-500" : "text-gray-400"
+                  isActive ? "text-primary" : "text-slate-400"
                 }`}
                 fill="none"
                 stroke="currentColor"
@@ -76,7 +81,7 @@ export default function BottomNav() {
               </svg>
               <span
                 className={`text-[10px] font-bold tracking-tight transition-colors duration-300 ${
-                  isActive ? "text-orange-500" : "text-gray-500"
+                  isActive ? "text-primary" : "text-slate-500"
                 }`}
               >
                 {item.name}
