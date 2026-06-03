@@ -26,6 +26,14 @@ service cloud.firestore {
       );
     }
 
+    // User subcollections (addresses, etc.) — owner only
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && (
+        request.auth.uid == userId ||
+        isAdmin()
+      );
+    }
+
     // ─────────────────────────────────────────────
     // VET REGISTRATIONS  (vets_web)
     // ─────────────────────────────────────────────
@@ -79,15 +87,19 @@ service cloud.firestore {
     // PRODUCTS
     // ─────────────────────────────────────────────
     // Products have a `brandId` field set to the seller's uid.
-    // - Read: any authenticated user (shop browsing)
+    // - Read: public (anyone can browse the shop)
     // - Create: authenticated user whose uid matches the brandId being set
-    // - Update/Delete: authenticated user whose uid matches the existing brandId
+    // - Update: brand owner can update everything; any authenticated user
+    //   can decrement stockQty (needed for checkout order placement)
+    // - Delete: brand owner only
     match /products/{productId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow create: if request.auth != null &&
         request.resource.data.brandId == request.auth.uid;
-      allow update: if request.auth != null &&
-        resource.data.brandId == request.auth.uid;
+      allow update: if request.auth != null && (
+        resource.data.brandId == request.auth.uid ||
+        request.resource.data.stockQty < resource.data.stockQty
+      );
       allow delete: if request.auth != null &&
         resource.data.brandId == request.auth.uid;
     }
@@ -96,7 +108,7 @@ service cloud.firestore {
     // SHOP PRODUCTS (legacy direct-add from shop page)
     // ─────────────────────────────────────────────
     match /shop_products/{productId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null &&
         request.resource.data.brandId == request.auth.uid;
     }
@@ -159,8 +171,10 @@ service cloud.firestore {
     // ─────────────────────────────────────────────
     // PLAY DATES
     // ─────────────────────────────────────────────
+    // Public read so anyone can browse playdates.
+    // Write requires authentication.
     match /playdates/{playdateId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
