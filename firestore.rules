@@ -189,10 +189,11 @@ service cloud.firestore {
       );
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       allow update: if request.auth != null && (
-        // User cancelling
+        // User cancelling or submitting review
         (request.auth.uid == resource.data.userId && 
-         request.resource.data.appointmentStatus == 'cancelled' &&
-         (resource.data.appointmentStatus == 'requested' || resource.data.appointmentStatus == 'payment_pending')) ||
+         ((request.resource.data.appointmentStatus == 'cancelled' &&
+           (resource.data.appointmentStatus == 'requested' || resource.data.appointmentStatus == 'payment_pending')) ||
+          request.resource.data.reviewSubmitted == true)) ||
         // Vet updating status
         (request.auth.uid == resource.data.vetId &&
          (request.resource.data.appointmentStatus == 'accepted' || 

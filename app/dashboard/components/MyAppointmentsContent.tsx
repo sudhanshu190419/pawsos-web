@@ -8,7 +8,6 @@ import {
   query, 
   where, 
   onSnapshot, 
-  orderBy, 
   updateDoc, 
   doc, 
   addDoc, 
@@ -81,8 +80,7 @@ export default function MyAppointmentsContent({ user }: MyAppointmentsContentPro
 
     const q = query(
       collection(db, "vet_appointments"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      where("userId", "==", user.uid)
     );
 
     const unsub = onSnapshot(q, (snap) => {
@@ -90,6 +88,12 @@ export default function MyAppointmentsContent({ user }: MyAppointmentsContentPro
         id: d.id,
         ...d.data()
       } as Appointment));
+      // Sort client-side by createdAt descending to avoid needing a composite index
+      list.sort((a, b) => {
+        const aTime = (a.createdAt as any)?.toMillis?.() ?? 0;
+        const bTime = (b.createdAt as any)?.toMillis?.() ?? 0;
+        return bTime - aTime;
+      });
       setAppointments(list);
       setLoading(false);
     }, (err) => {

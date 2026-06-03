@@ -1,0 +1,21 @@
+{
+  "name": "AnimalSathi",
+  "short_name": "AnimalSathi",
+  "description": "Community-Powered Animal Rescue & Pet Care",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#9c3e23",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

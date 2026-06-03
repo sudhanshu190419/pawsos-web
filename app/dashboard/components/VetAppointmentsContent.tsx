@@ -7,11 +7,9 @@ import {
   query, 
   where, 
   onSnapshot, 
-  orderBy, 
   updateDoc, 
   doc, 
-  serverTimestamp,
-  getDoc
+  serverTimestamp
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { 
@@ -80,24 +78,22 @@ export default function VetAppointmentsContent({ user }: VetAppointmentsContentP
   const [availability, setAvailability] = useState("");
   const [isSavingPricing, setIsSavingPricing] = useState(false);
 
-  // Fetch current pricing settings
+  // Fetch current pricing settings (real-time)
   useEffect(() => {
     if (!user) return;
-    const fetchPricing = async () => {
-      try {
-        const snap = await getDoc(doc(db, "vets_web", user.uid));
-        if (snap.exists()) {
-          const data = snap.data();
-          setConsultationFee(data.consultationFee || 0);
-          setEmergencyFee(data.emergencyFee || 0);
-          setWillingToTravel(data.willingToTravel || false);
-          setAvailability(typeof data.availability === "string" ? data.availability : (data.availability || []).join(", "));
-        }
-      } catch (e) {
-        console.warn("Failed to fetch vet pricing profile:", e);
+    const unsub = onSnapshot(doc(db, "vets_web", user.uid), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setConsultationFee(data.consultationFee || 0);
+        setEmergencyFee(data.emergencyFee || 0);
+        setWillingToTravel(data.willingToTravel || false);
+        setAvailability(typeof data.availability === "string" ? data.availability : (data.availability || []).join(", "));
       }
-    };
-    fetchPricing();
+    }, (e) => {
+      console.warn("Failed to fetch vet pricing profile:", e);
+    });
+
+    return () => unsub();
   }, [user]);
 
   // Fetch appointments for this vet
@@ -106,8 +102,7 @@ export default function VetAppointmentsContent({ user }: VetAppointmentsContentP
 
     const q = query(
       collection(db, "vet_appointments"),
-      where("vetId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      where("vetId", "==", user.uid)
     );
 
     const unsub = onSnapshot(q, (snap) => {
@@ -115,6 +110,12 @@ export default function VetAppointmentsContent({ user }: VetAppointmentsContentP
         id: d.id,
         ...d.data()
       } as Appointment));
+      // Sort client-side by createdAt descending to avoid needing a composite index
+      list.sort((a, b) => {
+        const aTime = (a.createdAt as any)?.toMillis?.() ?? 0;
+        const bTime = (b.createdAt as any)?.toMillis?.() ?? 0;
+        return bTime - aTime;
+      });
       setAppointments(list);
       setLoading(false);
     }, (err) => {

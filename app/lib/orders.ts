@@ -168,6 +168,7 @@ export interface Order {
   orderId: string;
   userId: string;
   userName: string;
+  vendorIds: string[];
   items: OrderItem[];
   vendorGroups: VendorGroup[];
   shipments: Shipment[];
@@ -224,7 +225,7 @@ export function listenToUserOrders(
 
 /**
  * Listen to seller-specific orders (orders containing items from their brand).
- * Uses the vendorGroups array to match items belonging to the seller's brand.
+ * Uses the vendorIds array on the order document to filter orders belonging to the seller.
  */
 export function listenToSellerOrders(
   brandId: string,
@@ -233,21 +234,18 @@ export function listenToSellerOrders(
 ): Unsubscribe {
   const q = query(
     collection(db, "orders"),
+    where("vendorIds", "array-contains", brandId),
     orderBy("createdAt", "desc"),
     limit(50)
   );
   return onSnapshot(
     q,
     (snapshot) => {
-      const allOrders = snapshot.docs.map((d) => ({
+      const orders = snapshot.docs.map((d) => ({
         orderId: d.id,
         ...d.data(),
       })) as Order[];
-      // Filter orders that contain items from this seller's brand
-      const filtered = allOrders.filter((order) =>
-        order.items?.some((item) => item.brandId === brandId)
-      );
-      onData(filtered);
+      onData(orders);
     },
     onError
   );
@@ -259,13 +257,12 @@ export function listenToSellerOrders(
 export async function fetchSellerOrders(brandId: string): Promise<Order[]> {
   const q = query(
     collection(db, "orders"),
+    where("vendorIds", "array-contains", brandId),
     orderBy("createdAt", "desc"),
     limit(50)
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs
-    .map((d) => ({ orderId: d.id, ...d.data() }) as Order)
-    .filter((order) => order.items?.some((item) => item.brandId === brandId));
+  return snapshot.docs.map((d) => ({ orderId: d.id, ...d.data() }) as Order);
 }
 
 /**
