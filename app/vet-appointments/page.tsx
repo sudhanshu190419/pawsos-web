@@ -10,8 +10,6 @@ import {
   query,
   where,
   onSnapshot,
-  addDoc,
-  serverTimestamp,
   doc,
   getDoc
 } from "firebase/firestore";
@@ -298,7 +296,7 @@ export default function VetAppointmentsPage() {
         throw new Error("Could not load Razorpay. Please check your internet connection.");
       }
 
-      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const keyId = orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
       if (!keyId) {
         throw new Error("Razorpay client key is not configured.");
       }
@@ -324,28 +322,6 @@ export default function VetAppointmentsPage() {
             setIsSubmittingBooking(true);
             setBookingError("Verifying payment...");
 
-            // Step 4: Verify payment signature
-            const verifyRes = await fetch("/api/razorpay/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: paymentResponse.razorpay_order_id,
-                razorpay_payment_id: paymentResponse.razorpay_payment_id,
-                razorpay_signature: paymentResponse.razorpay_signature
-              })
-            });
-
-            if (!verifyRes.ok) {
-              const errData = await verifyRes.json().catch(() => ({}));
-              throw new Error(errData.error || "Signature verification failed.");
-            }
-
-            const verifyData = await verifyRes.json();
-            if (!verifyData.success) {
-              throw new Error("Signature verification failed.");
-            }
-
-            // Step 5: Save appointment to Firestore
             let petNameResult = bookingPetName;
             let petTypeResult = bookingPetType;
             let petIdResult = bookingPetId;
@@ -360,11 +336,7 @@ export default function VetAppointmentsPage() {
               petIdResult = "manual";
             }
 
-            const totalFee = bookingAmount;
-            const platformFee = totalFee * 0.10; // 10%
-            const payout = totalFee * 0.90; // 90%
-
-            await addDoc(collection(db, "vet_appointments"), {
+            const appointment = {
               userId: currentUser.uid,
               userName: currentUser.displayName || "Anonymous",
               userEmail: currentUser.email || "",
@@ -379,18 +351,34 @@ export default function VetAppointmentsPage() {
               appointmentTime: bookingTime,
               consultationType: bookingConsultType,
               reason: bookingReason,
-              notes: bookingNotes || "",
-              amount: totalFee,
-              currency: "INR",
-              platformFee: Math.round(platformFee * 100) / 100,
-              vetPayoutAmount: Math.round(payout * 100) / 100,
-              paymentStatus: "paid",
-              appointmentStatus: "requested",
-              razorpayOrderId: paymentResponse.razorpay_order_id,
-              razorpayPaymentId: paymentResponse.razorpay_payment_id,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
+              notes: bookingNotes || ""
+            };
+
+            // Step 4: Verify payment signature and create the appointment server-side.
+            const verifyRes = await fetch("/api/razorpay/verify-payment", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${firebaseIdToken}`,
+              },
+              body: JSON.stringify({
+                razorpay_order_id: paymentResponse.razorpay_order_id,
+                razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                razorpay_signature: paymentResponse.razorpay_signature,
+                purpose: "vet_appointment",
+                appointment
+              })
             });
+
+            if (!verifyRes.ok) {
+              const errData = await verifyRes.json().catch(() => ({}));
+              throw new Error(errData.error || "Signature verification failed.");
+            }
+
+            const verifyData = await verifyRes.json();
+            if (!verifyData.success) {
+              throw new Error("Signature verification failed.");
+            }
 
             setBookingSuccess(true);
             setIsSubmittingBooking(false);
