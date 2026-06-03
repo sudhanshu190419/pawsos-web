@@ -85,10 +85,17 @@ export function useUserPets(user: User | null) {
       where("ownerId", "==", user.uid),
       orderBy("createdAt", "desc")
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setPets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Pet)));
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setPets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Pet)));
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Failed to fetch user pets:", error);
+        setLoading(false);
+      }
+    );
     return () => unsub();
   }, [user]);
 
@@ -155,25 +162,32 @@ export function usePlaydates(filters?: PlaydateFilters) {
     }
 
     const q = query(collection(db, "playdates"), ...constraints);
-    const unsub = onSnapshot(q, (snap) => {
-      let items = snap.docs.map(
-        (d) => ({ id: d.id, ...d.data() } as Playdate)
-      );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        let items = snap.docs.map(
+          (d) => ({ id: d.id, ...d.data() } as Playdate)
+        );
 
-      // Filter by distance if user location is provided
-      if (userLocation) {
-        items = items.filter((playdate) => {
-          const distance = distanceBetween(
-            [userLocation.latitude, userLocation.longitude],
-            [playdate.locationLat, playdate.locationLng]
-          );
-          return distance <= radiusKm;
-        });
+        // Filter by distance if user location is provided
+        if (userLocation) {
+          items = items.filter((playdate) => {
+            const distance = distanceBetween(
+              [userLocation.latitude, userLocation.longitude],
+              [playdate.locationLat, playdate.locationLng]
+            );
+            return distance <= radiusKm;
+          });
+        }
+
+        setPlaydates(items);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Failed to fetch playdates:", error);
+        setLoading(false);
       }
-
-      setPlaydates(items);
-      setLoading(false);
-    });
+    );
     return () => unsub();
   }, [filter, radiusKm, userLocation]);
 
@@ -188,14 +202,21 @@ export function usePlaydate(id: string) {
 
   useEffect(() => {
     if (!id) return;
-    const unsub = onSnapshot(doc(db, "playdates", id), (snap) => {
-      if (snap.exists()) {
-        setPlaydate({ id: snap.id, ...snap.data() } as Playdate);
-      } else {
-        setPlaydate(null);
+    const unsub = onSnapshot(
+      doc(db, "playdates", id),
+      (snap) => {
+        if (snap.exists()) {
+          setPlaydate({ id: snap.id, ...snap.data() } as Playdate);
+        } else {
+          setPlaydate(null);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Failed to fetch playdate:", error);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
     return () => unsub();
   }, [id]);
 

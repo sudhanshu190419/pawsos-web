@@ -26,6 +26,20 @@ if (!ENABLE_SHIPROCKET) {
   });
 }
 
+console.log("ENV CHECK");
+console.log(
+  "ENABLE_SHIPROCKET:",
+  process.env.NEXT_PUBLIC_ENABLE_SHIPROCKET
+);
+console.log(
+  "EMAIL:",
+  process.env.SHIPROCKET_EMAIL
+);
+console.log(
+  "PASSWORD LENGTH:",
+  process.env.SHIPROCKET_PASSWORD?.length
+);
+
     const token = await getShiprocketToken();
 
     console.log(
