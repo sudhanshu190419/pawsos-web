@@ -289,18 +289,74 @@ function ProfilePageContent() {
         <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-16 md:-mt-24 relative z-10">
+      {/* ── MOBILE PROFILE STRIP — above tab bar ── */}
+      <div className="md:hidden -mt-8 mb-2 mx-4 sm:mx-6 relative z-10">
+        <div className="bg-white rounded-2xl p-4 shadow-md border border-slate-100 flex items-center gap-4">
+          <div className="relative shrink-0">
+            <img
+              src={user.photoURL ?? "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c&size=128"}
+              alt="Profile"
+              className={`w-14 h-14 rounded-full border-2 border-white shadow object-cover bg-orange-50 transition-opacity ${isUploading ? "opacity-40" : "opacity-100"}`}
+            />
+            {isUploading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-5 h-5 border-[3px] border-orange-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            <button
+              onClick={() => document.getElementById("avatarUpload")?.click()}
+              disabled={isUploading}
+              aria-label="Change profile photo"
+              className="absolute -bottom-0.5 -right-0.5 bg-orange-500 text-white w-5 h-5 rounded-full border-2 border-white flex items-center justify-center hover:bg-orange-600 transition-colors disabled:bg-slate-400 text-[10px] leading-none"
+            >✏️</button>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-bold text-slate-800 truncate">{user.displayName ?? "Animal Lover"}</h2>
+            <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+            <div className={`inline-flex items-center gap-1.5 border px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider mt-1.5 shadow-sm ${userBadge.classes}`}>
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${userBadge.dot}`} />
+              {userBadge.label}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MOBILE TAB BAR — compact grid, no scroll ── */}
+      <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-slate-100 shadow-sm">
+        <div className="grid grid-cols-4 gap-px px-1 pb-0.5">
+          <MobileTab materialIcon="person" label="Profile" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
+          <MobileTab materialIcon="pets" label="My Pets" isActive={activeTab === "pets"} onClick={() => setActiveTab("pets")} />
+          <MobileTab materialIcon="emergency" label="Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
+          <MobileTab materialIcon="calendar_month" label="Appts" isActive={activeTab === "my-appointments"} onClick={() => setActiveTab("my-appointments")} />
+        </div>
+        {(vetData?.verificationStatus === "approved" || isVolunteer) && (
+          <div className="flex items-center justify-center gap-0.5 px-1 pb-1.5 pt-0.5">
+            {vetData?.verificationStatus === "approved" && (
+              <MiniTab materialIcon="stethoscope" label="Vet" isActive={activeTab === "vet-appointments"} onClick={() => setActiveTab("vet-appointments")} />
+            )}
+            {isVolunteer && (
+              <>
+                <MiniTab materialIcon="verified" label="Docs" isActive={activeTab === "credentials"} onClick={() => setActiveTab("credentials")} />
+                <MiniTab materialIcon="settings" label="Settings" isActive={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
+              </>
+            )}
+          </div>
+        )}
+      </nav>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:-mt-16 relative z-10">
         <div className="flex flex-col md:flex-row gap-4 md:gap-8">
           {/* ── SIDEBAR ── */}
           <aside className="w-full md:w-1/3 lg:w-1/4">
-            <div className="bg-white rounded-3xl p-5 md:p-6 shadow-xl shadow-slate-200/50 border border-slate-100 text-center sticky md:top-24">
-              <input type="file" id="avatarUpload" accept="image/*" className="hidden" onChange={handleImageUpload} />
-              
+            <input type="file" id="avatarUpload" accept="image/*" className="hidden" onChange={handleImageUpload} />
+
+            {/* Desktop: vertical card */}
+            <div className="hidden md:block bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-100 text-center sticky top-24">
               <div className="relative inline-block mb-4">
                 <img
                   src={user.photoURL ?? "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c&size=128"}
                   alt="Profile"
-                  className={`w-24 h-24 md:w-32 md:h-32 mx-auto rounded-full border-4 border-white shadow-lg object-cover bg-orange-50 transition-opacity ${isUploading ? "opacity-40" : "opacity-100"}`}
+                  className={`w-32 h-32 mx-auto rounded-full border-4 border-white shadow-lg object-cover bg-orange-50 transition-opacity ${isUploading ? "opacity-40" : "opacity-100"}`}
                 />
                 {isUploading && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -311,33 +367,33 @@ function ProfilePageContent() {
                   onClick={() => document.getElementById("avatarUpload")?.click()}
                   disabled={isUploading}
                   aria-label="Change profile photo"
-                  className="absolute bottom-0 right-0 bg-orange-500 text-white w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white flex items-center justify-center hover:bg-orange-600 transition-colors shadow-sm disabled:bg-slate-400"
+                  className="absolute bottom-0 right-0 bg-orange-500 text-white w-10 h-10 rounded-full border-2 border-white flex items-center justify-center hover:bg-orange-600 transition-colors shadow-sm disabled:bg-slate-400"
                 >
-                  <span className="text-sm md:text-base">✏️</span>
+                  <span className="text-base">✏️</span>
                 </button>
               </div>
 
               <h2 className="text-xl font-bold text-slate-800 truncate px-2">{user.displayName ?? "Animal Lover"}</h2>
-              <p className="text-sm text-slate-500 truncate mb-4 md:mb-6 px-2">{user.email}</p>
+              <p className="text-sm text-slate-500 truncate mb-6 px-2">{user.email}</p>
 
-              <div className={`inline-flex items-center gap-2 border px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-4 md:mb-6 shadow-sm ${userBadge.classes}`}>
+              <div className={`inline-flex items-center gap-2 border px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-6 shadow-sm ${userBadge.classes}`}>
                 <span className={`w-2 h-2 rounded-full animate-pulse ${userBadge.dot}`} />
                 {userBadge.label}
               </div>
 
-              {/* Mobile-friendly horizontal scroll nav */}
-              <nav className="flex flex-row md:flex-col gap-2 overflow-x-auto hide-scrollbar text-left border-t border-slate-100 pt-4 md:pt-6 pb-2 md:pb-0 px-1">
-                <SidebarButton icon="👤" label="Personal Info" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
-                <SidebarButton icon="🐾" label="My Pets" isActive={activeTab === "pets"} onClick={() => setActiveTab("pets")} />
-                <SidebarButton icon="📋" label="My SOS Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
-                <SidebarButton icon="🩺" label="My Appointments" isActive={activeTab === "my-appointments"} onClick={() => setActiveTab("my-appointments")} />
+              {/* Desktop vertical nav */}
+              <nav className="flex flex-col gap-1.5 text-left border-t border-slate-100 pt-6 px-0.5">
+                <SidebarButton materialIcon="person" label="Personal Info" isActive={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
+                <SidebarButton materialIcon="pets" label="My Pets" isActive={activeTab === "pets"} onClick={() => setActiveTab("pets")} />
+                <SidebarButton materialIcon="emergency" label="My SOS Reports" isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
+                <SidebarButton materialIcon="calendar_month" label="My Appointments" isActive={activeTab === "my-appointments"} onClick={() => setActiveTab("my-appointments")} />
                 {vetData?.verificationStatus === "approved" && (
-                  <SidebarButton icon="📅" label="Vet Bookings" isActive={activeTab === "vet-appointments"} onClick={() => setActiveTab("vet-appointments")} />
+                  <SidebarButton materialIcon="stethoscope" label="Vet Bookings" isActive={activeTab === "vet-appointments"} onClick={() => setActiveTab("vet-appointments")} />
                 )}
                 {isVolunteer && (
                   <>
-                    <SidebarButton icon="🎖️" label="My Credentials" isActive={activeTab === "credentials"} onClick={() => setActiveTab("credentials")} />
-                    <SidebarButton icon="⚙️" label="Account Settings" isActive={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
+                    <SidebarButton materialIcon="verified" label="My Credentials" isActive={activeTab === "credentials"} onClick={() => setActiveTab("credentials")} />
+                    <SidebarButton materialIcon="settings" label="Account Settings" isActive={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
                   </>
                 )}
               </nav>
@@ -522,15 +578,52 @@ function CredentialsContent({ userData }: { userData: UserData | null }) {
   );
 }
 
-function SidebarButton({ icon, label, isActive, onClick }: { icon: string; label: string; isActive: boolean; onClick: () => void }) {
+function MobileTab({ materialIcon, label, isActive, onClick }: { materialIcon: string; label: string; isActive: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 md:gap-3 px-4 py-2.5 md:py-3 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 md:whitespace-normal md:w-full ${
-        isActive ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" : "text-slate-600 hover:bg-slate-50 border border-transparent hover:text-slate-900"
+      className={`flex flex-col items-center gap-0.5 py-2 transition-all duration-200 active:scale-95 relative ${
+        isActive
+          ? "text-orange-700"
+          : "text-slate-500 hover:text-slate-700"
       }`}
     >
-      <span className="text-lg">{icon}</span>
+      <span className="material-symbols-outlined text-[22px]">{materialIcon}</span>
+      <span className="text-[10px] font-semibold leading-tight">{label}</span>
+      {isActive && (
+        <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-orange-500 rounded-full" />
+      )}
+    </button>
+  );
+}
+
+function MiniTab({ materialIcon, label, isActive, onClick }: { materialIcon: string; label: string; isActive: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all duration-200 active:scale-95 ${
+        isActive
+          ? "bg-orange-100 text-orange-700 shadow-sm"
+          : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+      }`}
+    >
+      <span className="material-symbols-outlined text-[14px]">{materialIcon}</span>
+      {label}
+    </button>
+  );
+}
+
+function SidebarButton({ materialIcon, label, isActive, onClick }: { materialIcon: string; label: string; isActive: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all duration-200 w-full ${
+        isActive 
+          ? "bg-orange-50 text-orange-600 shadow-sm border border-orange-100" 
+          : "text-slate-500 hover:bg-slate-50 border border-transparent hover:text-slate-800"
+      }`}
+    >
+      <span className="material-symbols-outlined text-[22px]">{materialIcon}</span>
       {label}
     </button>
   );

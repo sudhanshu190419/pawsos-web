@@ -7,7 +7,19 @@ import { usePathname } from "next/navigation";
 export default function BottomNav() {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+
+  // Watch for mobile navbar menu open/close
+  useEffect(() => {
+    const checkMenu = () => {
+      setMobileMenuOpen(document.body.dataset.mobileMenuOpen === 'true');
+    };
+    checkMenu();
+    const observer = new MutationObserver(checkMenu);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-mobile-menu-open'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const controlNavbar = () => {
@@ -56,7 +68,7 @@ export default function BottomNav() {
   return (
     <nav
       className={`fixed bottom-0 left-0 right-0 z-[100] md:hidden transition-transform duration-300 ease-in-out ${
-        isVisible ? "translate-y-0" : "translate-y-full"
+        isVisible && !mobileMenuOpen ? "translate-y-0" : "translate-y-full"
       }`}
     >
       <div className="bg-warm-surface/95 backdrop-blur-md border-t border-warm-line rounded-t-[1.5rem] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] flex items-center justify-around h-16 px-2 pb-safe">
