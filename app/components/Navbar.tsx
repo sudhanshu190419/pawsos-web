@@ -315,8 +315,8 @@ after:transition-all after:duration-300
 group-hover:after:w-full transition-colors">How It Works</Link>
 
           {/* SERVICES DROPDOWN */}
-          <div className="relative group transition-all duration-300">
-            <span className="cursor-pointer relative group text-slate-600
+          <div className="relative group">
+            <span className="cursor-pointer relative text-slate-600
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
@@ -325,7 +325,7 @@ after:transition-all after:duration-300
 group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
               Services
               <svg 
-                className="w-4 h-4 text-slate-400 transition-transform duration-300 group-hover:rotate-180"
+                className="w-4 h-4 text-slate-400 transition-transform duration-200 group-hover:rotate-180"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -334,25 +334,33 @@ group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
               </svg>
             </span>
             <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
-opacity-0 translate-y-3 scale-95 
-group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
-transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+opacity-0 translate-y-[10px]
+group-hover:opacity-100 group-hover:translate-y-0
+transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
 pointer-events-none group-hover:pointer-events-auto">
               <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
-backdrop-blur-sm w-56 py-3 flex flex-col">
-                <Link href="/playdate" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700">
-                  <span className="mr-2 text-base">🐾</span> Play Date
+backdrop-blur-sm w-64 p-2 flex flex-col">
+                <Link href="/playdate" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">pets</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-slate-700">Play Date</span>
+                    <span className="text-[10px] text-slate-500">Socialize your furry friend</span>
+                  </div>
                 </Link>
-                <Link href="/vet-appointments" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700">
-                  <span className="mr-2 text-base">🩺</span> Vet Appointments
+                <Link href="/vet-appointments" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">medical_services</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-slate-700">Vet Appointments</span>
+                    <span className="text-[10px] text-slate-500">Expert medical care</span>
+                  </div>
                 </Link>
               </div>
             </div>
           </div>
 
           {/* JOIN US DROPDOWN */}
-          <div className="relative group transition-all duration-300">
-            <span className="cursor-pointer relative group text-slate-600
+          <div className="relative group">
+            <span className="cursor-pointer relative text-slate-600
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
@@ -360,29 +368,44 @@ after:bg-primary
 after:transition-all after:duration-300 
 group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
               Join Us
-              <svg className="w-4 h-4 text-slate-400 transition-transform duration-300 group-hover:rotate-180"fill="none"
+              <svg className="w-4 h-4 text-slate-400 transition-transform duration-200 group-hover:rotate-180"fill="none"
   stroke="currentColor"
   viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
             </span>
             <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
-opacity-0 translate-y-3 scale-95 
-group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
-transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+opacity-0 translate-y-[10px]
+group-hover:opacity-100 group-hover:translate-y-0
+transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
 pointer-events-none group-hover:pointer-events-auto">
               <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
-backdrop-blur-sm w-56 py-3 flex flex-col">
-                <Link href="/volunteer-form" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🦸‍♂️</span> Become a Volunteer</Link>
-                <Link href="/onboarding" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🏢</span> NGO Partnerships</Link>
-                <Link href="/onboarding/organization" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🏥</span> Hospital Onboarding</Link>
-                <Link href="/vets" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🏥</span> Register as a Vet</Link>
-                <Link href="/become-seller" prefetch={false} className="px-4 py-3 text-sm flex items-start gap-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors group font-semibold text-slate-700"><span className="mr-2 text-base">🏪</span> Become a Seller</Link>
+backdrop-blur-sm w-64 p-2 flex flex-col">
+                <Link href="/volunteer-form" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary">volunteer_activism</span>
+                  <span className="text-sm font-semibold text-slate-700">Become a Volunteer</span>
+                </Link>
+                <Link href="/onboarding" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary">corporate_fare</span>
+                  <span className="text-sm font-semibold text-slate-700">NGO Partnerships</span>
+                </Link>
+                <Link href="/onboarding/organization" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary">local_hospital</span>
+                  <span className="text-sm font-semibold text-slate-700">Hospital Onboarding</span>
+                </Link>
+                <Link href="/vets" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary">stethoscope</span>
+                  <span className="text-sm font-semibold text-slate-700">Register as a Vet</span>
+                </Link>
+                <Link href="/become-seller" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary">storefront</span>
+                  <span className="text-sm font-semibold text-slate-700">Become a Seller</span>
+                </Link>
               </div>
             </div>
           </div>
 
           {/* ABOUT US DROPDOWN */}
-          <div className="relative group transition-all duration-300">
-            <span className="cursor-pointer relative group text-slate-600
+          <div className="relative group">
+            <span className="cursor-pointer relative text-slate-600
 
 after:absolute after:left-0 after:-bottom-1 
 after:h-[2px] after:w-0 
@@ -391,7 +414,7 @@ after:transition-all after:duration-300
 group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
               About Us
               <svg 
-  className="w-4 h-4 text-slate-400 transition-transform duration-300 group-hover:rotate-180"
+  className="w-4 h-4 text-slate-400 transition-transform duration-200 group-hover:rotate-180"
   fill="none"
   stroke="currentColor"
   viewBox="0 0 24 24"
@@ -400,35 +423,33 @@ group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
 </svg>
             </span>
             <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
-opacity-0 translate-y-3 scale-95 
-group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
-transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+opacity-0 translate-y-[10px]
+group-hover:opacity-100 group-hover:translate-y-0
+transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
 pointer-events-none group-hover:pointer-events-auto">
               <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
-backdrop-blur-sm w-48 py-3 flex flex-col">
-                <Link href="/about" className="px-4 py-3 flex items-start gap-3 rounded-lg hover:bg-orange-50 transition-all group">
-  <span className="text-lg group-hover:scale-110 transition">📖</span>
-  <div>
-    <p className="text-sm font-semibold text-slate-800 group-hover:text-orange-600">Our Story</p>
-    <p className="text-xs text-slate-500">How AnimalSathi started</p>
-  </div>
-</Link>
-
-<Link href="/investors" className="px-4 py-3 flex items-start gap-3 rounded-lg hover:bg-orange-50 transition-all group">
-  <span className="text-lg group-hover:scale-110 transition">💼</span>
-  <div>
-    <p className="text-sm font-semibold text-slate-800 group-hover:text-orange-600">Investors</p>
-    <p className="text-xs text-slate-500">Funding & growth details</p>
-  </div>
-</Link>
-
-<Link href="/contact" className="px-4 py-3 flex items-start gap-3 rounded-lg hover:bg-orange-50 transition-all group">
-  <span className="text-lg group-hover:scale-110 transition">✉️</span>
-  <div>
-    <p className="text-sm font-semibold text-slate-800 group-hover:text-orange-600">Contact Us</p>
-    <p className="text-xs text-slate-500">Reach out to our team</p>
-  </div>
-</Link>
+backdrop-blur-sm w-64 p-2 flex flex-col">
+                <Link href="/about" className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">auto_stories</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-slate-700">Our Story</span>
+                    <span className="text-[10px] text-slate-500">How AnimalSathi started</span>
+                  </div>
+                </Link>
+                <Link href="/investors" className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">business_center</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-slate-700">Investors</span>
+                    <span className="text-[10px] text-slate-500">Funding & growth details</span>
+                  </div>
+                </Link>
+                <Link href="/contact" className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
+                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">contact_support</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-slate-700">Contact Us</span>
+                    <span className="text-[10px] text-slate-500">Reach out to our team</span>
+                  </div>
+                </Link>
               </div>
             </div>
           </div>
@@ -454,10 +475,10 @@ group-hover:after:w-full transition-colors">Shop</Link>
                   alt="User Profile"
                   className="w-11 h-11 rounded-full cursor-pointer border-2 border-slate-100 hover:scale-105 hover:ring-2 hover:ring-blue-500/30 transition-all duration-200 transition-colors object-cover shadow-sm"
                 />
-                <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
-opacity-0 translate-y-3 scale-95 
-group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
-transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+                <div className="absolute right-0 top-full pt-4 
+opacity-0 translate-y-[10px]
+group-hover:opacity-100 group-hover:translate-y-0
+transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
 pointer-events-none group-hover:pointer-events-auto">
                   <div className="bg-white border border-slate-200 rounded-xl shadow-lg
 backdrop-blur-sm w-60 flex flex-col overflow-hidden">
@@ -465,28 +486,43 @@ backdrop-blur-sm w-60 flex flex-col overflow-hidden">
                       <p className="text-sm font-bold text-slate-800 truncate">{user.displayName || "Animal Lover"}</p>
                       <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
                     </div>
-                    <div className="py-2 flex flex-col">
+                    <div className="p-2 flex flex-col">
                       {orgApproved && !orgApprovedLoading && (
-                        <Link href="/organization/dashboard" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
-                          <span className="text-lg">🏥</span> Organization Dashboard
+                        <Link href="/organization/dashboard" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                          <span className="material-symbols-outlined text-primary">dashboard</span>
+                          Organization Dashboard
                         </Link>
                       )}
                       {sellerStatus === "approved" && !sellerStatusLoading && (
-                        <Link href="/seller-dashboard" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
-                          <span className="text-lg">🏪</span> Seller Dashboard
+                        <Link href="/seller-dashboard" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                          <span className="material-symbols-outlined text-primary">storefront</span>
+                          Seller Dashboard
                         </Link>
                       )}
                       {(!sellerStatus || (sellerStatus !== "approved" && sellerStatus !== "pending")) && !sellerStatusLoading && (
-                        <Link href="/become-seller" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3">
-                          <span className="text-lg">🛍️</span> Become a Seller
+                        <Link href="/become-seller" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                          <span className="material-symbols-outlined text-primary">storefront</span>
+                          Become a Seller
                         </Link>
                       )}
-                      <Link href="/dashboard?tab=profile" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">👤</span> My Profile</Link>
-                      <Link href="/dashboard?tab=reports" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">📋</span> My SOS Reports</Link>
-                      <Link href="/dashboard?tab=settings" prefetch={false} className="px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-3"><span className="text-lg">⚙️</span> Settings</Link>
+                      <Link href="/dashboard?tab=profile" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                        <span className="material-symbols-outlined text-primary">person</span>
+                        My Profile
+                      </Link>
+                      <Link href="/dashboard?tab=reports" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                        <span className="material-symbols-outlined text-primary">emergency</span>
+                        My SOS Reports
+                      </Link>
+                      <Link href="/dashboard?tab=settings" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                        <span className="material-symbols-outlined text-primary">settings</span>
+                        Settings
+                      </Link>
                     </div>
-                    <div className="py-2 border-t border-slate-100 bg-white">
-                      <button onClick={handleLogout} className="w-full text-left px-5 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3"><span className="text-lg">🚪</span> Sign Out</button>
+                    <div className="p-2 border-t border-slate-100">
+                      <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 transition-colors text-sm font-bold text-red-600">
+                        <span className="material-symbols-outlined text-red-500">logout</span>
+                        Sign Out
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -560,30 +596,30 @@ transition-all duration-200 shimmer-btn"
               </div>
               <div className="flex flex-col gap-1">
                 {orgApproved && !orgApprovedLoading && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/organization/dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Organization Dashboard</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/organization/dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">dashboard</span> Organization Dashboard</Link>
                 )}
                 {sellerStatus === "approved" && !sellerStatusLoading && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/seller-dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🏪 Seller Dashboard</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/seller-dashboard" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">storefront</span> Seller Dashboard</Link>
                 )}
                 {(!sellerStatus || (sellerStatus !== "approved" && sellerStatus !== "pending")) && !sellerStatusLoading && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/become-seller" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">🛍️ Become a Seller</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/become-seller" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">storefront</span> Become a Seller</Link>
                 )}
-                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=profile" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">👤 My Profile</Link>
-                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=reports" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">📋 My SOS Reports</Link>
-                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=settings" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2">⚙️ Settings</Link>
-                <button onClick={handleLogout} className="text-left py-2.5 text-sm font-bold text-red-600 flex items-center gap-2 mt-1">🚪 Sign Out</button>
+                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=profile" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">person</span> My Profile</Link>
+                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=reports" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">emergency</span> My SOS Reports</Link>
+                <Link onClick={() => setIsMobileMenuOpen(false)} href="/dashboard?tab=settings" className="py-2.5 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">settings</span> Settings</Link>
+                <button onClick={handleLogout} className="text-left py-2.5 text-sm font-bold text-red-600 flex items-center gap-2 mt-1"><span className="material-symbols-outlined text-[18px]">logout</span> Sign Out</button>
               </div>
             </div>
           )}
 
-          <Link onClick={() => setIsMobileMenuOpen(false)} href="/" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">🏠 Home</Link>
+          <Link onClick={() => setIsMobileMenuOpen(false)} href="/" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50 flex items-center gap-2"><span className="material-symbols-outlined">home</span> Home</Link>
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/how-it-works" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">How It Works</Link>
           {/* Mobile Services Section */}
           <div className="py-3 border-b border-slate-50">
             <p className="text-xs font-black text-orange-500 uppercase tracking-wider mb-2">Services</p>
             <div className="flex flex-col gap-2 pl-2">
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/playdate" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🐾 Play Date</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/vet-appointments" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🩺 Vet Appointments</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/playdate" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">pets</span> Play Date</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/vet-appointments" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">medical_services</span> Vet Appointments</Link>
             </div>
           </div>
           <Link onClick={() => setIsMobileMenuOpen(false)} href="/shop" className="py-3 text-base font-bold text-slate-800 border-b border-slate-50">Shop Marketplace</Link>
@@ -592,11 +628,11 @@ transition-all duration-200 shimmer-btn"
           <div className="py-3 border-b border-slate-50">
             <p className="text-xs font-black text-orange-500 uppercase tracking-wider mb-2">Join Us</p>
             <div className="flex flex-col gap-2 pl-2">
-              <Link onClick={() => setIsMobileMenuOpen(false)} href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🦸‍♂️ Become a Volunteer</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏢 NGO Partnerships</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding/organization" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Hospital Onboarding</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/vets" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏥 Register as a Vet</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/become-seller" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">🏪 Become a Seller</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href={user ? "/volunteer-form" : "/auth"} prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">volunteer_activism</span> Become a Volunteer</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">corporate_fare</span> NGO Partnerships</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/onboarding/organization" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">local_hospital</span> Hospital Onboarding</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/vets" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">stethoscope</span> Register as a Vet</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/become-seller" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">storefront</span> Become a Seller</Link>
             </div>
           </div>
 
@@ -604,9 +640,9 @@ transition-all duration-200 shimmer-btn"
           <div className="py-3 border-b border-slate-50">
             <p className="text-xs font-black text-orange-500 uppercase tracking-wider mb-2">About Us</p>
             <div className="flex flex-col gap-2 pl-2">
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/about" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">📖 Our Story</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} href="/investors" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">💼 Investors</Link>
-              <Link onClick={() => setIsMobileMenuOpen(false)} prefetch={false} href="/contact" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2">✉️ Contact Us</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/about" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">auto_stories</span> Our Story</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} href="/investors" prefetch={false} className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">business_center</span> Investors</Link>
+              <Link onClick={() => setIsMobileMenuOpen(false)} prefetch={false} href="/contact" className="py-2 text-sm font-semibold text-slate-600 flex items-center gap-2"><span className="material-symbols-outlined text-[18px]">contact_support</span> Contact Us</Link>
             </div>
           </div>
 
