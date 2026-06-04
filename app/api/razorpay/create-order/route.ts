@@ -144,7 +144,7 @@ export async function POST(req: Request) {
     }
 
     const err = error as { response?: { data?: { description?: string } }; message?: string };
-    console.error("[Razorpay] Create order error:", err?.response?.data || err?.message || error);
+    console.error("[Razorpay] Create order error:", err?.message || "Unknown error");
     return Response.json(
       {
         success: false,

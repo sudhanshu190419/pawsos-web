@@ -219,11 +219,9 @@ export async function getShiprocketToken(): Promise<string> {
   console.log("[Shiprocket] Refreshing token");
 
   try {
-    console.log("EMAIL:", process.env.SHIPROCKET_EMAIL);
-console.log("PASSWORD:", process.env.SHIPROCKET_PASSWORD);
-console.log(
-  "PASSWORD LENGTH:",
-  process.env.SHIPROCKET_PASSWORD?.length
+    console.log(
+  "[Shiprocket] Credentials configured:",
+  !!process.env.SHIPROCKET_EMAIL && !!process.env.SHIPROCKET_PASSWORD
 );
     const response = await axios.post(
       "https://apiv2.shiprocket.in/v1/external/auth/login",

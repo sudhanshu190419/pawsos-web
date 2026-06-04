@@ -32,19 +32,15 @@ console.log(
   process.env.NEXT_PUBLIC_ENABLE_SHIPROCKET
 );
 console.log(
-  "EMAIL:",
-  process.env.SHIPROCKET_EMAIL
-);
-console.log(
-  "PASSWORD LENGTH:",
-  process.env.SHIPROCKET_PASSWORD?.length
+  "[Shiprocket] Credentials configured:",
+  !!process.env.SHIPROCKET_EMAIL && !!process.env.SHIPROCKET_PASSWORD
 );
 
     const token = await getShiprocketToken();
 
     console.log(
-  "Shiprocket token generated:",
-  token.substring(0, 15) + "..."
+  "[Shiprocket] Token acquired:",
+  !!token
 );
 const brandName = body.brandName || body.clinicName;
 const brandId = body.brandId || body.vetId;
@@ -109,7 +105,7 @@ state: body.state.trim(),
 
   console.log("HEADERS:", error.response?.headers);
 
-  console.log("DATA:", error.response?.data);
+  console.log("DATA:", error.response?.data ? "[redacted]" : "none");
 
   console.log("MESSAGE:", error.message);
 

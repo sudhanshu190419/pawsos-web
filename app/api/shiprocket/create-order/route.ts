@@ -83,9 +83,28 @@ async function createShiprocketOrder(
     height: Math.max(input.totalHeight, 10),
     weight: Math.max(input.totalWeight, 0.5),
   };
+  // Log payload with PII redacted
+  const sanitizedPayload = {
+    ...payload,
+    billing_customer_name: payload.billing_customer_name
+      ? payload.billing_customer_name.slice(0, 1) + "..." + payload.billing_customer_name.slice(-1)
+      : "[empty]",
+    billing_email: payload.billing_email
+      ? payload.billing_email.slice(0, 2) + "...@..."
+      : "[empty]",
+    billing_phone: payload.billing_phone
+      ? "***" + payload.billing_phone.slice(-4)
+      : "[empty]",
+    billing_address: payload.billing_address
+      ? payload.billing_address.slice(0, 8) + "..."
+      : "[empty]",
+    billing_address_2: payload.billing_address_2
+      ? payload.billing_address_2.slice(0, 8) + "..."
+      : "[empty]",
+  };
 console.log(
   "SHIPROCKET PAYLOAD:",
-  JSON.stringify(payload, null, 2)
+  JSON.stringify(sanitizedPayload, null, 2)
 );
   const response = await axios.post(
     "https://apiv2.shiprocket.in/v1/external/orders/create/adhoc",
@@ -182,9 +201,9 @@ if (!ENABLE_SHIPROCKET) {
     console.log("[1/7] RAW request body fields:");
     console.log("  brandId:", brandId);
     console.log("  pickupLocationName:", pickupLocationName);
-    console.log("  customerName:", customerName);
-    console.log("  customerPhone (RAW from body):", JSON.stringify(rawPhone));
-    console.log("  pincode:", pincode);
+    console.log("  customerName:", customerName ? customerName.slice(0, 1) + "..." + customerName.slice(-1) : "[empty]");
+    console.log("  customerPhone (last 4 digits):", rawPhone ? "***" + rawPhone.replace(/\D/g, "").slice(-4) : "[empty]");
+    console.log("  pincode:", pincode ? pincode.slice(0, 3) + "***" : "[empty]");
 
     if (!brandId || !pickupLocationName || !customerName || !rawPhone || !pincode) {
       console.warn("[2/7] VALIDATION FAILED: missing required field");
@@ -197,11 +216,11 @@ if (!ENABLE_SHIPROCKET) {
 
     // ── SANITIZE phone ──
     const customerPhone = sanitizeIndianPhone(rawPhone);
-    console.log("[3/7] SANITIZED phone:", JSON.stringify(customerPhone));
+    console.log("[3/7] Phone sanitization result:", customerPhone ? "valid" : "invalid");
 
     if (!customerPhone) {
       console.warn("[4/7] VALIDATION FAILED: phone could not be sanitized to a valid 10-digit Indian number");
-      console.log("  Raw input was:", JSON.stringify(rawPhone));
+      console.log("  Raw input (redacted):", rawPhone ? "***" + rawPhone.replace(/\D/g, "").slice(-4) : "[empty]");
       console.log("══════════ END DEBUG ══════════\n");
       return Response.json({
         success: false,
@@ -212,8 +231,8 @@ if (!ENABLE_SHIPROCKET) {
 
     const token = await getShiprocketToken();
     console.log(
-  "FINAL PASSWORD:",
-  process.env.SHIPROCKET_PASSWORD
+  "[Shiprocket] Password configured:",
+  !!process.env.SHIPROCKET_PASSWORD
 );
 
     const shippingParts = (shippingAddress || "").split(", ");
@@ -267,7 +286,7 @@ if (!ENABLE_SHIPROCKET) {
     // Create the Shiprocket order
     console.log("[5/7] Sending to Shiprocket API...");
     const orderResult = await createShiprocketOrder(token, orderInput);
-    console.log("[5/7] SHIPROCKET RESPONSE:", JSON.stringify(orderResult, null, 2));
+    console.log("[5/7] SHIPROCKET RESPONSE received:", orderResult?.order_id ? `order_id=${orderResult.order_id}` : "no order_id");
 
     const shiprocketOrderId = orderResult?.order_id || null;
     const shipmentId = orderResult?.shipment_id || null;

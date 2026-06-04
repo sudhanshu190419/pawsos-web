@@ -147,7 +147,7 @@ export async function getVetPricingData(
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    console.error("[Razorpay] Firestore vet lookup failed:", response.status, body);
+    console.error("[Razorpay] Firestore vet lookup failed:", response.status, body ? "[response body redacted]" : "empty");
     throw new ApiError("Could not validate vet pricing", 502);
   }
 
@@ -229,7 +229,7 @@ export async function createVetAppointment(params: {
   console.error(
     "[Razorpay] Firestore appointment creation failed:",
     response.status,
-    body
+    body ? "[response body redacted]" : "empty"
   );
 
   if (response.status === 401 || response.status === 403) {
