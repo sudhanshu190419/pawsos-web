@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "../lib/firebase";
+import { db, functions } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { showGlobalToast } from "./ui/GlobalToastHost";
 import { 
@@ -114,6 +115,19 @@ export default function OrganizationApprovals() {
       await deleteDoc(doc(db, "pending_organizations", selectedOrg.id));
 
       showGlobalToast(`Organization "${selectedOrg.orgName}" approved successfully!`, "success");
+
+      // Send approval email (non-blocking — admin action succeeds regardless)
+      const notifyOrg = httpsCallable(functions, "notifyOrgApprovalStatus");
+      void notifyOrg({
+        orgEmail: selectedOrg.email,
+        orgName: selectedOrg.orgName,
+        contactPerson: selectedOrg.contactPerson,
+        type: selectedOrg.type,
+        status: "approved",
+      }).catch((err) => {
+        console.warn("[OrganizationApprovals] Approval email send failed (non-blocking):", err);
+      });
+
       setSelectedOrg(null); 
     } catch (error: any) {
       console.error("Error approving organization:", error);
@@ -131,6 +145,20 @@ export default function OrganizationApprovals() {
     try {
       await updateDoc(doc(db, "pending_organizations", selectedOrg.id), { status: "rejected", rejectionReason: reason });
       showGlobalToast(`Organization "${selectedOrg.orgName}" rejected.`, "info");
+
+      // Send rejection email (non-blocking — admin action succeeds regardless)
+      const notifyOrg = httpsCallable(functions, "notifyOrgApprovalStatus");
+      void notifyOrg({
+        orgEmail: selectedOrg.email,
+        orgName: selectedOrg.orgName,
+        contactPerson: selectedOrg.contactPerson,
+        type: selectedOrg.type,
+        status: "rejected",
+        reason: reason || undefined,
+      }).catch((err) => {
+        console.warn("[OrganizationApprovals] Rejection email send failed (non-blocking):", err);
+      });
+
       setSelectedOrg(null); 
     } catch (error: any) {
       console.error("Error rejecting organization:", error);

@@ -82,10 +82,10 @@ export default function ContactPage() {
               <h3 className="font-bold text-slate-800 text-base sm:text-lg mb-1 sm:mb-2">Email Us</h3>
               <p className="text-slate-500 text-xs sm:text-sm mb-3 sm:mb-4">Our friendly team is here to help.</p>
               <a
-  href="mailto:animalbuddiessociety@gmail.com"
+  href="mailto:info@animalsathi.com"
   className="font-bold text-orange-600 text-xs sm:text-sm hover:text-orange-700 transition-colors break-all"
 >
-  animalbuddiessociety@gmail.com
+  info@animalsathi.com
 </a>
             </div>
 

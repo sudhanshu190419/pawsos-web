@@ -134,6 +134,7 @@ export default function OrganizationOnboardingPage() {
 
   const openForm = useCallback(() => setShowForm(true), []);
   const closeForm = useCallback(() => setShowForm(false), []);
+  const [isReapplying, setIsReapplying] = useState(false);
 
   if (loading) {
     return (
@@ -191,6 +192,7 @@ export default function OrganizationOnboardingPage() {
   // Rejected State
   if (pendingOrg?.status === "rejected") {
     const handleReApply = async () => {
+      setIsReapplying(true);
       try {
         const id = (pendingOrg as any)?.id || "";
         if (!id) {
@@ -203,6 +205,8 @@ export default function OrganizationOnboardingPage() {
       } catch (error) {
         console.error("Error clearing rejected application:", error);
         showToast("Failed to clear application. Please try again.", "error");
+      } finally {
+        setIsReapplying(false);
       }
     };
 
@@ -225,9 +229,17 @@ export default function OrganizationOnboardingPage() {
           <div className="flex flex-col gap-3">
             <button
               onClick={handleReApply}
-              className="w-full shimmer-btn text-white py-4 rounded-2xl font-bold transition-all shadow-lg hover:-translate-y-1 active:scale-95"
+              disabled={isReapplying}
+              className="w-full shimmer-btn text-white py-4 rounded-2xl font-bold transition-all shadow-lg hover:-translate-y-1 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
             >
-              Edit & Re-submit Application
+              {isReapplying ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Clearing…
+                </>
+              ) : (
+                "Edit & Re-submit Application"
+              )}
             </button>
             <Link href="/" className="w-full px-6 py-4 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-all">
               Return Home

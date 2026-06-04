@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "../lib/firebase";
+import { db, functions } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp  } from "firebase/firestore";
 
 
@@ -71,6 +72,16 @@ const displayList =
       volunteerStatus: "approved",
     });
 
+    // Send approval email (non-blocking — admin action succeeds regardless)
+    const notifyVolunteer = httpsCallable(functions, "notifyVolunteerApprovalStatus");
+    void notifyVolunteer({
+      volunteerEmail: user.email,
+      volunteerName: user.name,
+      status: "approved",
+    }).catch((err) => {
+      console.warn("[VolunteerApprovals] Approval email send failed (non-blocking):", err);
+    });
+
     setSelectedUser(null);
   } catch (error) {
     console.error(error);
@@ -81,17 +92,36 @@ const displayList =
   
 
   // ❌ REJECT
-  const handleReject = async (userId: string) => {
+  const handleReject = async (user: VolunteerUser) => {
+  const reason = window.prompt("Reason for rejection (optional):");
+  if (reason === null) return;
+
+  setIsProcessing(true);
+
   try {
-    await updateDoc(doc(db, "users", userId), {
+    await updateDoc(doc(db, "users", user.id), {
       volunteerStatus: "rejected",
       volunteerApproved: false,
+      rejectionReason: reason || "",
     });
 
-    setSelectedUser(null); // ✅ ADD HERE
+    // Send rejection email (non-blocking — admin action succeeds regardless)
+    const notifyVolunteer = httpsCallable(functions, "notifyVolunteerApprovalStatus");
+    void notifyVolunteer({
+      volunteerEmail: user.email,
+      volunteerName: user.name,
+      status: "rejected",
+      reason: reason || undefined,
+    }).catch((err) => {
+      console.warn("[VolunteerApprovals] Rejection email send failed (non-blocking):", err);
+    });
+
+    setSelectedUser(null);
 
   } catch (error) {
     console.error(error);
+  } finally {
+    setIsProcessing(false);
   }
 };
 
@@ -222,7 +252,7 @@ const displayList =
           <>
             <button
   disabled={isProcessing}
-  onClick={() => handleReject(selectedUser.id)}
+  onClick={() => handleReject(selectedUser)}
   className="flex-1 bg-red-100 text-red-600 py-2 rounded-lg font-bold disabled:opacity-50"
 >
   {isProcessing ? "Processing..." : "Reject"}

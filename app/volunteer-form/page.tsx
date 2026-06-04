@@ -27,6 +27,7 @@ export default function VolunteerFormPage() {
   const [isVolunteer, setIsVolunteer] = useState(false);
   const [checking, setChecking] = useState(true);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   
   const router = useRouter(); // 🔥 Initialize the router
 
@@ -47,6 +48,10 @@ export default function VolunteerFormPage() {
 
           if (data.volunteerStatus === "approved") {
             setIsVolunteer(true);
+          }
+
+          if (data.rejectionReason) {
+            setRejectionReason(data.rejectionReason);
           }
         }
 
@@ -241,6 +246,13 @@ export default function VolunteerFormPage() {
           <p className="text-sm sm:text-base text-slate-600 mb-6 sm:mb-8 leading-relaxed">
             Unfortunately, your request to become a verified volunteer was not approved by our moderation team.
           </p>
+
+          {rejectionReason && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 text-left max-w-sm mx-auto">
+              <p className="text-xs font-bold uppercase tracking-wider text-red-600 mb-1.5">Feedback from reviewers:</p>
+              <p className="text-sm text-slate-700">{rejectionReason}</p>
+            </div>
+          )}
 
           <button
             onClick={() => setStatus(null)}

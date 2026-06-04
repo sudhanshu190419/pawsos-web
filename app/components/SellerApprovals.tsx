@@ -2,7 +2,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState, useMemo } from "react";
-import { db } from "../lib/firebase";
+import { db, functions } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { collection, query, where, onSnapshot, doc, updateDoc, orderBy } from "firebase/firestore";
 import type { BrandProfile, SellerVerificationStatus } from "../lib/seller";
 
@@ -123,6 +124,17 @@ export default function SellerApprovals() {
         shiprocketPickupName: pickupCode || null,
       });
 
+      // Send approval email (non-blocking — admin action succeeds regardless)
+      const notifySeller = httpsCallable(functions, "notifySellerApprovalStatus");
+      void notifySeller({
+        sellerEmail: selectedSeller.email,
+        brandName: selectedSeller.brandName,
+        ownerName: selectedSeller.ownerName,
+        status: "approved",
+      }).catch((err) => {
+        console.warn("[SellerApprovals] Approval email send failed (non-blocking):", err);
+      });
+
       alert("Seller approved successfully! Shiprocket pickup created.");
       setSelectedSeller(null);
     } catch (error: any) {
@@ -144,6 +156,19 @@ export default function SellerApprovals() {
         verificationStatus: "rejected" as SellerVerificationStatus,
         rejectionReason: reason || "",
       });
+
+      // Send rejection email (non-blocking — admin action succeeds regardless)
+      const notifySeller = httpsCallable(functions, "notifySellerApprovalStatus");
+      void notifySeller({
+        sellerEmail: selectedSeller.email,
+        brandName: selectedSeller.brandName,
+        ownerName: selectedSeller.ownerName,
+        status: "rejected",
+        reason: reason || undefined,
+      }).catch((err) => {
+        console.warn("[SellerApprovals] Rejection email send failed (non-blocking):", err);
+      });
+
       setSelectedSeller(null);
     } catch (error) {
       console.error("Error rejecting seller:", error);
@@ -162,6 +187,19 @@ export default function SellerApprovals() {
       await updateDoc(doc(db, "brands", selectedSeller.uid), {
         verificationStatus: "rejected" as SellerVerificationStatus,
       });
+
+      // Send revocation notification (non-blocking)
+      const notifySeller = httpsCallable(functions, "notifySellerApprovalStatus");
+      void notifySeller({
+        sellerEmail: selectedSeller.email,
+        brandName: selectedSeller.brandName,
+        ownerName: selectedSeller.ownerName,
+        status: "rejected",
+        reason: "Revoked by admin",
+      }).catch((err) => {
+        console.warn("[SellerApprovals] Revocation email send failed (non-blocking):", err);
+      });
+
       setSelectedSeller(null);
     } catch (error) {
       console.error("Error revoking seller:", error);

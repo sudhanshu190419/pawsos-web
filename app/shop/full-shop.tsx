@@ -55,6 +55,10 @@ const GlobalStyles = () => (
       from { transform: translateY(100%); }
       to   { transform: translateY(0); }
     }
+    @keyframes cart-bar-in {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { scrollbar-width: none; }
     @media (max-width: 640px) {
@@ -528,7 +532,7 @@ function ShopPageContent() {
           ══════════════════════════════════════════ */}
       <main
         ref={productsRef}
-        className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-0 pb-0.5 sm:pt-0 sm:pb-1"
+        className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-0 pb-16 sm:pb-20"
       >
         {/* ── Search + Filters ── */}
         <div className="mb-0.5 sm:mb-1 space-y-0.5 sm:space-y-1">
@@ -711,6 +715,42 @@ function ShopPageContent() {
           onClose={() => setIsCheckoutOpen(false)}
           onOrderPlaced={(orderId) => { clear(); setIsCheckoutOpen(false); }}
         />
+      )}
+
+      {/* ── Floating Cart Bottom Bar ── */}
+      {cartItems.length > 0 && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-[90000] bg-white/95 backdrop-blur-lg border-t border-neutral-200 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] px-4 py-3 sm:py-3.5"
+          style={{ animation: "cart-bar-in 350ms cubic-bezier(0.16,1,0.3,1)" }}
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                  </svg>
+                </div>
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-sm shadow-orange-500/30 leading-none">
+                  {totals.itemCount}
+                </span>
+              </div>
+              <div>
+                <p className="text-[11px] text-neutral-400 font-medium leading-tight">{totals.itemCount} item{totals.itemCount !== 1 ? "s" : ""} in cart</p>
+                <p className="text-base font-extrabold text-neutral-900 tracking-tight leading-tight mt-0.5">₹{cartTotal.toLocaleString("en-IN")}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 transition-all active:scale-[0.97] whitespace-nowrap flex items-center gap-1.5"
+            >
+              View Cart
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

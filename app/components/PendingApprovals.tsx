@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "../lib/firebase";
+import { db, functions } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
 
 interface NGOData {
@@ -70,6 +71,18 @@ export default function PendingApprovals() {
     try {
       await updateDoc(doc(db, "ngos_web", selectedNGO.id), { verificationStatus: "approved", status: "active", role: "ngo" });
       await updateDoc(doc(db, "users", selectedNGO.uid), { ngoApproved: true });
+
+      // Send approval email (non-blocking — admin action succeeds regardless)
+      const notifyNGO = httpsCallable(functions, "notifyNGOApprovalStatus");
+      void notifyNGO({
+        ngoEmail: selectedNGO.email,
+        ngoName: selectedNGO.ngoName,
+        contactPerson: selectedNGO.contactPerson,
+        status: "approved",
+      }).catch((err) => {
+        console.warn("[PendingApprovals] NGO approval email send failed (non-blocking):", err);
+      });
+
       setSelectedNGO(null); 
     } catch (error) {
       console.error("Error approving NGO:", error);
@@ -88,6 +101,19 @@ export default function PendingApprovals() {
     try {
       await updateDoc(doc(db, "ngos_web", selectedNGO.id), { verificationStatus: "rejected", status: "inactive", role: "user", rejectionReason: reason });
       await updateDoc(doc(db, "users", selectedNGO.uid), { ngoApproved: false });
+
+      // Send rejection email (non-blocking — admin action succeeds regardless)
+      const notifyNGO = httpsCallable(functions, "notifyNGOApprovalStatus");
+      void notifyNGO({
+        ngoEmail: selectedNGO.email,
+        ngoName: selectedNGO.ngoName,
+        contactPerson: selectedNGO.contactPerson,
+        status: "rejected",
+        reason: reason || undefined,
+      }).catch((err) => {
+        console.warn("[PendingApprovals] NGO rejection email send failed (non-blocking):", err);
+      });
+
       setSelectedNGO(null); 
     } catch (error) {
       console.error("Error rejecting NGO:", error);

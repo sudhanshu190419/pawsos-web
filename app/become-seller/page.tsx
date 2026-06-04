@@ -26,6 +26,7 @@ interface ExistingApplication {
   verificationStatus: "pending" | "approved" | "rejected";
   brandName: string;
   email: string;
+  rejectionReason?: string;
 }
 
 /* ─────────────────────── Constants ─────────────────────────── */
@@ -497,6 +498,7 @@ function SellerRegistrationForm({ onClose }: { onClose: () => void }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [hasApplied, setHasApplied] = useState(false);
   const [existingApp, setExistingApp] = useState<ExistingApplication | null>(null);
+  const [isReapplying, setIsReapplying] = useState(false);
 
   // Auto-populate email from auth
   useEffect(() => {
@@ -533,11 +535,12 @@ function SellerRegistrationForm({ onClose }: { onClose: () => void }) {
             getDoc(doc(db, "brands", currentUser.uid)).then((snap) => {
               if (snap.exists()) {
                 setHasApplied(true);
-                const data = snap.data() as BrandProfile;
+                const data = snap.data() as BrandProfile & { rejectionReason?: string };
                 setExistingApp({
                   verificationStatus: data.verificationStatus,
                   brandName: data.brandName,
                   email: data.email,
+                  rejectionReason: data.rejectionReason,
                 });
               }
             }).catch(console.error);
@@ -579,6 +582,29 @@ function SellerRegistrationForm({ onClose }: { onClose: () => void }) {
     setDocFile(file);
     setDocName(file.name);
     setErrors((prev) => { const n = { ...prev }; delete n.document; return n; });
+  };
+
+  /* ── Reapply ── */
+
+  const handleReapply = async () => {
+    if (!user?.uid) return;
+    setIsReapplying(true);
+    try {
+      const { doc, deleteDoc } = await import("firebase/firestore");
+      const { db } = await import("../lib/firebase");
+      await deleteDoc(doc(db, "brands", user.uid));
+      setHasApplied(false);
+      setExistingApp(null);
+      setForm({ ...INITIAL_FORM, email: user.email ?? "" });
+      setErrors({});
+      setStep("form");
+      alert("Application cleared. You can now reapply with updated information.");
+    } catch (err) {
+      console.error("Failed to clear application:", err);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setIsReapplying(false);
+    }
   };
 
   /* ── Submit ── */
@@ -674,7 +700,7 @@ function SellerRegistrationForm({ onClose }: { onClose: () => void }) {
     const cfg = {
       pending: { emoji: "⏳", title: "Application Under Review", color: "text-amber-700", bg: "bg-amber-50 border-amber-100", msg: "Our team is reviewing your credentials. This typically takes 24–48 hours." },
       approved: { emoji: "✅", title: "Application Approved!", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-100", msg: "Your seller profile is verified. Access your Seller Dashboard to start listing products." },
-      rejected: { emoji: "❌", title: "Application Rejected", color: "text-red-700", bg: "bg-red-50 border-red-100", msg: "We couldn't verify your documents. Please contact support to appeal this decision." },
+      rejected: { emoji: "❌", title: "Application Rejected", color: "text-red-700", bg: "bg-red-50 border-red-100", msg: "Your application could not be approved at this time. Review the feedback below and reapply with updated information." },
     }[existingApp.verificationStatus];
 
     return (
@@ -686,6 +712,16 @@ function SellerRegistrationForm({ onClose }: { onClose: () => void }) {
           <Detail label="Brand" value={existingApp.brandName} />
           <Detail label="Email" value={existingApp.email} />
         </div>
+
+        {existingApp.verificationStatus === "rejected" && existingApp.rejectionReason && (
+          <div className="mb-6 max-w-sm mx-auto bg-red-50 border border-red-200 rounded-xl p-5 text-left">
+            <p className="text-xs font-bold text-red-600 uppercase tracking-widest mb-2">
+              Feedback from reviewers
+            </p>
+            <p className="text-sm text-red-700 leading-relaxed">{existingApp.rejectionReason}</p>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {existingApp.verificationStatus === "approved" ? (
             <>
@@ -695,6 +731,29 @@ function SellerRegistrationForm({ onClose }: { onClose: () => void }) {
               >
                 Go to Seller Dashboard →
               </Link>
+              <button onClick={onClose} className="bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors">
+                Close
+              </button>
+            </>
+          ) : existingApp.verificationStatus === "rejected" ? (
+            <>
+              <button
+                onClick={handleReapply}
+                disabled={isReapplying}
+                className="shimmer-btn text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 shadow-lg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              >
+                {isReapplying ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Clearing…
+                  </span>
+                ) : (
+                  "Reapply"
+                )}
+              </button>
               <button onClick={onClose} className="bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors">
                 Close
               </button>

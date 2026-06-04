@@ -10,6 +10,7 @@ import {
 import {
   doc,
   setDoc,
+  deleteDoc,
   serverTimestamp,
   GeoPoint,
   getDoc,
@@ -39,6 +40,7 @@ interface ExistingApplication {
   verificationStatus: "pending_review" | "approved" | "rejected";
   fullName: string;
   email: string;
+  rejectionReason?: string;
 }
 
 interface Coords {
@@ -570,6 +572,7 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<VetFormData>(INITIAL_FORM);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof VetFormData, string>>>({});
+  const [isReapplying, setIsReapplying] = useState(false);
 
   /* ── Setup ── */
 
@@ -581,7 +584,13 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
           const snap = await getDoc(doc(db, "vets_web", u.uid));
           if (snap.exists()) {
             setHasApplied(true);
-            setExistingApp(snap.data() as ExistingApplication);
+            const data = snap.data() as ExistingApplication;
+            setExistingApp({
+              verificationStatus: data.verificationStatus,
+              fullName: data.fullName,
+              email: data.email,
+              rejectionReason: data.rejectionReason,
+            });
           } else {
             setForm((prev) => ({ ...prev, email: u.email ?? "" }));
           }
@@ -599,6 +608,29 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
 
     return unsub;
   }, []);
+
+  /* ── Handlers ── */
+
+  const handleReapply = async () => {
+    if (!user) return;
+    setIsReapplying(true);
+    try {
+      await deleteDoc(doc(db, "vets_web", user.uid));
+      setHasApplied(false);
+      setExistingApp(null);
+      setForm({ ...INITIAL_FORM, email: user.email ?? "" });
+      setStep(1);
+      setErrors({});
+      setTimeout(() => {
+        alert("Application cleared. You can now submit a new application.");
+      }, 100);
+    } catch (error) {
+      console.error("Error clearing rejected application:", error);
+      alert("Failed to clear application. Please try again.");
+    } finally {
+      setIsReapplying(false);
+    }
+  };
 
   /* ── Typed setters ── */
 
@@ -782,21 +814,48 @@ if (!/^\d{6}$/.test(form.pincode.trim())) {
     const cfg = {
       pending_review: { emoji: "⏳", title: "Application Under Review", color: "text-amber-700", bg: "bg-amber-50 border-amber-100", msg: "Our medical review board is verifying your credentials. This typically takes 24–48 hours." },
       approved: { emoji: "✅", title: "Application Approved!", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-100", msg: "Your profile is verified. Access your Veterinarian Dashboard to start coordinating cases." },
-      rejected: { emoji: "❌", title: "Application Rejected", color: "text-red-700", bg: "bg-red-50 border-red-100", msg: "We couldn't verify your documents. Please contact support to appeal this decision." },
+      rejected: { emoji: "❌", title: "Application Rejected", color: "text-red-700", bg: "bg-red-50 border-red-100", msg: "We couldn't verify your documents at this time. Review the feedback below and reapply with updated information." },
     }[existingApp.verificationStatus];
 
-    return (
-      <div className={`rounded-2xl border p-8 text-center ${cfg.bg}`}>
+    return (        <div className={`rounded-2xl border p-8 text-center ${cfg.bg}`}>
         <div className="text-5xl mb-4">{cfg.emoji}</div>
         <h3 className={`sora text-2xl font-extrabold mb-2 ${cfg.color}`}>{cfg.title}</h3>
-        <p className="text-sm text-slate-600 max-w-sm mx-auto mb-8 leading-relaxed">{cfg.msg}</p>
+        <p className="text-sm text-slate-600 max-w-sm mx-auto mb-6 leading-relaxed">{cfg.msg}</p>
+
+        {/* Rejection reason */}
+        {existingApp.verificationStatus === "rejected" && existingApp.rejectionReason && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-left mb-6 max-w-sm mx-auto">
+            <p className="text-xs font-bold uppercase tracking-wider text-red-600 mb-1.5">Feedback from reviewers:</p>
+            <p className="text-sm text-slate-700">{existingApp.rejectionReason}</p>
+          </div>
+        )}
+
         <div className="bg-white/70 rounded-xl p-4 text-left space-y-2 border border-white/60 max-w-xs mx-auto mb-8">
           <Detail label="Name" value={existingApp.fullName} />
           <Detail label="Email" value={existingApp.email} />
         </div>
-        <button onClick={onClose} className="bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors">
-          Close
-        </button>
+
+        <div className="flex flex-col gap-3 max-w-xs mx-auto">
+          {existingApp.verificationStatus === "rejected" && (
+            <button
+              onClick={handleReapply}
+              disabled={isReapplying}
+              className="w-full shimmer-btn text-white py-3.5 rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {isReapplying ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Clearing…
+                </>
+              ) : (
+                "Reapply"
+              )}
+            </button>
+          )}
+          <button onClick={onClose} className="bg-slate-950 text-white px-8 py-3.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors">
+            Close
+          </button>
+        </div>
       </div>
     );
   }

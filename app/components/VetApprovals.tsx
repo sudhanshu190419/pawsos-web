@@ -2,7 +2,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState } from "react";
-import { db } from "../lib/firebase";
+import { db, functions } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
 
 // 🔥 Updated to perfectly match your real Firebase schema!
@@ -177,6 +178,16 @@ export default function VetApprovals() {
         vetApprovedSince: new Date(),
       });
 
+      // Send approval email (non-blocking — admin action succeeds regardless)
+      const notifyVet = httpsCallable(functions, "notifyVetApprovalStatus");
+      notifyVet({
+        vetEmail: selectedVet.email,
+        vetName: selectedVet.fullName,
+        status: "approved",
+      }).catch((err) => {
+        console.warn("[VetApprovals] Approval email send failed (non-blocking):", err);
+      });
+
       alert("Vet approved successfully!");
       setSelectedVet(null);
     } catch (error) {
@@ -207,7 +218,17 @@ export default function VetApprovals() {
       // 2. Lock them back to a normal user
       await updateDoc(doc(db, "users", selectedVet.uid), { 
         vetApproved: false,
-        
+      });
+
+      // Send rejection email (non-blocking — admin action succeeds regardless)
+      const notifyVet = httpsCallable(functions, "notifyVetApprovalStatus");
+      notifyVet({
+        vetEmail: selectedVet.email,
+        vetName: selectedVet.fullName,
+        status: "rejected",
+        reason: reason || undefined,
+      }).catch((err) => {
+        console.warn("[VetApprovals] Rejection email send failed (non-blocking):", err);
       });
 
       setSelectedVet(null); 

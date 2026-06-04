@@ -739,6 +739,559 @@ exports.cleanupExpiredOtps = onSchedule(
 );
 
 // ---------------------------------------------------------------------------
+// notifyVolunteerApprovalStatus  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an email notification to a volunteer when their account is
+ * approved or rejected by an admin.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Approval/Rejection is never blocked by email delivery — failures are
+ * logged and swallowed.
+ *
+ * Request body:
+ *   { volunteerEmail: string, volunteerName: string, status: "approved" | "rejected", reason?: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.notifyVolunteerApprovalStatus = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { volunteerEmail, volunteerName, status, reason } = request.data || {};
+
+    logger.info("[PAWSOS-VOLUNTEER-NOTIFY] Sending volunteer status notification", {
+      volunteerEmail,
+      volunteerName,
+      status,
+      hasReason: !!reason,
+    });
+
+    // ── Input validation ──
+    if (!volunteerEmail || !volunteerName || !status) {
+      throw new HttpsError(
+        "invalid-argument",
+        "volunteerEmail, volunteerName, and status are required."
+      );
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      throw new HttpsError(
+        "invalid-argument",
+        'status must be "approved" or "rejected".'
+      );
+    }
+
+    const emailStr = String(volunteerEmail).trim().toLowerCase();
+    const nameStr = String(volunteerName).trim();
+    const reasonStr = reason ? String(reason).trim() : "";
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+      };
+
+      if (status === "approved") {
+        mailOptions.subject = "Your Volunteer Application Has Been Approved — AnimalSathi";
+        mailOptions.text = [
+          `Hello ${nameStr},`,
+          "",
+          "Congratulations! Your volunteer application has been reviewed and approved by the AnimalSathi team.",
+          "",
+          "You are now part of our community of animal rescuers and helpers. Here's what you can do now:",
+          "",
+          "• Respond to SOS alerts and rescue requests in your area",
+          "• Participate in community animal welfare events",
+          "• Connect with other volunteers and animal lovers",
+          "• Build your volunteer profile and track your impact",
+          "",
+          "If you have any questions or need support, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Volunteer Application Approved</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0fdf4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(22,101,52,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">🎉</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Application Approved!</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Volunteer Community</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${nameStr} 🙌
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Congratulations! Your volunteer application has been <strong style="color:#16a34a;">reviewed and approved</strong>. You are now part of our community of animal rescuers and helpers.
+              </p>
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0 0 12px; color:#15803d; font-size:13px; font-weight:600;">
+                  🌟 What you can do now:
+                </p>
+                <ul style="margin:0; padding-left:20px; color:#555; font-size:13px; line-height:1.8;">
+                  <li>Respond to SOS alerts &amp; rescue requests in your area</li>
+                  <li>Participate in community animal welfare events</li>
+                  <li>Connect with other volunteers and animal lovers</li>
+                  <li>Build your volunteer profile and track your impact</li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #e0f2e0; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact us at <a href="mailto:info@animalsathi.com" style="color:#16a34a;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      } else {
+        // status === "rejected"
+        mailOptions.subject = "Update Regarding Your Volunteer Application — AnimalSathi";
+        mailOptions.text = [
+          `Hello ${nameStr},`,
+          "",
+          "Thank you for your interest in volunteering with AnimalSathi.",
+          "",
+          "After careful review, we regret to inform you that your volunteer application could not be approved at this time.",
+          ...(reasonStr ? ["", `Reason: ${reasonStr}`, ""] : []),
+          "This decision does not prevent you from reapplying in the future. If you believe there has been an error or would like to provide additional information, please contact our support team.",
+          "",
+          "You can reapply by visiting our platform and submitting a new application.",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Volunteer Application Update</title>
+</head>
+<body style="margin:0; padding:0; background-color:#fef2f2; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(220,38,38,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">ℹ️</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Application Update</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Volunteer Community</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #dc2626, #fca5a5, #dc2626);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${nameStr}
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your interest in volunteering with <strong style="color:#991b1b;">AnimalSathi</strong>.
+              </p>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0; color:#dc2626; font-size:13px; line-height:1.6;">
+                  After careful review, we regret to inform you that your volunteer application could not be approved at this time.
+                </p>
+                ${reasonStr ? `<p style="margin:12px 0 0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>` : ""}
+              </div>
+              <p style="margin:0 0 10px; color:#666; font-size:13px; line-height:1.6;">
+                You can reapply at any time. If you have questions or updated information to share, please contact our support team.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #fee2e2; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact our team at <a href="mailto:info@animalsathi.com" style="color:#dc2626;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      }
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-VOLUNTEER-NOTIFY] Email sent successfully", {
+        to: emailStr,
+        status,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure does NOT block the admin action — just log it
+      logger.error("[PAWSOS-VOLUNTEER-NOTIFY] Email send failed (non-blocking):", {
+        error: emailError.message || "N/A",
+        volunteerEmail: emailStr,
+        status,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// notifyOrgApprovalStatus  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an email notification to an organization (hospital/vet clinic) when
+ * their Enterprise Partner application is approved or rejected by an admin.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Approval/Rejection is never blocked by email delivery — failures are
+ * logged and swallowed.
+ *
+ * Request body:
+ *   { orgEmail: string, orgName: string, contactPerson: string, type: string, status: "approved" | "rejected", reason?: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.notifyOrgApprovalStatus = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { orgEmail, orgName, contactPerson, type, status, reason } = request.data || {};
+
+    logger.info("[PAWSOS-ORG-NOTIFY] Sending organization status notification", {
+      orgEmail,
+      orgName,
+      contactPerson,
+      type,
+      status,
+      hasReason: !!reason,
+    });
+
+    // ── Input validation ──
+    if (!orgEmail || !orgName || !status) {
+      throw new HttpsError(
+        "invalid-argument",
+        "orgEmail, orgName, and status are required."
+      );
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      throw new HttpsError(
+        "invalid-argument",
+        'status must be "approved" or "rejected".'
+      );
+    }
+
+    const emailStr = String(orgEmail).trim().toLowerCase();
+    const nameStr = String(orgName).trim();
+    const contactStr = contactPerson ? String(contactPerson).trim() : "";
+    const typeStr = type ? String(type).trim() : "organization";
+    const reasonStr = reason ? String(reason).trim() : "";
+    const greetingName = contactStr || nameStr;
+    const entityTypeLabel = typeStr === "hospital" ? "Hospital" : typeStr === "vet" ? "Veterinary Clinic" : "Organization";
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+      };
+
+      if (status === "approved") {
+        mailOptions.subject = `Your ${entityTypeLabel} Registration Has Been Approved — AnimalSathi`;
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Congratulations! Your ${entityTypeLabel.toLowerCase()} "${nameStr}" has been verified and approved by the AnimalSathi Enterprise Partner team.`,
+          "",
+          `Your ${entityTypeLabel.toLowerCase()} can now access all Enterprise Partner features on the platform.`,
+          "",
+          "What you can do now:",
+          "• Respond to SOS alerts and rescue coordination requests",
+          "• Manage your staff and assign roles (vets, volunteers, admins)",
+          "• Provide emergency and routine animal care services",
+          "• Coordinate with NGOs, volunteers, and other partners",
+          "• Showcase your facilities and capabilities on your profile",
+          "",
+          "If you have any questions or need support, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Partner Approved</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0fdf4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(22,101,52,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">✅</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Enterprise Partner Approved!</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Enterprise Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName} 🙌
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Congratulations! Your ${entityTypeLabel.toLowerCase()} <strong style="color:#16a34a;">"${nameStr}"</strong> has been verified and approved as an AnimalSathi Enterprise Partner.
+              </p>
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0 0 12px; color:#15803d; font-size:13px; font-weight:600;">
+                  ⚕️ What you can do now:
+                </p>
+                <ul style="margin:0; padding-left:20px; color:#555; font-size:13px; line-height:1.8;">
+                  <li>Respond to SOS alerts &amp; rescue coordination requests</li>
+                  <li>Manage your staff and assign roles</li>
+                  <li>Provide emergency and routine animal care services</li>
+                  <li>Coordinate with NGOs, volunteers, and other partners</li>
+                  <li>Showcase your facilities and capabilities</li>
+                </ul>
+              </div>
+              <p style="margin:0 0 16px; color:#666; font-size:13px; line-height:1.6;">
+                Log in now to access your Enterprise Partner dashboard and start making a difference.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #e0f2e0; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact us at <a href="mailto:info@animalsathi.com" style="color:#16a34a;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      } else {
+        // status === "rejected"
+        mailOptions.subject = `Update Regarding Your ${entityTypeLabel} Registration — AnimalSathi`;
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Thank you for your interest in registering "${nameStr}" as an AnimalSathi Enterprise Partner.`,
+          "",
+          "After careful review, we regret to inform you that your application could not be approved at this time.",
+          ...(reasonStr ? ["", `Reason: ${reasonStr}`, ""] : []),
+          "This decision does not prevent you from reapplying in the future. If you believe there has been an error or would like to provide additional information, please contact our support team.",
+          "",
+          "You can reapply by visiting our platform and submitting a new application with updated details.",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Partner Application Update</title>
+</head>
+<body style="margin:0; padding:0; background-color:#fef2f2; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(220,38,38,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">ℹ️</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Application Update</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Enterprise Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #dc2626, #fca5a5, #dc2626);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName}
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your interest in registering <strong style="color:#991b1b;">"${nameStr}"</strong> as an AnimalSathi Enterprise Partner.
+              </p>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0; color:#dc2626; font-size:13px; line-height:1.6;">
+                  After careful review, we regret to inform you that your application could not be approved at this time.
+                </p>
+                ${reasonStr ? `<p style="margin:12px 0 0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>` : ""}
+              </div>
+              <p style="margin:0 0 10px; color:#666; font-size:13px; line-height:1.6;">
+                You can reapply with updated details at any time. If you have questions, please contact our support team.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #fee2e2; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact our team at <a href="mailto:info@animalsathi.com" style="color:#dc2626;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      }
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-ORG-NOTIFY] Email sent successfully", {
+        to: emailStr,
+        status,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure does NOT block the admin action — just log it
+      logger.error("[PAWSOS-ORG-NOTIFY] Email send failed (non-blocking):", {
+        error: emailError.message || "N/A",
+        orgEmail: emailStr,
+        org: nameStr,
+        status,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
 // deleteUserAccount  –  callable function  (v2)
 // ---------------------------------------------------------------------------
 
@@ -1114,6 +1667,1687 @@ exports.deleteUserAccount = onCall(
     return {
       success: true,
       summary,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// notifyVetApprovalStatus  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an email notification to a veterinarian when their account is
+ * approved or rejected by an admin.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Approval/Rejection is never blocked by email delivery — failures are
+ * logged and swallowed.
+ *
+ * Request body:
+ *   { vetEmail: string, vetName: string, status: "approved" | "rejected", reason?: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.notifyVetApprovalStatus = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { vetEmail, vetName, status, reason } = request.data || {};
+
+    logger.info("[PAWSOS-VET-NOTIFY] Sending vet status notification", {
+      vetEmail,
+      vetName,
+      status,
+      hasReason: !!reason,
+    });
+
+    // ── Input validation ──
+    if (!vetEmail || !vetName || !status) {
+      throw new HttpsError(
+        "invalid-argument",
+        "vetEmail, vetName, and status are required."
+      );
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      throw new HttpsError(
+        "invalid-argument",
+        'status must be "approved" or "rejected".'
+      );
+    }
+
+    const emailStr = String(vetEmail).trim().toLowerCase();
+    const nameStr = String(vetName).trim();
+    const reasonStr = reason ? String(reason).trim() : "";
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+      };
+
+      if (status === "approved") {
+        mailOptions.subject = "Your AnimalSathi Veterinary Account Has Been Approved";
+        mailOptions.text = [
+          `Hello Dr. ${nameStr},`,
+          "",
+          "Congratulations! Your veterinary profile has been verified and approved by the AnimalSathi team.",
+          "",
+          "You can now log in to your account and start accepting consultations from pet parents in your area.",
+          "",
+          "What you can do now:",
+          "• Set your availability for consultations",
+          "• Accept clinic visits and remote consultations",
+          "• Provide emergency services if you are willing to travel",
+          "• Build your reputation with verified reviews",
+          "",
+          "If you have any questions or need support, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vet Account Approved</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0fdf4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(22,101,52,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">✅</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Account Approved!</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Veterinary Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello Dr. ${nameStr} 👨‍⚕️
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Congratulations! Your veterinary profile has been <strong style="color:#16a34a;">verified and approved</strong>.
+              </p>
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0 0 12px; color:#15803d; font-size:13px; font-weight:600;">
+                  ✅ What you can do now:
+                </p>
+                <ul style="margin:0; padding-left:20px; color:#555; font-size:13px; line-height:1.8;">
+                  <li>Set your availability for consultations</li>
+                  <li>Accept clinic visits &amp; remote consultations</li>
+                  <li>Provide emergency services</li>
+                  <li>Build your reputation with verified reviews</li>
+                </ul>
+              </div>
+              <p style="margin:0 0 16px; color:#666; font-size:13px; line-height:1.6;">
+                Log in now to start accepting consultations from pet parents in your area.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #e0f2e0; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact us at <a href="mailto:info@animalsathi.com" style="color:#16a34a;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      } else {
+        // status === "rejected"
+        mailOptions.subject = "Update Regarding Your Veterinary Registration";
+        mailOptions.text = [
+          `Hello Dr. ${nameStr},`,
+          "",
+          "Thank you for your interest in joining AnimalSathi as a veterinarian.",
+          "",
+          "After careful review, we regret to inform you that your veterinary registration could not be approved at this time.",
+          reasonStr ? `\nReason: ${reasonStr}\n` : "",
+          "This decision does not prevent you from reapplying in the future. If you believe there has been an error or would like to provide additional information, please contact our support team.",
+          "",
+          "You can reapply by visiting our platform and submitting a new application with updated credentials or documents.",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vet Registration Update</title>
+</head>
+<body style="margin:0; padding:0; background-color:#fef2f2; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(220,38,38,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">ℹ️</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Registration Update</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Veterinary Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #dc2626, #fca5a5, #dc2626);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello Dr. ${nameStr}
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your interest in joining <strong style="color:#991b1b;">AnimalSathi</strong> as a veterinarian.
+              </p>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0; color:#dc2626; font-size:13px; line-height:1.6;">
+                  After careful review, we regret to inform you that your registration could not be approved at this time.
+                </p>
+                ${reasonStr ? `<p style="margin:12px 0 0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>` : ""}
+              </div>
+              <p style="margin:0 0 10px; color:#666; font-size:13px; line-height:1.6;">
+                This decision does not prevent you from reapplying. You can submit a new application with updated credentials at any time.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #fee2e2; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact our team at <a href="mailto:info@animalsathi.com" style="color:#dc2626;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      }
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-VET-NOTIFY] Email sent successfully", {
+        to: emailStr,
+        status,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure does NOT block the admin action — just log it
+      logger.error("[PAWSOS-VET-NOTIFY] Email send failed (non-blocking):", {
+        error: emailError.message || "N/A",
+        vetEmail: emailStr,
+        status,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// notifyOrgApprovalStatus  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an email notification to an organization (hospital/vet clinic) when
+ * their Enterprise Partner application is approved or rejected by an admin.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Approval/Rejection is never blocked by email delivery — failures are
+ * logged and swallowed.
+ *
+ * Request body:
+ *   { orgEmail: string, orgName: string, contactPerson: string, type: string, status: "approved" | "rejected", reason?: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.notifyOrgApprovalStatus = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { orgEmail, orgName, contactPerson, type, status, reason } = request.data || {};
+
+    logger.info("[PAWSOS-ORG-NOTIFY] Sending organization status notification", {
+      orgEmail,
+      orgName,
+      contactPerson,
+      type,
+      status,
+      hasReason: !!reason,
+    });
+
+    // ── Input validation ──
+    if (!orgEmail || !orgName || !status) {
+      throw new HttpsError(
+        "invalid-argument",
+        "orgEmail, orgName, and status are required."
+      );
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      throw new HttpsError(
+        "invalid-argument",
+        'status must be "approved" or "rejected".'
+      );
+    }
+
+    const emailStr = String(orgEmail).trim().toLowerCase();
+    const nameStr = String(orgName).trim();
+    const contactStr = contactPerson ? String(contactPerson).trim() : "";
+    const typeStr = type ? String(type).trim() : "organization";
+    const reasonStr = reason ? String(reason).trim() : "";
+    const greetingName = contactStr || nameStr;
+    const entityTypeLabel = typeStr === "hospital" ? "Hospital" : typeStr === "vet" ? "Veterinary Clinic" : "Organization";
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+      };
+
+      if (status === "approved") {
+        mailOptions.subject = `Your ${entityTypeLabel} Registration Has Been Approved — AnimalSathi`;
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Congratulations! Your ${entityTypeLabel.toLowerCase()} "${nameStr}" has been verified and approved by the AnimalSathi Enterprise Partner team.`,
+          "",
+          `Your ${entityTypeLabel.toLowerCase()} can now access all Enterprise Partner features on the platform.`,
+          "",
+          "What you can do now:",
+          "• Respond to SOS alerts and rescue coordination requests",
+          "• Manage your staff and assign roles (vets, volunteers, admins)",
+          "• Provide emergency and routine animal care services",
+          "• Coordinate with NGOs, volunteers, and other partners",
+          "• Showcase your facilities and capabilities on your profile",
+          "",
+          "If you have any questions or need support, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Partner Approved</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0fdf4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(22,101,52,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">✅</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Enterprise Partner Approved!</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Enterprise Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName} 🙌
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Congratulations! Your ${entityTypeLabel.toLowerCase()} <strong style="color:#16a34a;">"${nameStr}"</strong> has been verified and approved as an AnimalSathi Enterprise Partner.
+              </p>
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0 0 12px; color:#15803d; font-size:13px; font-weight:600;">
+                  ⚕️ What you can do now:
+                </p>
+                <ul style="margin:0; padding-left:20px; color:#555; font-size:13px; line-height:1.8;">
+                  <li>Respond to SOS alerts &amp; rescue coordination requests</li>
+                  <li>Manage your staff and assign roles</li>
+                  <li>Provide emergency and routine animal care services</li>
+                  <li>Coordinate with NGOs, volunteers, and other partners</li>
+                  <li>Showcase your facilities and capabilities</li>
+                </ul>
+              </div>
+              <p style="margin:0 0 16px; color:#666; font-size:13px; line-height:1.6;">
+                Log in now to access your Enterprise Partner dashboard and start making a difference.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #e0f2e0; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact us at <a href="mailto:info@animalsathi.com" style="color:#16a34a;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      } else {
+        // status === "rejected"
+        mailOptions.subject = `Update Regarding Your ${entityTypeLabel} Registration — AnimalSathi`;
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Thank you for your interest in registering "${nameStr}" as an AnimalSathi Enterprise Partner.`,
+          "",
+          "After careful review, we regret to inform you that your application could not be approved at this time.",
+          ...(reasonStr ? ["", `Reason: ${reasonStr}`, ""] : []),
+          "This decision does not prevent you from reapplying in the future. If you believe there has been an error or would like to provide additional information, please contact our support team.",
+          "",
+          "You can reapply by visiting our platform and submitting a new application with updated details.",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Partner Application Update</title>
+</head>
+<body style="margin:0; padding:0; background-color:#fef2f2; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(220,38,38,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">ℹ️</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Application Update</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Enterprise Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #dc2626, #fca5a5, #dc2626);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName}
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your interest in registering <strong style="color:#991b1b;">"${nameStr}"</strong> as an AnimalSathi Enterprise Partner.
+              </p>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0; color:#dc2626; font-size:13px; line-height:1.6;">
+                  After careful review, we regret to inform you that your application could not be approved at this time.
+                </p>
+                ${reasonStr ? `<p style="margin:12px 0 0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>` : ""}
+              </div>
+              <p style="margin:0 0 10px; color:#666; font-size:13px; line-height:1.6;">
+                You can reapply with updated details at any time. If you have questions, please contact our support team.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #fee2e2; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact our team at <a href="mailto:info@animalsathi.com" style="color:#dc2626;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      }
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-ORG-NOTIFY] Email sent successfully", {
+        to: emailStr,
+        status,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure does NOT block the admin action — just log it
+      logger.error("[PAWSOS-ORG-NOTIFY] Email send failed (non-blocking):", {
+        error: emailError.message || "N/A",
+        orgEmail: emailStr,
+        org: nameStr,
+        status,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// notifySellerApprovalStatus  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an email notification to a seller/brand when their account is
+ * approved or rejected by an admin.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Approval/Rejection is never blocked by email delivery — failures are
+ * logged and swallowed.
+ *
+ * Request body:
+ *   { sellerEmail: string, brandName: string, ownerName: string, status: "approved" | "rejected", reason?: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.notifySellerApprovalStatus = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { sellerEmail, brandName, ownerName, status, reason } = request.data || {};
+
+    logger.info("[PAWSOS-SELLER-NOTIFY] Sending seller status notification", {
+      sellerEmail,
+      brandName,
+      ownerName,
+      status,
+      hasReason: !!reason,
+    });
+
+    // ── Input validation ──
+    if (!sellerEmail || !brandName || !status) {
+      throw new HttpsError(
+        "invalid-argument",
+        "sellerEmail, brandName, and status are required."
+      );
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      throw new HttpsError(
+        "invalid-argument",
+        'status must be "approved" or "rejected".'
+      );
+    }
+
+    const emailStr = String(sellerEmail).trim().toLowerCase();
+    const brandStr = String(brandName).trim();
+    const ownerStr = ownerName ? String(ownerName).trim() : "";
+    const reasonStr = reason ? String(reason).trim() : "";
+    const greetingName = ownerStr || brandStr;
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+      };
+
+      if (status === "approved") {
+        mailOptions.subject = "Congratulations! Your Brand Has Been Approved on AnimalSathi";
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Great news! Your brand "${brandStr}" has been verified and approved on the AnimalSathi marketplace.`,
+          "",
+          "You can now start listing your pet products and reaching animal lovers across India.",
+          "",
+          "What you can do now:",
+          "• Log in to your seller dashboard",
+          "• Add your product catalog with images and prices",
+          "• Set up shipping and delivery preferences",
+          "• Start receiving orders from pet parents",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seller Account Approved</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0fdf4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(22,101,52,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">🎉</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Brand Approved!</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Marketplace</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName} 👋
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Great news! Your brand <strong style="color:#16a34a;">"${brandStr}"</strong> has been verified and approved on the AnimalSathi marketplace.
+              </p>
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0 0 12px; color:#15803d; font-size:13px; font-weight:600;">
+                  ✅ What you can do now:
+                </p>
+                <ul style="margin:0; padding-left:20px; color:#555; font-size:13px; line-height:1.8;">
+                  <li>Log in to your seller dashboard</li>
+                  <li>Add your product catalog with images &amp; prices</li>
+                  <li>Set up shipping and delivery preferences</li>
+                  <li>Start receiving orders from pet parents</li>
+                </ul>
+              </div>
+              <p style="margin:0 0 16px; color:#666; font-size:13px; line-height:1.6;">
+                Log in now to start listing your products and reaching animal lovers across India.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #e0f2e0; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact us at <a href="mailto:info@animalsathi.com" style="color:#16a34a;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      } else {
+        // status === "rejected"
+        mailOptions.subject = "Update Regarding Your Brand Registration on AnimalSathi";
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Thank you for your interest in listing "${brandStr}" on the AnimalSathi marketplace.`,
+          "",
+          "After careful review, we regret to inform you that your brand registration could not be approved at this time.",
+          ...(reasonStr ? ["", `Reason: ${reasonStr}`, ""] : []),
+          "This decision does not prevent you from reapplying in the future. If you believe there has been an error or would like to provide additional information, please contact our support team.",
+          "",
+          "You can reapply by visiting our platform and submitting a new application with updated business details or documents.",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seller Registration Update</title>
+</head>
+<body style="margin:0; padding:0; background-color:#fef2f2; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(220,38,38,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">ℹ️</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Registration Update</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Marketplace</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #dc2626, #fca5a5, #dc2626);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName}
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your interest in listing <strong style="color:#991b1b;">"${brandStr}"</strong> on the AnimalSathi marketplace.
+              </p>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0; color:#dc2626; font-size:13px; line-height:1.6;">
+                  After careful review, we regret to inform you that your brand registration could not be approved at this time.
+                </p>
+                ${reasonStr ? `<p style="margin:12px 0 0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>` : ""}
+              </div>
+              <p style="margin:0 0 10px; color:#666; font-size:13px; line-height:1.6;">
+                You can reapply with updated business details at any time. If you have questions, please contact our support team.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #fee2e2; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact our team at <a href="mailto:info@animalsathi.com" style="color:#dc2626;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      }
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-SELLER-NOTIFY] Email sent successfully", {
+        to: emailStr,
+        status,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure does NOT block the admin action — just log it
+      logger.error("[PAWSOS-SELLER-NOTIFY] Email send failed (non-blocking):", {
+        error: emailError.message || "N/A",
+        sellerEmail: emailStr,
+        brand: brandStr,
+        status,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// notifyOrgApprovalStatus  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an email notification to an organization (hospital/vet clinic) when
+ * their Enterprise Partner application is approved or rejected by an admin.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Approval/Rejection is never blocked by email delivery — failures are
+ * logged and swallowed.
+ *
+ * Request body:
+ *   { orgEmail: string, orgName: string, contactPerson: string, type: string, status: "approved" | "rejected", reason?: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.notifyOrgApprovalStatus = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { orgEmail, orgName, contactPerson, type, status, reason } = request.data || {};
+
+    logger.info("[PAWSOS-ORG-NOTIFY] Sending organization status notification", {
+      orgEmail,
+      orgName,
+      contactPerson,
+      type,
+      status,
+      hasReason: !!reason,
+    });
+
+    // ── Input validation ──
+    if (!orgEmail || !orgName || !status) {
+      throw new HttpsError(
+        "invalid-argument",
+        "orgEmail, orgName, and status are required."
+      );
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      throw new HttpsError(
+        "invalid-argument",
+        'status must be "approved" or "rejected".'
+      );
+    }
+
+    const emailStr = String(orgEmail).trim().toLowerCase();
+    const nameStr = String(orgName).trim();
+    const contactStr = contactPerson ? String(contactPerson).trim() : "";
+    const typeStr = type ? String(type).trim() : "organization";
+    const reasonStr = reason ? String(reason).trim() : "";
+    const greetingName = contactStr || nameStr;
+    const entityTypeLabel = typeStr === "hospital" ? "Hospital" : typeStr === "vet" ? "Veterinary Clinic" : "Organization";
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+      };
+
+      if (status === "approved") {
+        mailOptions.subject = `Your ${entityTypeLabel} Registration Has Been Approved — AnimalSathi`;
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Congratulations! Your ${entityTypeLabel.toLowerCase()} "${nameStr}" has been verified and approved by the AnimalSathi Enterprise Partner team.`,
+          "",
+          `Your ${entityTypeLabel.toLowerCase()} can now access all Enterprise Partner features on the platform.`,
+          "",
+          "What you can do now:",
+          "• Respond to SOS alerts and rescue coordination requests",
+          "• Manage your staff and assign roles (vets, volunteers, admins)",
+          "• Provide emergency and routine animal care services",
+          "• Coordinate with NGOs, volunteers, and other partners",
+          "• Showcase your facilities and capabilities on your profile",
+          "",
+          "If you have any questions or need support, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Partner Approved</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0fdf4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(22,101,52,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">✅</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Enterprise Partner Approved!</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Enterprise Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName} 🙌
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Congratulations! Your ${entityTypeLabel.toLowerCase()} <strong style="color:#16a34a;">"${nameStr}"</strong> has been verified and approved as an AnimalSathi Enterprise Partner.
+              </p>
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0 0 12px; color:#15803d; font-size:13px; font-weight:600;">
+                  ⚕️ What you can do now:
+                </p>
+                <ul style="margin:0; padding-left:20px; color:#555; font-size:13px; line-height:1.8;">
+                  <li>Respond to SOS alerts &amp; rescue coordination requests</li>
+                  <li>Manage your staff and assign roles</li>
+                  <li>Provide emergency and routine animal care services</li>
+                  <li>Coordinate with NGOs, volunteers, and other partners</li>
+                  <li>Showcase your facilities and capabilities</li>
+                </ul>
+              </div>
+              <p style="margin:0 0 16px; color:#666; font-size:13px; line-height:1.6;">
+                Log in now to access your Enterprise Partner dashboard and start making a difference.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #e0f2e0; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact us at <a href="mailto:info@animalsathi.com" style="color:#16a34a;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      } else {
+        // status === "rejected"
+        mailOptions.subject = `Update Regarding Your ${entityTypeLabel} Registration — AnimalSathi`;
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Thank you for your interest in registering "${nameStr}" as an AnimalSathi Enterprise Partner.`,
+          "",
+          "After careful review, we regret to inform you that your application could not be approved at this time.",
+          ...(reasonStr ? ["", `Reason: ${reasonStr}`, ""] : []),
+          "This decision does not prevent you from reapplying in the future. If you believe there has been an error or would like to provide additional information, please contact our support team.",
+          "",
+          "You can reapply by visiting our platform and submitting a new application with updated details.",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Partner Application Update</title>
+</head>
+<body style="margin:0; padding:0; background-color:#fef2f2; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(220,38,38,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">ℹ️</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Application Update</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Enterprise Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #dc2626, #fca5a5, #dc2626);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName}
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your interest in registering <strong style="color:#991b1b;">"${nameStr}"</strong> as an AnimalSathi Enterprise Partner.
+              </p>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0; color:#dc2626; font-size:13px; line-height:1.6;">
+                  After careful review, we regret to inform you that your application could not be approved at this time.
+                </p>
+                ${reasonStr ? `<p style="margin:12px 0 0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>` : ""}
+              </div>
+              <p style="margin:0 0 10px; color:#666; font-size:13px; line-height:1.6;">
+                You can reapply with updated details at any time. If you have questions, please contact our support team.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #fee2e2; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact our team at <a href="mailto:info@animalsathi.com" style="color:#dc2626;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      }
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-ORG-NOTIFY] Email sent successfully", {
+        to: emailStr,
+        status,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure does NOT block the admin action — just log it
+      logger.error("[PAWSOS-ORG-NOTIFY] Email send failed (non-blocking):", {
+        error: emailError.message || "N/A",
+        orgEmail: emailStr,
+        org: nameStr,
+        status,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// notifyNGOApprovalStatus  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an email notification to an NGO when their account is
+ * approved or rejected by an admin.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Approval/Rejection is never blocked by email delivery — failures are
+ * logged and swallowed.
+ *
+ * Request body:
+ *   { ngoEmail: string, ngoName: string, contactPerson: string, status: "approved" | "rejected", reason?: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.notifyNGOApprovalStatus = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { ngoEmail, ngoName, contactPerson, status, reason } = request.data || {};
+
+    logger.info("[PAWSOS-NGO-NOTIFY] Sending NGO status notification", {
+      ngoEmail,
+      ngoName,
+      contactPerson,
+      status,
+      hasReason: !!reason,
+    });
+
+    // ── Input validation ──
+    if (!ngoEmail || !ngoName || !status) {
+      throw new HttpsError(
+        "invalid-argument",
+        "ngoEmail, ngoName, and status are required."
+      );
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      throw new HttpsError(
+        "invalid-argument",
+        'status must be "approved" or "rejected".'
+      );
+    }
+
+    const emailStr = String(ngoEmail).trim().toLowerCase();
+    const nameStr = String(ngoName).trim();
+    const contactStr = contactPerson ? String(contactPerson).trim() : "";
+    const reasonStr = reason ? String(reason).trim() : "";
+    const greetingName = contactStr || nameStr;
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+      };
+
+      if (status === "approved") {
+        mailOptions.subject = "AnimalSathi NGO Registration Approved";
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Congratulations! Your NGO "${nameStr}" has been reviewed and approved by the AnimalSathi team.`,
+          "",
+          "You can now access all NGO features on the platform and start making a difference.",
+          "",
+          "What you can do now:",
+          "• Post SOS alerts and rescue requests for animals in need",
+          "• Coordinate with local veterinarians and volunteers",
+          "• Connect with other NGOs and animal welfare organizations",
+          "• Manage your NGO profile and showcase your work",
+          "• Receive donations and support from the community",
+          "",
+          "If you have any questions or need support, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NGO Registration Approved</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0fdf4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(22,101,52,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">🎉</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">NGO Registration Approved!</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi NGO Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName} 🙌
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Congratulations! Your NGO <strong style="color:#16a34a;">"${nameStr}"</strong> has been reviewed and approved by the AnimalSathi team.
+              </p>
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0 0 12px; color:#15803d; font-size:13px; font-weight:600;">
+                  🌟 What you can do now:
+                </p>
+                <ul style="margin:0; padding-left:20px; color:#555; font-size:13px; line-height:1.8;">
+                  <li>Post SOS alerts &amp; rescue requests for animals in need</li>
+                  <li>Coordinate with local veterinarians and volunteers</li>
+                  <li>Connect with other NGOs and animal welfare organizations</li>
+                  <li>Manage your NGO profile and showcase your work</li>
+                  <li>Receive donations and support from the community</li>
+                </ul>
+              </div>
+              <p style="margin:0 0 16px; color:#666; font-size:13px; line-height:1.6;">
+                Log in now to access all NGO features and start making a difference.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #e0f2e0; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact us at <a href="mailto:info@animalsathi.com" style="color:#16a34a;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      } else {
+        // status === "rejected"
+        mailOptions.subject = "Update Regarding Your NGO Registration";
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Thank you for your interest in registering "${nameStr}" with AnimalSathi.`,
+          "",
+          "After careful review, we regret to inform you that your NGO registration could not be approved at this time.",
+          ...(reasonStr ? ["", `Reason: ${reasonStr}`, ""] : []),
+          "This decision does not prevent you from reapplying in the future. If you believe there has been an error or would like to provide additional information, please contact our support team.",
+          "",
+          "You can reapply by visiting our platform and submitting a new application with updated details.",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NGO Registration Update</title>
+</head>
+<body style="margin:0; padding:0; background-color:#fef2f2; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(220,38,38,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">ℹ️</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Registration Update</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi NGO Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #dc2626, #fca5a5, #dc2626);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName}
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your interest in registering <strong style="color:#991b1b;">"${nameStr}"</strong> with AnimalSathi.
+              </p>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0; color:#dc2626; font-size:13px; line-height:1.6;">
+                  After careful review, we regret to inform you that your NGO registration could not be approved at this time.
+                </p>
+                ${reasonStr ? `<p style="margin:12px 0 0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>` : ""}
+              </div>
+              <p style="margin:0 0 10px; color:#666; font-size:13px; line-height:1.6;">
+                You can reapply with updated details at any time. If you have questions, please contact our support team.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #fee2e2; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact our team at <a href="mailto:info@animalsathi.com" style="color:#dc2626;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      }
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-NGO-NOTIFY] Email sent successfully", {
+        to: emailStr,
+        status,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure does NOT block the admin action — just log it
+      logger.error("[PAWSOS-NGO-NOTIFY] Email send failed (non-blocking):", {
+        error: emailError.message || "N/A",
+        ngoEmail: emailStr,
+        ngo: nameStr,
+        status,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// notifyOrgApprovalStatus  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an email notification to an organization (hospital/vet clinic) when
+ * their Enterprise Partner application is approved or rejected by an admin.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Approval/Rejection is never blocked by email delivery — failures are
+ * logged and swallowed.
+ *
+ * Request body:
+ *   { orgEmail: string, orgName: string, contactPerson: string, type: string, status: "approved" | "rejected", reason?: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.notifyOrgApprovalStatus = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { orgEmail, orgName, contactPerson, type, status, reason } = request.data || {};
+
+    logger.info("[PAWSOS-ORG-NOTIFY] Sending organization status notification", {
+      orgEmail,
+      orgName,
+      contactPerson,
+      type,
+      status,
+      hasReason: !!reason,
+    });
+
+    // ── Input validation ──
+    if (!orgEmail || !orgName || !status) {
+      throw new HttpsError(
+        "invalid-argument",
+        "orgEmail, orgName, and status are required."
+      );
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      throw new HttpsError(
+        "invalid-argument",
+        'status must be "approved" or "rejected".'
+      );
+    }
+
+    const emailStr = String(orgEmail).trim().toLowerCase();
+    const nameStr = String(orgName).trim();
+    const contactStr = contactPerson ? String(contactPerson).trim() : "";
+    const typeStr = type ? String(type).trim() : "organization";
+    const reasonStr = reason ? String(reason).trim() : "";
+    const greetingName = contactStr || nameStr;
+    const entityTypeLabel = typeStr === "hospital" ? "Hospital" : typeStr === "vet" ? "Veterinary Clinic" : "Organization";
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+      };
+
+      if (status === "approved") {
+        mailOptions.subject = `Your ${entityTypeLabel} Registration Has Been Approved — AnimalSathi`;
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Congratulations! Your ${entityTypeLabel.toLowerCase()} "${nameStr}" has been verified and approved by the AnimalSathi Enterprise Partner team.`,
+          "",
+          `Your ${entityTypeLabel.toLowerCase()} can now access all Enterprise Partner features on the platform.`,
+          "",
+          "What you can do now:",
+          "• Respond to SOS alerts and rescue coordination requests",
+          "• Manage your staff and assign roles (vets, volunteers, admins)",
+          "• Provide emergency and routine animal care services",
+          "• Coordinate with NGOs, volunteers, and other partners",
+          "• Showcase your facilities and capabilities on your profile",
+          "",
+          "If you have any questions or need support, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Partner Approved</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0fdf4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(22,101,52,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">✅</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Enterprise Partner Approved!</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Enterprise Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName} 🙌
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Congratulations! Your ${entityTypeLabel.toLowerCase()} <strong style="color:#16a34a;">"${nameStr}"</strong> has been verified and approved as an AnimalSathi Enterprise Partner.
+              </p>
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0 0 12px; color:#15803d; font-size:13px; font-weight:600;">
+                  ⚕️ What you can do now:
+                </p>
+                <ul style="margin:0; padding-left:20px; color:#555; font-size:13px; line-height:1.8;">
+                  <li>Respond to SOS alerts &amp; rescue coordination requests</li>
+                  <li>Manage your staff and assign roles</li>
+                  <li>Provide emergency and routine animal care services</li>
+                  <li>Coordinate with NGOs, volunteers, and other partners</li>
+                  <li>Showcase your facilities and capabilities</li>
+                </ul>
+              </div>
+              <p style="margin:0 0 16px; color:#666; font-size:13px; line-height:1.6;">
+                Log in now to access your Enterprise Partner dashboard and start making a difference.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #e0f2e0; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact us at <a href="mailto:info@animalsathi.com" style="color:#16a34a;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      } else {
+        // status === "rejected"
+        mailOptions.subject = `Update Regarding Your ${entityTypeLabel} Registration — AnimalSathi`;
+        mailOptions.text = [
+          `Hello ${greetingName},`,
+          "",
+          `Thank you for your interest in registering "${nameStr}" as an AnimalSathi Enterprise Partner.`,
+          "",
+          "After careful review, we regret to inform you that your application could not be approved at this time.",
+          ...(reasonStr ? ["", `Reason: ${reasonStr}`, ""] : []),
+          "This decision does not prevent you from reapplying in the future. If you believe there has been an error or would like to provide additional information, please contact our support team.",
+          "",
+          "You can reapply by visiting our platform and submitting a new application with updated details.",
+          "",
+          "If you have any questions, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n");
+        mailOptions.html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Partner Application Update</title>
+</head>
+<body style="margin:0; padding:0; background-color:#fef2f2; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(220,38,38,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">ℹ️</div>
+              <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;
+                          letter-spacing:0.5px;">Application Update</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;
+                         letter-spacing:0.3px;">AnimalSathi Enterprise Network</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px; background: linear-gradient(90deg, #dc2626, #fca5a5, #dc2626);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${greetingName}
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your interest in registering <strong style="color:#991b1b;">"${nameStr}"</strong> as an AnimalSathi Enterprise Partner.
+              </p>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:20px 24px; margin-bottom:20px;">
+                <p style="margin:0; color:#dc2626; font-size:13px; line-height:1.6;">
+                  After careful review, we regret to inform you that your application could not be approved at this time.
+                </p>
+                ${reasonStr ? `<p style="margin:12px 0 0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>` : ""}
+              </div>
+              <p style="margin:0 0 10px; color:#666; font-size:13px; line-height:1.6;">
+                You can reapply with updated details at any time. If you have questions, please contact our support team.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border:none; border-top:1px solid #fee2e2; margin:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 40px 32px; text-align:center;">
+              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">
+                Questions? Contact our team at <a href="mailto:info@animalsathi.com" style="color:#dc2626;">info@animalsathi.com</a>
+              </p>
+              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      }
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-ORG-NOTIFY] Email sent successfully", {
+        to: emailStr,
+        status,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure does NOT block the admin action — just log it
+      logger.error("[PAWSOS-ORG-NOTIFY] Email send failed (non-blocking):", {
+        error: emailError.message || "N/A",
+        orgEmail: emailStr,
+        org: nameStr,
+        status,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
     };
   }
 );
