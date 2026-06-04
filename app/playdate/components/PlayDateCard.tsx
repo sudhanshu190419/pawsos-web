@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Playdate, Pet } from "../hooks/usePlaydates";
 
@@ -120,7 +121,7 @@ interface AvatarProps {
 
 const Avatar = memo<AvatarProps>(({ src, name, emoji = "🐾", size, className = "" }) =>
   src ? (
-    <img
+    <Image
       src={src}
       alt={name}
       width={size}
@@ -200,111 +201,109 @@ const PlayDateCard = memo<PlayDateCardProps>(({ playdate, hostPet, attendeePets 
   const config = useMemo(() => getPetConfig(playdate.petType), [playdate.petType]);
   const formattedDate = useMemo(() => formatPlaydateDate(playdate.date), [playdate.date]);
 
-  const spotsLeft = playdate.maxPets - playdate.attendeeCount;
-  const isFull = spotsLeft <= 0;
+  // Determine temperament/tag for the badge
+  const badgeLabel = hostPet?.temperament || config.label;
 
   return (
     <Link
       href={`/playdate/${playdate.id}`}
-      className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded-2xl"
+      className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded-[2rem]"
     >
-      <article className="relative h-full flex flex-col bg-white border border-slate-100 rounded-2xl overflow-hidden transition-all duration-200 group-hover:border-slate-200 group-hover:shadow-lg group-hover:-translate-y-px">
+      <article className="card-3d-lift stagger-card relative h-full flex flex-col bg-white rounded-2xl md:rounded-[2rem] overflow-hidden shadow-sm border border-surface-container cursor-pointer active:scale-[0.98] transition-transform">
 
-        {/* Accent strip */}
-        <div
-          className="h-[3px] w-full flex-shrink-0"
-          style={{ backgroundColor: config.accent }}
-          aria-hidden="true"
-        />
-
-        <div className="flex flex-col flex-1 p-5 gap-4">
-
-          {/* Row 1: Type pill + Availability */}
-          <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-100">
-              <span aria-hidden="true">{config.emoji}</span>
-              {config.label}
-            </span>
-
-            <span
-              className={[
-                "inline-block px-2.5 py-1 rounded-full text-[11px] font-bold leading-none border",
-                isFull
-                  ? "bg-red-50 text-red-500 border-red-100"
-                  : "bg-emerald-50 text-emerald-600 border-emerald-100",
-              ].join(" ")}
-            >
-              {isFull ? "Full" : `${spotsLeft} left`}
-            </span>
-          </div>
-
-          {/* Row 2: Title + Description */}
-          <div className="space-y-1.5">
-            <h3 className="font-bold text-[15px] leading-snug text-slate-900 line-clamp-2 transition-colors group-hover:text-orange-600">
-              {playdate.title}
-            </h3>
-            {playdate.description && (
-              <p className="text-[13px] text-slate-500 leading-relaxed line-clamp-2">
-                {playdate.description}
-              </p>
-            )}
-          </div>
-
-          {/* Row 3: Host pet */}
-          {hostPet && (
-            <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl p-3">
-              <Avatar
-                src={hostPet.photoURL}
-                name={hostPet.name}
-                emoji={getPetConfig(hostPet.type).emoji}
-                size={36}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-slate-800 truncate">
-                  {hostPet.name}
-                </p>
-                <p className="text-[11px] text-slate-400 truncate">
-                  {hostPet.breed} · {hostPet.age}
-                </p>
-              </div>
-              <span className="text-[10px] font-black text-orange-500 uppercase tracking-wide">
-                Host
-              </span>
+        {/* Image Section */}
+        <div className="relative h-48 sm:h-56 md:h-64 overflow-hidden">
+          {playdate.photoURL ? (
+            <Image
+              className="object-cover transition-transform duration-700 group-hover:scale-110"
+              src={playdate.photoURL}
+              alt={playdate.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              loading="lazy"
+            />
+          ) : hostPet?.photoURL ? (
+            <Image
+              className="object-cover transition-transform duration-700 group-hover:scale-110"
+              src={hostPet.photoURL}
+              alt={hostPet.name}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-orange-100 to-amber-50 flex items-center justify-center">
+              <span className="text-4xl md:text-6xl">{config.emoji}</span>
             </div>
           )}
+          {/* Badge */}
+          <div className="absolute top-3 left-3 md:top-4 md:left-4 bg-white/90 backdrop-blur-md px-3 md:px-4 py-1 md:py-1.5 rounded-full shadow-sm">
+            <span className="text-[#944a00] font-bold text-[9px] md:text-[10px] uppercase tracking-wider">
+              {badgeLabel}
+            </span>
+          </div>
+        </div>
 
-          {/* Row 4: Date + Location */}
-          <dl className="space-y-1.5">
-            <div className="flex items-center gap-2 text-[13px]">
-              <dt className="sr-only">Date</dt>
-              <span aria-hidden="true" className="text-slate-400 leading-none">📅</span>
-              <dd className="font-medium text-slate-700">{formattedDate}</dd>
+        {/* Content */}
+        <div className="p-4 md:p-6 space-y-3 md:space-y-4 flex flex-col flex-1">
+
+          {/* Row 1: Playdate Title + Location + Host Avatar */}
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-sm md:text-xl text-slate-900 leading-tight line-clamp-2">
+                {hostPet?.name ? `${hostPet.name}, ${hostPet.age}` : playdate.title}
+              </h3>
+              <div className="flex items-center gap-1 text-on-surface-variant text-xs md:text-sm mt-0.5">
+                <svg className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span className="truncate">{playdate.locationName}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-[13px]">
-              <dt className="sr-only">Location</dt>
-              <span aria-hidden="true" className="text-slate-400 leading-none">📍</span>
-              <dd className="text-slate-500 truncate">{playdate.locationName}</dd>
-            </div>
-          </dl>
-
-          {/* Row 5: Footer — attendees + arrow */}
-          <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
-            <AttendeeStack
-              pets={attendeePets}
-              total={playdate.attendeeCount}
-              max={playdate.maxPets}
-            />
-
-            <div
-              className="w-6 h-6 rounded-md bg-slate-900 text-white flex items-center justify-center opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0"
-              aria-hidden="true"
-            >
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 5l7 7-7 7" />
-              </svg>
+            <div className="shrink-0 ml-2 md:ml-3">
+              <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white shadow-md overflow-hidden bg-orange-100">
+                {playdate.creatorPhoto ? (
+                  <Image
+                    src={playdate.creatorPhoto}
+                    alt={playdate.creatorName || "Host"}
+                    fill
+                    className="object-cover"
+                    sizes="40px"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-sm font-bold text-[#944a00]">
+                    {(playdate.creatorName || "H")[0]}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
+          {/* Row 2: Time + Spots */}
+          <div className="flex items-center justify-between py-2 md:py-3 px-3 md:px-4 bg-slate-50/80 rounded-lg md:rounded-xl border border-slate-100">
+            <div className="flex flex-col">
+              <span className="text-[9px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Time</span>
+              <span className="text-xs md:text-sm font-bold text-slate-700">{formattedDate}</span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] md:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Spots</span>
+              <AttendeeStack
+                pets={attendeePets}
+                total={playdate.attendeeCount}
+                max={playdate.maxPets}
+              />
+            </div>
+          </div>
+
+          {/* Row 3: CTA Button (decorative span - parent Link handles navigation) */}
+          <span className="w-full mt-auto py-2.5 md:py-3.5 bg-surface-container hover:bg-[#944a00] hover:text-white transition-all duration-300 rounded-lg md:rounded-2xl font-bold text-xs md:text-sm flex items-center justify-center gap-2 group/btn cursor-pointer">
+            View Details
+            <svg className="w-3.5 h-3.5 md:w-4 md:h-4 transition-transform duration-300 group-hover/btn:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </span>
         </div>
       </article>
     </Link>

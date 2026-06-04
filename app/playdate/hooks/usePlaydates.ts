@@ -19,7 +19,8 @@ import {
   Timestamp,
   GeoPoint,
 } from "firebase/firestore";
-import { db } from "../../lib/firebase";
+import { db, storage } from "../../lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { User } from "firebase/auth";
 import { geohashForLocation, distanceBetween } from "geofire-common";
 
@@ -38,6 +39,7 @@ export interface Pet {
   photoURL: string;
   ownerId: string;
   vaccinated: boolean;
+  neutered?: boolean;
   createdAt: any;
 }
 
@@ -61,6 +63,7 @@ export interface Playdate {
   creatorName: string;
   creatorPhoto: string;
   hostPetId?: string;
+  photoURL?: string;
   attendees: PlaydateAttendee[];
   attendeeCount: number;
   status: "upcoming" | "completed" | "cancelled";
@@ -239,6 +242,20 @@ export interface CreatePlaydateInput {
   creatorName: string;
   creatorPhoto: string;
   hostPetId?: string;
+  photoURL?: string;
+}
+
+/* ── Upload image to Firebase Storage ──────────────────────── */
+
+export async function uploadPlaydateImage(
+  file: File,
+  userId: string
+): Promise<string> {
+  const fileName = `playdates/${userId}_${Date.now()}_${file.name}`;
+  const storageRef = ref(storage, fileName);
+  const snapshot = await uploadBytes(storageRef, file);
+  const downloadURL = await getDownloadURL(snapshot.ref);
+  return downloadURL;
 }
 
 export async function createPlaydate(
@@ -259,6 +276,7 @@ export async function createPlaydate(
     creatorName: data.creatorName,
     creatorPhoto: data.creatorPhoto,
     hostPetId: data.hostPetId,
+    photoURL: data.photoURL || "",
     attendees: [],
     attendeeCount: 0,
     status: "upcoming",
