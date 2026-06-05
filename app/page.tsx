@@ -70,7 +70,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-orange-100 overflow-hidden">
+    <main className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-orange-100">
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       <div className="relative z-10">
@@ -756,6 +756,7 @@ function AutoCarousel() {
           className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-in-out ${
             i === current ? "opacity-100 scale-100 z-10" : "opacity-0 scale-[1.04] z-0"
           }`}
+          style={{ willChange: "opacity" }}
         />
       ))}
       {/* Dot indicators */}

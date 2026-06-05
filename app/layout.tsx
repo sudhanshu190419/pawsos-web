@@ -80,7 +80,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
+    <html lang="en">
       <body
         className={`${manrope.variable} ${newsreader.variable} ${geistMono.variable} font-sans antialiased bg-surface text-on-surface`}
       >

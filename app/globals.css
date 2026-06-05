@@ -368,3 +368,32 @@ body {
 /* ─── Scrollbar utilities ─── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Mobile performance: reduce expensive CSS blur filters ─── */
+@media (max-width: 768px) {
+  /* Reduce decorative blur radii by ~60% for smoother scrolling on mobile */
+  .blur-\[150px\] {
+    --tw-blur: blur(60px);
+  }
+  .blur-\[130px\] {
+    --tw-blur: blur(50px);
+  }
+  .blur-\[100px\] {
+    --tw-blur: blur(40px);
+  }
+  .blur-\[120px\] {
+    --tw-blur: blur(48px);
+  }
+  .blur-\[140px\] {
+    --tw-blur: blur(56px);
+  }
+  .blur-\[80px\] {
+    --tw-blur: blur(32px);
+  }
+  .blur-3xl {
+    --tw-blur: blur(32px);
+  }
+  .blur-2xl {
+    --tw-blur: blur(24px);
+  }
+}

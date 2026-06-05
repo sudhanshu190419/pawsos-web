@@ -33,7 +33,7 @@ export default function BottomNav() {
       }
     };
 
-    window.addEventListener("scroll", controlNavbar);
+    window.addEventListener("scroll", controlNavbar, { passive: true });
     return () => window.removeEventListener("scroll", controlNavbar);
   }, [lastScrollY]);
 
