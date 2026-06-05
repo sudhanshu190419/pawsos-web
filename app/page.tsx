@@ -4,7 +4,7 @@ import Link from "next/link";
 import ParallaxHero from "./components/ParallaxHero";
 import Reveal from "./components/Reveal";
 import Counter from "./components/Counter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { 
   AlertCircle, 
@@ -67,6 +67,49 @@ export default function HomePage() {
         );
       }
     }
+  }, []);
+
+  // ─── Parallax effect for Care Network section image ────────
+  const parallaxRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const img = parallaxRef.current;
+    if (!img) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (img) {
+            const wrapper = img.closest('.parallax-wrapper');
+            if (!wrapper) return;
+
+            const rect = wrapper.getBoundingClientRect();
+            const winHeight = window.innerHeight;
+
+            // Only animate when the section is in view
+            if (rect.top < winHeight && rect.bottom > 0) {
+              // Progress: 0 when section bottom enters view, 1 when section top leaves view
+              const progress = Math.max(0, Math.min(1,
+                (winHeight - rect.top) / (winHeight + rect.height)
+              ));
+              // Smooth parallax: 0-30px as the section scrolls through viewport
+              const translateY = progress * 30;
+              img.style.transform = `translateY(${translateY}px)`;
+            }
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Run once to set correct position on mount
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
@@ -252,6 +295,80 @@ export default function HomePage() {
                   <p className="text-[11px] text-slate-400 leading-tight">1,000+ Pet Parents</p>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* ── Comprehensive Care Network ──────────────────────── */}
+      <Reveal>
+        <section className="relative py-16 md:py-24 px-4 sm:px-6 bg-[#F5EDE3] overflow-hidden">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+
+              {/* Image — Left */}
+              <div className="lg:col-span-6 relative fade-in-up" style={{ animationDelay: '0.2s' }}>
+                {/* Decorative glow */}
+                <div className="absolute inset-0 bg-orange-200/25 rounded-full filter blur-3xl -translate-x-10 translate-y-10"></div>
+
+                {/* Image wrapper with parallax */}
+                <div className="parallax-wrapper relative overflow-hidden rounded-[40px] shadow-[0_30px_60px_-12px_rgba(15,23,42,0.15)] border-4 border-white h-[400px] sm:h-[500px]">
+                  <img
+                    ref={parallaxRef}
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJDgox0LmHUKNiRuTWx_4DWCA8rOkoSzblF2hnIHyBBbwDcpoGvF9bW2bSN1tDIRkHXMaQ0vau99t_s5CL4Jj6zXU-wZDS7A-6EzTIggFTZw5wAqxahpps-s2kcbRYK-ul96z0aqQ607kIvzQ2f7erz85Z9JU5QcNn4XzUzqrsvyR1dDY85Six09L8fuBaCmn-V3IKqiXV0ShYcgrtFcXxtGs-iJpMgSN1fAe5vb3gYzggiZ7K3M_1PNTiwQGLfR-ctLMXkHCIIP8"
+                    alt="Animal rescue hero"
+                    className="w-full h-[120%] object-cover absolute top-[-10%] left-0"
+                  />
+                </div>
+
+                {/* Floating badge */}
+                <div className="absolute -bottom-6 -left-6 z-20 glass-panel p-4 rounded-2xl shadow-xl flex items-center space-x-4 transition-transform duration-300 hover:scale-105 hover:-translate-y-1">
+                  <div className="bg-orange-100 p-3 rounded-full text-orange-500">
+                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xl sm:text-2xl text-slate-800"><Counter value={5} />k+</p>
+                    <p className="text-xs text-slate-500">Animals Rescued</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content — Right */}
+              <div className="lg:col-span-6 z-10 space-y-6 fade-in-up">
+                {/* Badge */}
+                <div className="inline-flex items-center space-x-2 bg-[#EFE7DD] px-4 py-2 rounded-full w-max">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">India&rsquo;s Leading Rescue Network</span>
+                </div>
+
+                {/* Heading */}
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight">
+                  Compassion in Action: <br/>
+                  <span className="bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">Professional Rescue</span> Excellence.
+                </h2>
+
+                {/* Description */}
+                <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl">
+                  Join a community dedicated to animal welfare. From emergency SOS response to finding the perfect play date, AnimalSathi connects care with those who need it most.
+                </p>
+
+                {/* CTA Buttons */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
+                  <Link
+                    href="/report"
+                    className="shimmer-continuous w-full sm:w-auto px-8 py-4 rounded-full font-bold text-sm text-white bg-gradient-to-b from-orange-500 to-orange-600 shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 transition-all duration-300 text-center"
+                  >
+                    Report a SOS
+                  </Link>
+                  <Link
+                    href="/volunteer-form"
+                    className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-sm text-slate-800 border border-slate-300 hover:bg-[#EFE7DD] active:scale-95 transition-all duration-300 text-center"
+                  >
+                    Become a Volunteer
+                  </Link>
+                </div>
+              </div>
+
             </div>
           </div>
         </section>
