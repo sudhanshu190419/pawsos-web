@@ -52,6 +52,7 @@ interface VetProfile {
   ratingAverage?: number;
   ratingCount?: number;
   status?: string;
+  pricingConfigured?: boolean;
 }
 
 const TIME_SLOTS = [
@@ -265,7 +266,10 @@ export default function VetAppointmentsPage() {
       });
 
       const activeVets = fetchedVets.filter(
-        (v: VetProfile) => v.status === undefined || v.status === "active"
+        (v: VetProfile) =>
+          (v.status === undefined || v.status === "active") &&
+          // Only show vets who have configured their pricing via Dashboard > Pricing & Services
+          (v.pricingConfigured === true || (v.consultationFee && v.consultationFee > 0))
       );
 
       setVets(activeVets);

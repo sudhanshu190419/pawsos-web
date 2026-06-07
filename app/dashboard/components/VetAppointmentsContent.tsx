@@ -453,6 +453,7 @@ export default function VetAppointmentsContent({ user }: VetAppointmentsContentP
                   emergencyFee: Number(emergencyFee) || null,
                   willingToTravel,
                   availability,
+                  pricingConfigured: true,
                   updatedAt: serverTimestamp()
                 });
                 alert("Settings saved successfully!");
