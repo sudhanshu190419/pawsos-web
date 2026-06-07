@@ -5,6 +5,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Image from "next/image";
 import { auth, db } from "../../lib/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   listenToSellerOrders,
   getSellerItemsFromOrder,
@@ -12,6 +13,7 @@ import {
   type Order,
   type OrderItem,
   type OrderStatus,
+  type Shipment,
   ORDER_STATUSES,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
@@ -41,15 +43,29 @@ const STATUS_FILTERS: Array<{ label: string; value: OrderStatus | "all" }> = [
 const StatusUpdateButton = ({
   orderId,
   currentStatus,
+  shipments,
+  brandId,
+  customerName,
+  customerEmail,
   onUpdated,
 }: {
   orderId: string;
   currentStatus: OrderStatus;
+  shipments?: Shipment[];
+  brandId?: string;
+  customerName?: string;
+  customerEmail?: string;
   onUpdated: () => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState("");
+
+  // ── Firebase Functions for order emails ──
+  const functions = getFunctions();
+  const sendOrderShipped = httpsCallable(functions, "sendOrderShipped");
+  const sendOrderDelivered = httpsCallable(functions, "sendOrderDelivered");
+  const sendOrderCancelledFn = httpsCallable(functions, "sendOrderCancelled");
 
   const nextStatuses = ORDER_STATUSES.filter(
     (s) => s !== currentStatus && isValidTransition(currentStatus, s) && s !== "cancelled"
@@ -58,19 +74,225 @@ const StatusUpdateButton = ({
 
   if (nextStatuses.length === 0 && !canCancel) return null;
 
+  /* ── Check if shipment can be cancelled ── */
+  const getNonCancellableReason = (): string | null => {
+    if (!shipments || !brandId) return null;
+    const NON_CANCELLABLE_STATUSES = ["picked_up", "in_transit", "out_for_delivery", "delivered"];
+    const brandShipments = shipments.filter((s) => s.brandId === brandId);
+    const blocked = brandShipments.find((s) =>
+      NON_CANCELLABLE_STATUSES.some((ns) =>
+        (s.shipmentStatus || "").toLowerCase().includes(ns)
+      )
+    );
+    if (blocked) {
+      return `Cannot cancel — shipment is already ${blocked.shipmentStatus}. Contact support for assistance.`;
+    }
+    return null;
+  };
+
   const handleUpdate = async (newStatus: OrderStatus) => {
     setIsUpdating(true);
     setUpdateError("");
     try {
+      /* ═══════════════════════════════════════════════
+         SHIPPED FLOW — retry AWB if missing, THEN update
+         ═══════════════════════════════════════════════ */
+      if (newStatus === "shipped" && shipments && brandId) {
+        const brandShipments = shipments.filter((s) => s.brandId === brandId);
+        let updatedShipments = [...shipments];
+
+        // ── Step 1: Retry AWB assignment if any shipment is missing its AWB ──
+        const hasMissingAwb = brandShipments.some((s) => !s.awbCode);
+        if (hasMissingAwb) {
+          const shipmentToFix = brandShipments.find((s) => !s.awbCode);
+
+          if (!shipmentToFix?.shipmentId) {
+            setUpdateError(
+              "⚠️ Cannot process — shipment missing both AWB and shipment ID. Contact support."
+            );
+            setIsUpdating(false);
+            return;
+          }
+
+          const awbRes = await fetch("/api/shiprocket/assign-awb", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ shipment_id: shipmentToFix.shipmentId }),
+          });
+          const awbData = await awbRes.json();
+
+          if (!awbData.success) {
+            const errMsg =
+              typeof awbData.error === "string"
+                ? awbData.error
+                : "AWB assignment failed. Please check Shiprocket wallet balance.";
+            setUpdateError(`⚠️ ${errMsg}`);
+            setIsUpdating(false);
+            return; // BLOCK — don't update status, don't continue
+          }
+
+          // Update the shipment in the local array
+          updatedShipments = shipments.map((s) => {
+            if (s.shipmentId === shipmentToFix.shipmentId && s.brandId === brandId) {
+              return {
+                ...s,
+                awbCode: awbData.data.awbCode,
+                courierName: awbData.data.courierName || s.courierName,
+                trackingUrl: awbData.data.trackingUrl || s.trackingUrl,
+                awbAssignedAt: Date.now(),
+              };
+            }
+            return s;
+          });
+        }
+
+        // ── Step 2: Update Firestore (orderStatus + AWB data) ──
+        await updateDoc(doc(db, "orders", orderId), {
+          orderStatus: "shipped",
+          shipments: updatedShipments,
+          updatedAt: serverTimestamp(),
+        });
+
+        // ── Step 3: Schedule pickup with Shiprocket ──
+        const brandUpdatedShipments = updatedShipments.filter((s) => s.brandId === brandId);
+        const shipmentIds = brandUpdatedShipments
+          .map((s) => s.shipmentId)
+          .filter((id): id is number => id !== null && id !== undefined);
+
+        if (shipmentIds.length > 0) {
+          try {
+            const pickupRes = await fetch("/api/shiprocket/schedule-pickup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ shipment_ids: shipmentIds }),
+            });
+            const pickupData = await pickupRes.json();
+            if (!pickupData.success) {
+              console.warn("[Shiprocket] Pickup scheduling error:", pickupData.error);
+            } else {
+              console.log("[Shiprocket] Pickup scheduled successfully for IDs:", shipmentIds);
+            }
+          } catch (err) {
+            console.error("[Shiprocket] Failed to schedule pickup:", err);
+          }
+        }
+
+        // ── Step 4: Send shipped email (non-blocking) ──
+        if (customerName && customerEmail) {
+          const firstShipment = brandUpdatedShipments[0];
+          sendOrderShipped({
+            orderId,
+            customerName,
+            customerEmail,
+            trackingUrl: firstShipment?.trackingUrl || "",
+            awbCode: firstShipment?.awbCode || "",
+            carrierName: firstShipment?.courierName || "Courier Partner",
+          }).catch((err) => console.warn("[ORDER EMAIL] Shipped email failed (non-blocking):", err));
+        }
+
+        onUpdated();
+        setIsOpen(false);
+        return; // handled above — skip generic path
+      }
+
+      /* ═══════════════════════════════════════════════
+         NON-SHIPPED STATUSES — standard flow
+         ═══════════════════════════════════════════════ */
       await updateDoc(doc(db, "orders", orderId), {
         orderStatus: newStatus,
         updatedAt: serverTimestamp(),
       });
+
+      // When marking as "delivered", send delivered email
+      if (newStatus === "delivered" && customerName && customerEmail) {
+        sendOrderDelivered({
+          orderId,
+          customerName,
+          customerEmail,
+        }).catch((err) => console.warn("[ORDER EMAIL] Delivered email failed (non-blocking):", err));
+      }
+
       onUpdated();
       setIsOpen(false);
     } catch (err) {
       setUpdateError("Failed to update. Try again.");
       console.error("Failed to update order status:", err);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  /* ── Cancel order via Shiprocket then Firestore ── */
+  const handleCancelOrder = async () => {
+    setIsUpdating(true);
+    setUpdateError("");
+    try {
+      // Step 1: Prevent cancellation if shipment is already in-transit or delivered
+      const blockReason = getNonCancellableReason();
+      if (blockReason) {
+        setUpdateError(blockReason);
+        setIsUpdating(false);
+        return;
+      }
+
+      // Step 2: Cancel on Shiprocket if there are shipments to cancel
+      let cancellationResult: any = null;
+      if (shipments && brandId) {
+        const brandShipments = shipments.filter((s) => s.brandId === brandId);
+        const shiprocketOrderIds = brandShipments
+          .map((s) => s.shiprocketOrderId)
+          .filter((id): id is number => id !== null && id !== undefined);
+
+        if (shiprocketOrderIds.length > 0) {
+          const cancelRes = await fetch("/api/shiprocket/cancel-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order_ids: shiprocketOrderIds }),
+          });
+
+          const cancelData = await cancelRes.json();
+
+          if (!cancelData.success) {
+            const errMsg =
+              typeof cancelData.error === "object"
+                ? cancelData.error?.message || JSON.stringify(cancelData.error)
+                : cancelData.error || "Unknown Shiprocket error";
+            setUpdateError(`Shiprocket cancellation failed: ${errMsg}`);
+            setIsUpdating(false);
+            return;
+          }
+
+          cancellationResult = cancelData.data;
+        }
+      }
+
+      // Step 3: Update Firestore
+      const firestoreUpdate: Record<string, any> = {
+        orderStatus: "cancelled",
+        updatedAt: serverTimestamp(),
+        cancelledAt: serverTimestamp(),
+      };
+      if (cancellationResult) {
+        firestoreUpdate.cancellation = cancellationResult;
+      }
+
+      await updateDoc(doc(db, "orders", orderId), firestoreUpdate);
+
+      // Send cancelled email to customer (non-blocking)
+      if (customerName && customerEmail) {
+        sendOrderCancelledFn({
+          orderId,
+          customerName,
+          customerEmail,
+          reason: "Cancelled by seller",
+        }).catch((err) => console.warn("[ORDER EMAIL] Cancelled email failed (non-blocking):", err));
+      }
+
+      onUpdated();
+      setIsOpen(false);
+    } catch (err) {
+      setUpdateError("Failed to cancel order. Try again.");
+      console.error("Failed to cancel order:", err);
     } finally {
       setIsUpdating(false);
     }
@@ -114,7 +336,7 @@ const StatusUpdateButton = ({
             {canCancel && (
               <div className="border-t border-slate-100 mt-1 pt-1">
                 <button
-                  onClick={() => handleUpdate("cancelled")}
+                  onClick={handleCancelOrder}
                   className="w-full text-left px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
                 >
                   <span className="w-2 h-2 rounded-full bg-red-400" />
@@ -147,7 +369,7 @@ const SellerOrderRow = ({
   const orderNumber = order.orderId.slice(0, 8).toUpperCase();
 
   return (
-    <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -225,6 +447,43 @@ const SellerOrderRow = ({
                 <Truck className="w-3 h-3" strokeWidth={1.5} />
                 Shipment Tracking
               </p>
+
+              {/* ⚠️ AWB Pending badge — shown when Shiprocket failed to assign AWB (usually empty wallet) */}
+              {(() => {
+                const brandShipments = order.shipments.filter((s) => s.brandId === brandId);
+                const hasMissingAwb = brandShipments.some(
+                  (s) => !s.awbCode
+                );
+                if (hasMissingAwb) {
+                  return (
+                    <div className="flex items-start gap-2.5 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+                      <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-red-700">
+                          ⚠️ AWB Pending
+                        </p>
+                        <p className="text-[10px] text-red-600 mt-0.5 leading-relaxed">
+                          Shiprocket wallet may require recharge. AWB code was not assigned for this shipment.
+                        </p>
+                        <a
+                          href="https://shiprocket.in"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-semibold text-red-700 hover:text-red-800 underline underline-offset-2"
+                        >
+                          Recharge Shiprocket wallet →
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               {order.shipments
                 .filter((s) => s.brandId === brandId)
                 .map((shipment, idx) => (
@@ -243,7 +502,15 @@ const SellerOrderRow = ({
 
           {/* Status update */}
           <div className="flex justify-end pt-1 border-t border-dashed border-slate-100">
-            <StatusUpdateButton orderId={order.orderId} currentStatus={order.orderStatus} onUpdated={onStatusUpdated} />
+            <StatusUpdateButton
+              orderId={order.orderId}
+              currentStatus={order.orderStatus}
+              shipments={order.shipments}
+              brandId={brandId}
+              customerName={order.userName}
+              customerEmail={order.customerEmail}
+              onUpdated={onStatusUpdated}
+            />
           </div>
         </div>
       )}

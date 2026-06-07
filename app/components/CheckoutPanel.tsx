@@ -20,6 +20,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../lib/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { fetchBrandProfile } from "../lib/seller";
 import { sanitizeIndianPhone, extractPincodeState } from "../lib/shiprocket";
 import type { CartItem } from "./cart/cartTypes";
@@ -131,6 +132,49 @@ export default function CheckoutPanel({
   // ── SINGLE SOURCE OF TRUTH for all checkout pricing ──
   const totals: CheckoutTotals = calculateCheckoutTotals(items, promoApplied);
   const { subtotal, deliveryFee, discount, taxes, total } = totals;
+
+  // ── Firebase Functions: send order confirmation email (non-blocking) ──
+  const functions = getFunctions();
+  const sendOrderConfirmation = httpsCallable(functions, "sendOrderConfirmation");
+
+  const sendOrderEmailAsync = useCallback(
+    async (orderId: string) => {
+      try {
+        const email = auth.currentUser?.email;
+        if (!email) return;
+        const address = getCurrentAddress();
+        await sendOrderConfirmation({
+          orderId,
+          customerName: userName || "",
+          customerEmail: email,
+          items: items.map((item) => ({
+            productName: item.name,
+            quantity: item.qty,
+            price: item.price,
+          })),
+          subtotal,
+          taxes,
+          deliveryFee,
+          totalAmount: total,
+          paymentMethod: selectedPayment,
+          shippingAddress: address
+            ? `${address?.line1}, ${address?.line2}${address?.pincode ? ` - ${address.pincode}` : ""}`
+            : "",
+          orderDate: new Date().toLocaleDateString("en-IN", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+      } catch (err) {
+        // Email failure NEVER fails checkout
+        console.warn("[ORDER EMAIL] Failed to send (non-blocking):", err);
+      }
+    },
+    [items, userName, subtotal, taxes, deliveryFee, total, selectedPayment]
+  );
 
   const steps = [
     { id: 0, label: "Cart", icon: (
@@ -468,6 +512,7 @@ export default function CheckoutPanel({
           orderId: orderRef.id,
           userId,
           userName: userName ?? "",
+          customerEmail: auth.currentUser?.email || "",
           vendorIds,
           items: orderItems,
           vendorGroups,
@@ -548,6 +593,15 @@ export default function CheckoutPanel({
             });
 
             const result = await response.json();
+            console.log("\n══════════ SHIPROCKET CREATE-ORDER RESPONSE (CHECKOUT) ══════════");
+            console.log("[CHECKOUT-SR-1] Brand:", group.brandName);
+            console.log("[CHECKOUT-SR-2] success:", result.success);
+            console.log("[CHECKOUT-SR-3] Full response:", JSON.stringify(result, null, 2));
+            console.log("[CHECKOUT-SR-4] result.data:", JSON.stringify(result.data, null, 2));
+            console.log("[CHECKOUT-SR-5] result.data.awbCode:", result.data?.awbCode);
+            console.log("[CHECKOUT-SR-6] result.data.shipmentId:", result.data?.shipmentId);
+            console.log("══════════ END CHECKOUT SR RESPONSE ══════════\n");
+
             if (result.success && result.data) {
               shipmentResults.push(result.data);
             } else {
@@ -558,18 +612,31 @@ export default function CheckoutPanel({
           }
         }
 
+        console.log("\n══════════ SHIPROCKET FIRESTORE SAVE DEBUG ══════════");
+        console.log("[FIRESTORE-1] Order ref:", orderRefId);
+        console.log("[FIRESTORE-2] Number of shipment results:", shipmentResults.length);
+        console.log("[FIRESTORE-3] Full shipmentResults array:", JSON.stringify(shipmentResults, null, 2));
+
         if (shipmentResults.length > 0) {
           try {
             await updateDoc(doc(db, "orders", orderRefId), {
               shipments: shipmentResults,
             });
+            console.log("[FIRESTORE-4] Firestore update successful!");
+            console.log("[FIRESTORE-5] Saved AWB codes:", shipmentResults.map(s => s.awbCode));
           } catch (err) {
-            console.error("[Shiprocket] Failed to save shipment data:", err);
+            console.error("[FIRESTORE-6] Failed to save shipment data:", err);
           }
+        } else {
+          console.log("[FIRESTORE-4] No shipment results to save — shipments array will be empty");
         }
+        console.log("══════════ END FIRESTORE SAVE DEBUG ══════════\n");
       };
 
       createShipmentsAsync();
+
+      // ── Send order confirmation email (non-blocking, fire-and-forget) ──
+      sendOrderEmailAsync(orderRefId);
 
       return orderRefId;
     },

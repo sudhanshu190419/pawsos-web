@@ -2229,6 +2229,709 @@ exports.notifyOrgApprovalStatus = onCall(
 );
 
 // ---------------------------------------------------------------------------
+// ORDER EMAIL HELPERS  –  shared template builders
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds the shared HTML email header for order-related emails.
+ * Returns the opening HTML up to (but not including) the body content area.
+ */
+function buildOrderEmailHeader(title, subtitle) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f5ede0; font-family:'Segoe UI', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5ede0; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:560px; background:#ffffff; border-radius:20px; overflow:hidden;
+                 box-shadow: 0 4px 24px rgba(156,62,35,0.10);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #9c3e23 0%, #c0522e 60%, #e07040 100%);
+                        padding: 36px 40px 28px; text-align:center;">
+              <div style="display:inline-block; background:rgba(255,255,255,0.15);
+                          border-radius:50%; width:64px; height:64px; line-height:64px;
+                          font-size:30px; margin-bottom:14px;">🐾</div>
+              <h1 style="margin:0; color:#ffffff; font-size:26px; font-weight:700;
+                          letter-spacing:0.5px;">${title}</h1>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.80); font-size:13px;
+                         letter-spacing:0.3px;">${subtitle}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:4px;
+                        background: linear-gradient(90deg, #FF5722, #ff8a50, #FF5722);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 40px 28px;">`;
+}
+
+/**
+ * Builds the shared HTML email footer for order-related emails.
+ */
+function buildOrderEmailFooter() {
+  return `
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 0 40px;">
+            <hr style="border:none; border-top:1px solid #f0e8e0; margin:0;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 24px 40px 32px; text-align:center;">
+            <p style="margin:0 0 12px; color:#aaaaaa; font-size:11px; line-height:1.6;">
+              Need help? Write to us at <a href="mailto:info@animalsathi.com" style="color:#9c3e23; text-decoration:underline;">info@animalsathi.com</a><br/>
+              GL Bajaj Institute, Knowledge Park III, Greater Noida, UP
+            </p>
+            <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">
+              © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+}
+
+/**
+ * Build a clickable CTA button HTML for email.
+ */
+function buildEmailCtaButton(url, text) {
+  return `
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td align="center" style="padding: 8px 0 4px;">
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" style="background: linear-gradient(135deg, #9c3e23 0%, #c0522e 100%);
+                      border-radius: 12px; padding: 14px 36px;">
+            <a href="${url}" target="_blank"
+              style="color:#ffffff; font-size:15px; font-weight:700; text-decoration:none;
+                     letter-spacing:0.5px; display:inline-block;">
+              ${text}
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`;
+}
+
+/**
+ * Build a pricing row for email order summary.
+ */
+function buildPriceRow(label, value, isTotal) {
+  const fontWeight = isTotal ? 'font-weight:800; font-size:16px;' : 'font-weight:500; font-size:14px;';
+  const color = isTotal ? '#333333' : '#666666';
+  const borderTop = isTotal ? 'border-top:2px solid #333333;' : '';
+  return `
+<tr>
+  <td style="padding: 6px 0; ${borderTop}">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="${fontWeight} color:${color};">${label}</td>
+        <td align="right" style="${fontWeight} color:${color};">${value}</td>
+      </tr>
+    </table>
+  </td>
+</tr>`;
+}
+
+// ---------------------------------------------------------------------------
+// sendOrderConfirmation  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends an order confirmation email to the customer after a successful
+ * purchase on the AnimalSathi marketplace.
+ *
+ * Reuses the same SMTP transporter and secrets as the OTP email system.
+ * Email failure is NEVER allowed to fail checkout — errors are logged and
+ * swallowed.
+ *
+ * Request body:
+ *   {
+ *     orderId: string,
+ *     customerName: string,
+ *     customerEmail: string,
+ *     items: Array<{ productName: string, quantity: number, price: number }>,
+ *     subtotal: number,
+ *     taxes: number,
+ *     deliveryFee: number,
+ *     totalAmount: number,
+ *     paymentMethod: string,
+ *     shippingAddress: string,
+ *     orderDate: string
+ *   }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.sendOrderConfirmation = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 10,
+  },
+  async (request) => {
+    const data = request.data || {};
+    const {
+      orderId,
+      customerName,
+      customerEmail,
+      items,
+      subtotal,
+      taxes,
+      deliveryFee,
+      totalAmount,
+      paymentMethod,
+      shippingAddress,
+      orderDate,
+    } = data;
+
+    logger.info("[ORDER EMAIL] Sending order confirmation...", {
+      orderId,
+      customerEmail,
+      itemCount: Array.isArray(items) ? items.length : 0,
+    });
+
+    // ── Input validation ──
+    if (!orderId || !customerEmail || !customerName) {
+      logger.error("[ORDER EMAIL] Missing required fields", { orderId, customerEmail, customerName });
+      return { success: false, emailSent: false, error: "Missing required fields" };
+    }
+
+    const emailStr = String(customerEmail).trim().toLowerCase();
+    const nameStr = String(customerName).trim();
+    const orderIdStr = String(orderId);
+    const addressStr = shippingAddress ? String(shippingAddress).trim() : "";
+    const paymentLabel = paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment (Razorpay)";
+    const formattedDate = orderDate || new Date().toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    // Build items table rows
+    const itemsRows = Array.isArray(items) && items.length > 0
+      ? items.map((item) => {
+          const itemName = item.productName || "Item";
+          const qty = item.quantity || 1;
+          const price = Number(item.price) || 0;
+          const itemTotal = price * qty;
+          return `
+<tr>
+  <td style="padding: 10px 0; border-bottom: 1px solid #f0e8e0;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="font-size:14px; color:#333333; font-weight:600;">${itemName}</td>
+        <td align="center" style="font-size:13px; color:#888888; width:60px;">x${qty}</td>
+        <td align="right" style="font-size:14px; color:#9c3e23; font-weight:700; width:100px;">₹${itemTotal.toLocaleString("en-IN")}</td>
+      </tr>
+    </table>
+  </td>
+</tr>`;
+        }).join("")
+      : `<tr><td style="padding:10px 0; color:#888; font-size:13px;">No items in order</td></tr>`;
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const baseUrl = process.env.APP_URL || "https://animalsathi.com";
+      const orderUrl = `${baseUrl}/order-success/${orderIdStr}`;
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+        subject: "🐾 Order Confirmed - AnimalSathi",
+        text: [
+          `Hello ${nameStr},`,
+          "",
+          "Thank you for your order! Here's a summary of your purchase:",
+          "",
+          `Order ID: ${orderIdStr}`,
+          `Order Date: ${formattedDate}`,
+          "",
+          "Items:",
+          ...(Array.isArray(items) ? items.map((i) => `  ${i.productName || "Item"} x${i.quantity || 1} — ₹${(Number(i.price || 0) * (i.quantity || 1)).toLocaleString("en-IN")}`) : []),
+          "",
+          `Subtotal: ₹${Number(subtotal || 0).toLocaleString("en-IN")}`,
+          `Delivery Fee: ₹${Number(deliveryFee || 0).toLocaleString("en-IN")}`,
+          `Taxes: ₹${Number(taxes || 0).toLocaleString("en-IN")}`,
+          `Total: ₹${Number(totalAmount || 0).toLocaleString("en-IN")}`,
+          "",
+          `Payment Method: ${paymentLabel}`,
+          `Shipping Address: ${addressStr}`,
+          "",
+          "You can track your order status at any time:",
+          orderUrl,
+          "",
+          "Thank you for supporting AnimalSathi's marketplace.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n"),
+        html: `${buildOrderEmailHeader("Order Confirmed! 🎉", "AnimalSathi Marketplace")}
+
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${nameStr} 👋
+              </p>
+              <p style="margin:0 0 24px; color:#666666; font-size:14px; line-height:1.6;">
+                Thank you for your order! Your purchase has been confirmed and we're getting it ready.
+                Here's a summary of your order:
+              </p>
+
+              <!-- Order Info -->
+              <div style="background:#fff8f5; border:1px solid #f0e0d0; border-radius:12px; padding:16px 20px; margin-bottom:24px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:12px; color:#888888; padding-bottom:4px;">ORDER ID</td>
+                    <td align="right" style="font-size:12px; color:#888888; padding-bottom:4px;">DATE</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:14px; color:#9c3e23; font-weight:700; font-family:'Courier New',monospace;">
+                      #${orderIdStr.substring(0, 12).toUpperCase()}
+                    </td>
+                    <td align="right" style="font-size:13px; color:#666666; font-weight:500;">
+                      ${formattedDate}
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Items Table -->
+              <p style="margin:0 0 12px; color:#333333; font-size:15px; font-weight:700;">
+                📦 Items Ordered
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
+                ${itemsRows}
+              </table>
+
+              <!-- Price Summary -->
+              <div style="background:#faf8f5; border-radius:12px; padding:16px 20px; margin-bottom:24px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                  ${buildPriceRow("Subtotal", `₹${Number(subtotal || 0).toLocaleString("en-IN")}`, false)}
+                  ${buildPriceRow("Delivery Fee", deliveryFee === 0 ? '<span style="color:#16a34a;font-weight:700;">FREE</span>' : `₹${Number(deliveryFee).toLocaleString("en-IN")}`, false)}
+                  ${buildPriceRow("Taxes & Charges", `₹${Number(taxes || 0).toLocaleString("en-IN")}`, false)}
+                  ${buildPriceRow("Total Amount", `₹${Number(totalAmount || 0).toLocaleString("en-IN")}`, true)}
+                </table>
+              </div>
+
+              <!-- Payment & Address -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+                <tr>
+                  <td width="50%" style="vertical-align:top; padding-right:12px;">
+                    <div style="background:#f0f7ff; border:1px solid #dce8f0; border-radius:10px; padding:14px 16px;">
+                      <p style="margin:0 0 6px; color:#666; font-size:11px; text-transform:uppercase; letter-spacing:1px; font-weight:600;">Payment</p>
+                      <p style="margin:0; color:#333; font-size:14px; font-weight:600;">${paymentLabel}</p>
+                      <p style="margin:2px 0 0; color:#888; font-size:12px;">${paymentMethod === "cod" ? "Pay when delivered" : "Paid via Razorpay"}</p>
+                    </div>
+                  </td>
+                  <td width="50%" style="vertical-align:top; padding-left:12px;">
+                    <div style="background:#f0faf5; border:1px solid #dce8e0; border-radius:10px; padding:14px 16px;">
+                      <p style="margin:0 0 6px; color:#666; font-size:11px; text-transform:uppercase; letter-spacing:1px; font-weight:600;">Shipping</p>
+                      <p style="margin:0; color:#333; font-size:13px; font-weight:500; line-height:1.5;">${addressStr || "Address provided at checkout"}</p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 24px; color:#666666; font-size:14px; line-height:1.7; text-align:center;">
+                Thank you for supporting <strong style="color:#9c3e23;">AnimalSathi</strong>'s marketplace.
+                Every purchase helps us care for animals in need. 🧡
+              </p>
+
+              ${buildEmailCtaButton(orderUrl, "View Order")}
+
+              <p style="margin:20px 0 0; color:#aaaaaa; font-size:12px; line-height:1.5; text-align:center;">
+                You'll receive shipping updates as your order progresses.
+              </p>
+        ${buildOrderEmailFooter()}`,
+      };
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[ORDER EMAIL] Success", {
+        orderId: orderIdStr,
+        to: emailStr,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      // Email failure NEVER fails checkout — just log it
+      logger.error("[ORDER EMAIL] Failed", {
+        error: emailError.message || "N/A",
+        orderId: orderIdStr,
+        customerEmail: emailStr,
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// sendOrderShipped  –  callable function  (FUTURE READY — NOT YET WIRED)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a shipment notification email to the customer when their order
+ * has been shipped.
+ *
+ * FUTURE USE: Call from seller-dashboard or cloud function when
+ * orderStatus transitions to "shipped".
+ *
+ * Request body:
+ *   {
+ *     orderId: string,
+ *     customerName: string,
+ *     customerEmail: string,
+ *     trackingUrl: string,
+ *     awbCode: string,
+ *     carrierName: string
+ *   }
+ */
+exports.sendOrderShipped = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const data = request.data || {};
+    const { orderId, customerName, customerEmail, trackingUrl, awbCode, carrierName } = data;
+
+    logger.info("[ORDER EMAIL] Sending shipped notification...", { orderId, customerEmail });
+
+    if (!orderId || !customerEmail || !customerName) {
+      logger.error("[ORDER EMAIL] Missing required fields for shipped email");
+      return { success: false, emailSent: false, error: "Missing required fields" };
+    }
+
+    const emailStr = String(customerEmail).trim().toLowerCase();
+    const nameStr = String(customerName).trim();
+    const orderIdStr = String(orderId);
+    const trackUrl = trackingUrl || "#";
+    const awb = awbCode || "N/A";
+    const carrier = carrierName || "Courier Partner";
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+        subject: "🚚 Your Order Has Been Shipped - AnimalSathi",
+        text: [
+          `Hello ${nameStr},`,
+          "",
+          "Great news! Your order has been shipped and is on its way to you.",
+          "",
+          `Order: #${orderIdStr.substring(0, 12).toUpperCase()}`,
+          `Carrier: ${carrier}`,
+          `Tracking: ${awb}`,
+          "",
+          `Track your shipment: ${trackUrl}`,
+          "",
+          "Thank you for supporting AnimalSathi's marketplace.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n"),
+        html: `${buildOrderEmailHeader("Order Shipped! 🚚", "AnimalSathi Marketplace")}
+
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${nameStr},
+              </p>
+              <p style="margin:0 0 24px; color:#666666; font-size:14px; line-height:1.6;">
+                Great news! Your order <strong style="color:#9c3e23;">#${orderIdStr.substring(0, 12).toUpperCase()}</strong>
+                has been shipped and is on its way to you! 🎉
+              </p>
+
+              <div style="background:#f0faf5; border:1px solid #d0e8d8; border-radius:12px; padding:16px 20px; margin-bottom:24px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:12px; color:#888; padding-bottom:4px;">CARRIER</td>
+                    <td align="right" style="font-size:12px; color:#888; padding-bottom:4px;">TRACKING (AWB)</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:15px; color:#333; font-weight:700;">${carrier}</td>
+                    <td align="right" style="font-size:14px; color:#9c3e23; font-weight:700; font-family:'Courier New',monospace;">${awb}</td>
+                  </tr>
+                </table>
+              </div>
+
+              ${buildEmailCtaButton(trackUrl, "Track Your Order")}
+
+              <p style="margin:20px 0 0; color:#aaaaaa; font-size:12px; line-height:1.5; text-align:center;">
+                You'll receive a delivery confirmation once it arrives.
+              </p>
+        ${buildOrderEmailFooter()}`,
+      };
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[ORDER EMAIL] Shipped notification sent", {
+        orderId: orderIdStr,
+        to: emailStr,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      logger.error("[ORDER EMAIL] Failed to send shipped notification", {
+        error: emailError.message || "N/A",
+        orderId: orderIdStr,
+      });
+    }
+
+    return { success: true, emailSent };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// sendOrderDelivered  –  callable function  (FUTURE READY — NOT YET WIRED)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a delivery confirmation email to the customer when their order
+ * has been delivered.
+ *
+ * FUTURE USE: Call from seller-dashboard or cloud function when
+ * orderStatus transitions to "delivered".
+ *
+ * Request body:
+ *   {
+ *     orderId: string,
+ *     customerName: string,
+ *     customerEmail: string
+ *   }
+ */
+exports.sendOrderDelivered = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const data = request.data || {};
+    const { orderId, customerName, customerEmail } = data;
+
+    logger.info("[ORDER EMAIL] Sending delivered notification...", { orderId, customerEmail });
+
+    if (!orderId || !customerEmail || !customerName) {
+      logger.error("[ORDER EMAIL] Missing required fields for delivered email");
+      return { success: false, emailSent: false, error: "Missing required fields" };
+    }
+
+    const emailStr = String(customerEmail).trim().toLowerCase();
+    const nameStr = String(customerName).trim();
+    const orderIdStr = String(orderId);
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+        subject: "✅ Order Delivered - AnimalSathi",
+        text: [
+          `Hello ${nameStr},`,
+          "",
+          `Your order #${orderIdStr.substring(0, 12).toUpperCase()} has been delivered successfully!`,
+          "",
+          "We hope you and your furry friend love your purchase.",
+          "",
+          "If you have any questions or concerns, please reply to this email or contact us at info@animalsathi.com.",
+          "",
+          "Thank you for supporting AnimalSathi's marketplace.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n"),
+        html: `${buildOrderEmailHeader("Order Delivered! ✅", "AnimalSathi Marketplace")}
+
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${nameStr},
+              </p>
+              <p style="margin:0 0 24px; color:#666666; font-size:14px; line-height:1.6;">
+                Your order <strong style="color:#16a34a;">#${orderIdStr.substring(0, 12).toUpperCase()}</strong>
+                has been delivered successfully! 🎉
+              </p>
+
+              <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:16px; padding:24px; margin-bottom:24px; text-align:center;">
+                <div style="font-size:48px; margin-bottom:12px;">📦</div>
+                <p style="margin:0; color:#15803d; font-size:16px; font-weight:700;">
+                  We hope you and your furry friend love your purchase!
+                </p>
+              </div>
+
+              <p style="margin:0 0 16px; color:#666; font-size:14px; line-height:1.6;">
+                If you have any questions or concerns, simply reply to this email or reach out to us at <a href="mailto:info@animalsathi.com" style="color:#9c3e23;">info@animalsathi.com</a>.
+              </p>
+
+              <p style="margin:0 0 24px; color:#666666; font-size:14px; line-height:1.7; text-align:center;">
+                Thank you for supporting <strong style="color:#9c3e23;">AnimalSathi</strong>'s marketplace.
+                Your purchase makes a difference for animals in need. 🧡
+              </p>
+        ${buildOrderEmailFooter()}`,
+      };
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[ORDER EMAIL] Delivered notification sent", {
+        orderId: orderIdStr,
+        to: emailStr,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      logger.error("[ORDER EMAIL] Failed to send delivered notification", {
+        error: emailError.message || "N/A",
+        orderId: orderIdStr,
+      });
+    }
+
+    return { success: true, emailSent };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// sendOrderCancelled  –  callable function  (FUTURE READY — NOT YET WIRED)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a cancellation notification email to the customer when their
+ * order has been cancelled.
+ *
+ * FUTURE USE: Call from seller-dashboard or cloud function when
+ * orderStatus transitions to "cancelled".
+ *
+ * Request body:
+ *   {
+ *     orderId: string,
+ *     customerName: string,
+ *     customerEmail: string,
+ *     reason?: string
+ *   }
+ */
+exports.sendOrderCancelled = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const data = request.data || {};
+    const { orderId, customerName, customerEmail, reason } = data;
+
+    logger.info("[ORDER EMAIL] Sending cancellation notification...", { orderId, customerEmail });
+
+    if (!orderId || !customerEmail || !customerName) {
+      logger.error("[ORDER EMAIL] Missing required fields for cancelled email");
+      return { success: false, emailSent: false, error: "Missing required fields" };
+    }
+
+    const emailStr = String(customerEmail).trim().toLowerCase();
+    const nameStr = String(customerName).trim();
+    const orderIdStr = String(orderId);
+    const reasonStr = reason ? String(reason).trim() : "";
+
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+        subject: "ℹ️ Order Cancelled - AnimalSathi",
+        text: [
+          `Hello ${nameStr},`,
+          "",
+          `Your order #${orderIdStr.substring(0, 12).toUpperCase()} has been cancelled.`,
+          reasonStr ? `\nReason: ${reasonStr}\n` : "",
+          "If you have any questions or need assistance, please reach out to our support team at info@animalsathi.com.",
+          "",
+          "Any payments made will be refunded as per our refund policy.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].filter(Boolean).join("\n"),
+        html: `${buildOrderEmailHeader("Order Cancelled", "AnimalSathi Marketplace")}
+
+              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">
+                Hello ${nameStr},
+              </p>
+              <p style="margin:0 0 20px; color:#666666; font-size:14px; line-height:1.6;">
+                Your order <strong style="color:#991b1b;">#${orderIdStr.substring(0, 12).toUpperCase()}</strong>
+                has been cancelled as requested.
+              </p>
+
+              ${reasonStr ? `
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px 20px; margin-bottom:20px;">
+                <p style="margin:0; color:#991b1b; font-size:13px; font-weight:600;">Reason: ${reasonStr}</p>
+              </div>` : ""}
+
+              <div style="background:#fef8f5; border:1px solid #f0e0d0; border-radius:12px; padding:16px 20px; margin-bottom:20px;">
+                <p style="margin:0; color:#666; font-size:13px; line-height:1.6;">
+                  Any payments made will be refunded as per our refund policy. If you have any
+                  questions, please contact us at <a href="mailto:info@animalsathi.com" style="color:#9c3e23;">info@animalsathi.com</a>.
+                </p>
+              </div>
+
+              <p style="margin:0 0 24px; color:#666666; font-size:14px; line-height:1.7; text-align:center;">
+                We're sorry to see you go. If you'd like to place a new order,
+                visit our <a href="https://animalsathi.com/shop" style="color:#9c3e23;">marketplace</a> anytime.
+              </p>
+        ${buildOrderEmailFooter()}`,
+      };
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[ORDER EMAIL] Cancellation notification sent", {
+        orderId: orderIdStr,
+        to: emailStr,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      logger.error("[ORDER EMAIL] Failed to send cancellation notification", {
+        error: emailError.message || "N/A",
+        orderId: orderIdStr,
+      });
+    }
+
+    return { success: true, emailSent };
+  }
+);
+
+// ---------------------------------------------------------------------------
 // notifySellerApprovalStatus  –  callable function
 // ---------------------------------------------------------------------------
 

@@ -168,6 +168,7 @@ export interface Order {
   orderId: string;
   userId: string;
   userName: string;
+  customerEmail?: string;
   vendorIds: string[];
   items: OrderItem[];
   vendorGroups: VendorGroup[];

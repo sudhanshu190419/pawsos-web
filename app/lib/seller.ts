@@ -24,6 +24,8 @@ export interface BrandProfile {
   shiprocketPickupCreated: boolean;
   shiprocketPickupId: number | null;
   shiprocketPickupName: string | null;
+  shiprocketPickupCreatedAt?: any;
+  shiprocketPickupStatus?: "active" | "inactive";
   createdAt?: any;
 }
 
@@ -42,7 +44,7 @@ export async function fetchBrandProfile(uid: string): Promise<BrandProfile | nul
 
 export async function createBrandApplication(
   uid: string,
-  data: Omit<BrandProfile, "uid" | "verificationStatus" | "shiprocketPickupCreated" | "shiprocketPickupId" | "shiprocketPickupName" | "createdAt">
+  data: Omit<BrandProfile, "uid" | "verificationStatus" | "shiprocketPickupCreated" | "shiprocketPickupId" | "shiprocketPickupName" | "shiprocketPickupCreatedAt" | "shiprocketPickupStatus" | "createdAt">
 ) {
   await setDoc(doc(db, "brands", uid), {
     ...data,

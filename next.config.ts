@@ -18,7 +18,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  trailingSlash: true,
   turbopack: {
     root: path.join(__dirname),
   },

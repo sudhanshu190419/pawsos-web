@@ -128,14 +128,21 @@ async function generateAWB(
   token: string,
   shipmentId: number
 ): Promise<any> {
+  console.log("\n══════════ AWB ASSIGNMENT DEBUG ══════════");
+  console.log("[AWB-1] Preparing request for shipment_id:", shipmentId);
+
+  const awbPayload = {
+    shipment_id: shipmentId,
+    courier_id: "",
+    is_return: 0,
+  };
+  console.log("[AWB-2] Request payload:", JSON.stringify(awbPayload, null, 2));
+
   try {
+    console.log("[AWB-3] Sending POST to /courier/assign/awb...");
     const response = await axios.post(
       "https://apiv2.shiprocket.in/v1/external/courier/assign/awb",
-      {
-        shipment_id: shipmentId,
-        courier_id: "",
-        is_return: 0,
-      },
+      awbPayload,
       {
         headers: {
           "Content-Type": "application/json",
@@ -143,10 +150,20 @@ async function generateAWB(
         },
       }
     );
+
+    console.log("[AWB-4] HTTP status:", response.status);
+    console.log("[AWB-5] Full Shiprocket response:", JSON.stringify(response.data, null, 2));
+    console.log("[AWB-6] awb_code from response:", response.data?.awb_code);
+    console.log("[AWB-7] courier_name from response:", response.data?.courier_name);
+    console.log("══════════ END AWB DEBUG ══════════\n");
+
     return response.data;
   } catch (error: any) {
-    // AWB generation may fail silently if auto-assign is not available
-    console.warn("AWB auto-assign skipped:", error.response?.data || error.message);
+    console.log("[AWB-ERROR] Request FAILED:");
+    console.log("  HTTP status:", error.response?.status);
+    console.log("  Response body:", JSON.stringify(error.response?.data, null, 2));
+    console.log("  Error message:", error.message);
+    console.log("══════════ END AWB DEBUG (FAILED) ══════════\n");
     return null;
   }
 }
@@ -283,26 +300,48 @@ if (!ENABLE_SHIPROCKET) {
       totalHeight: Math.max(totalHeight || 10, 10),
     };
 
-    // Create the Shiprocket order
-    console.log("[5/7] Sending to Shiprocket API...");
+    // ── LOG FULL ORDER CREATION RESPONSE ──
+    console.log("\n══════════ ORDER CREATION RESPONSE DEBUG ══════════");
     const orderResult = await createShiprocketOrder(token, orderInput);
-    console.log("[5/7] SHIPROCKET RESPONSE received:", orderResult?.order_id ? `order_id=${orderResult.order_id}` : "no order_id");
+    console.log("[ORDER-RESP-1] Full response from createShiprocketOrder:", JSON.stringify(orderResult, null, 2));
+    console.log("[ORDER-RESP-2] Has order_id?:", !!orderResult?.order_id);
+    console.log("[ORDER-RESP-3] Has shipment_id?:", !!orderResult?.shipment_id);
+    console.log("[ORDER-RESP-4] Has awb_code DIRECTLY from create?:", !!orderResult?.awb_code);
+    console.log("[ORDER-RESP-5] awb_code value:", orderResult?.awb_code);
+    console.log("[ORDER-RESP-6] status:", orderResult?.status);
+    console.log("[ORDER-RESP-7] All keys in response:", Object.keys(orderResult || {}));
+    console.log("══════════ END ORDER RESPONSE DEBUG ══════════\n");
 
     const shiprocketOrderId = orderResult?.order_id || null;
     const shipmentId = orderResult?.shipment_id || null;
     console.log("[6/7] Extracted: order_id=", shiprocketOrderId, "shipment_id=", shipmentId);
 
-    // Generate AWB
+    // Generate AWB (only if not already returned with order creation)
     let awbCode = orderResult?.awb_code || null;
     let courierName = orderResult?.courier_name || null;
 
+    console.log("\n══════════ AWB DECISION DEBUG ══════════");
+    console.log("[AWB-DECISION-1] shipmentId:", shipmentId);
+    console.log("[AWB-DECISION-2] awbCode from orderResult:", awbCode);
+    console.log("[AWB-DECISION-3] Should call generateAWB?:", shipmentId && !awbCode ? "YES" : "NO");
+
     if (shipmentId && !awbCode) {
+      console.log("[AWB-DECISION-4] Calling generateAWB(shipmentId=", shipmentId, ")...");
       const awbResult = await generateAWB(token, shipmentId);
+      console.log("[AWB-DECISION-5] generateAWB returned:", awbResult ? "truthy" : "falsy/null");
+      console.log("[AWB-DECISION-6] Full awbResult:", JSON.stringify(awbResult, null, 2));
+      console.log("[AWB-DECISION-7] awbResult?.awb_code:", awbResult?.awb_code);
+      console.log("[AWB-DECISION-8] awbResult?.courier_name:", awbResult?.courier_name);
+
       if (awbResult) {
         awbCode = awbResult.awb_code || awbCode;
         courierName = awbResult.courier_name || courierName;
+        console.log("[AWB-DECISION-9] After assignment - awbCode:", awbCode, "courierName:", courierName);
+      } else {
+        console.log("[AWB-DECISION-9] awbResult was falsy, awbCode remains:", awbCode);
       }
     }
+    console.log("══════════ END AWB DECISION DEBUG ══════════\n");
 
     const trackingUrl = awbCode
       ? `https://shiprocket.co/tracking/${awbCode}`
@@ -320,9 +359,10 @@ if (!ENABLE_SHIPROCKET) {
       createdAt: Date.now(),
     };
 
-    console.log("[7/7] SUCCESS! Shipment result:");
+    console.log("══════════ FINAL SHIPMENT RESULT ══════════");
     console.log(JSON.stringify(shipmentResult, null, 2));
-    console.log("══════════ END DEBUG ══════════\n");
+    console.log("[FINAL] awbCode:", awbCode, "(null means AWB assignment failed)");
+    console.log("══════════ END FINAL SHIPMENT RESULT ══════════\n");
 
     return Response.json({
       success: true,
