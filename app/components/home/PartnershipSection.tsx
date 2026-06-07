@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   Building2,
@@ -5,7 +7,10 @@ import {
   Hospital,
   ArrowRight,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import Reveal from "../Reveal";
 
 const PARTNERS = [
@@ -22,10 +27,13 @@ const PARTNERS = [
     ],
     cta: "Apply as NGO",
     href: "/onboarding",
-    color: "text-blue-500",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    accentBg: "bg-blue-600",
+    btnGradient: "linear-gradient(135deg, #3b82f6, #06b6d4)",
+    glowColor: "rgba(59,130,246,0.12)",
+    glowIntense: "rgba(59,130,246,0.4)",
+    lightBg: "bg-blue-50/40",
+    iconBg: "bg-blue-100/60",
+    iconColor: "text-blue-600",
+    borderAccent: "border-blue-200/50",
   },
   {
     icon: Stethoscope,
@@ -40,10 +48,13 @@ const PARTNERS = [
     ],
     cta: "Register as Vet",
     href: "/vets",
-    color: "text-emerald-500",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    accentBg: "bg-emerald-600",
+    btnGradient: "linear-gradient(135deg, #10b981, #14b8a6)",
+    glowColor: "rgba(16,185,129,0.12)",
+    glowIntense: "rgba(16,185,129,0.4)",
+    lightBg: "bg-emerald-50/40",
+    iconBg: "bg-emerald-100/60",
+    iconColor: "text-emerald-600",
+    borderAccent: "border-emerald-200/50",
   },
   {
     icon: Hospital,
@@ -58,76 +69,266 @@ const PARTNERS = [
     ],
     cta: "Onboard Hospital",
     href: "/onboarding/organization",
-    color: "text-violet-500",
-    bg: "bg-violet-50",
-    border: "border-violet-200",
-    accentBg: "bg-violet-600",
+    btnGradient: "linear-gradient(135deg, #8b5cf6, #d946ef)",
+    glowColor: "rgba(139,92,246,0.12)",
+    glowIntense: "rgba(139,92,246,0.4)",
+    lightBg: "bg-violet-50/40",
+    iconBg: "bg-violet-100/60",
+    iconColor: "text-violet-600",
+    borderAccent: "border-violet-200/50",
   },
 ];
 
-export default function PartnershipSection() {
+function FloatingOrb({
+  className,
+  color,
+  size,
+  delay,
+  duration,
+}: {
+  className?: string;
+  color: string;
+  size: number;
+  delay: number;
+  duration: number;
+}) {
   return (
-    <section className="relative py-14 sm:py-20 md:py-28 overflow-hidden bg-gradient-to-b from-white to-slate-50/50">
+    <div
+      className={`absolute rounded-full blur-3xl pointer-events-none ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background: color,
+        animation: `floatOrb ${duration}s ease-in-out ${delay}s infinite`,
+      }}
+    />
+  );
+}
+
+export default function PartnershipSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const cards = section.querySelectorAll<HTMLDivElement>(".premium-card");
+      cards.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const normX = (x - centerX) / centerX;
+        const normY = (y - centerY) / centerY;
+        const rotateX = Math.max(-1, Math.min(1, normY)) * 6;
+        const rotateY = Math.max(-1, Math.min(1, normX)) * 6;
+        card.style.setProperty("--rotate-x", `${rotateX}deg`);
+        card.style.setProperty("--rotate-y", `${rotateY}deg`);
+      });
+    };
+
+    section.addEventListener("mousemove", handleMouseMove);
+    return () => section.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  return (
+    <section
+      ref={sectionRef}
+      className="relative py-20 sm:py-28 md:py-36 overflow-hidden bg-gradient-to-b from-white via-orange-50/30 to-white"
+    >
+      {/* Ambient floating orbs — soft warm tones */}
+      <FloatingOrb
+        color="radial-gradient(circle, rgba(251,146,60,0.12), transparent 70%)"
+        size={500}
+        delay={0}
+        duration={8}
+        className="top-[-10%] left-[-5%]"
+      />
+      <FloatingOrb
+        color="radial-gradient(circle, rgba(59,130,246,0.08), transparent 70%)"
+        size={400}
+        delay={2}
+        duration={10}
+        className="top-[20%] right-[-10%]"
+      />
+      <FloatingOrb
+        color="radial-gradient(circle, rgba(139,92,246,0.08), transparent 70%)"
+        size={350}
+        delay={4}
+        duration={9}
+        className="bottom-[10%] left-[20%]"
+      />
+      <FloatingOrb
+        color="radial-gradient(circle, rgba(16,185,129,0.06), transparent 70%)"
+        size={300}
+        delay={6}
+        duration={11}
+        className="bottom-[-5%] right-[10%]"
+      />
+
+      {/* Subtle dot-grid overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(rgba(0,0,0,0.2) 1px, transparent 1px)`,
+          backgroundSize: "40px 40px",
+        }}
+      />
+
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <Reveal>
-          <div className="text-center mb-10 sm:mb-14 md:mb-20">
-            <span className="inline-block text-orange-600 font-bold tracking-widest uppercase text-xs bg-orange-100 px-3 py-1 rounded-full mb-4">
-              Partner With Us
-            </span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
-              Grow Your Impact{" "}
-              <span className="text-orange-500">With Us</span>
+          <div className="text-center mb-14 sm:mb-20">
+            {/* Animated badge */}
+            <div className="inline-flex items-center gap-2 bg-white border border-orange-200/60 shadow-sm px-5 py-2 rounded-full mb-6 hover:shadow-md transition-all duration-300">
+              <Sparkles className="w-4 h-4 text-orange-500" />
+              <span className="text-orange-600 font-semibold tracking-widest uppercase text-xs">
+                Partner With Us
+              </span>
+            </div>
+
+            {/* Title with gradient */}
+            <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-6">
+              <span className="text-slate-900">
+                Grow Your Impact{" "}
+              </span>
+              <span className="bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500 bg-clip-text text-transparent">
+                With Us
+              </span>
             </h2>
+
+            {/* Subtitle */}
             <p className="text-base sm:text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
               Whether you&apos;re an NGO, a veterinarian, or a hospital —
-              there&apos;s a place for you in the AnimalSathi ecosystem.
+              there&apos;s a place for you in the{" "}
+              <span className="text-orange-500 font-semibold">AnimalSathi</span>{" "}
+              ecosystem.
             </p>
+
+            {/* Decorative line */}
+            <div className="mt-8 flex items-center justify-center gap-3">
+              <div className="h-px w-12 bg-gradient-to-r from-transparent via-orange-300/60 to-transparent" />
+              <div className="w-2 h-2 rounded-full bg-orange-400/50" />
+              <div className="h-px w-12 bg-gradient-to-r from-transparent via-orange-300/60 to-transparent" />
+            </div>
           </div>
         </Reveal>
 
         {/* Partner cards */}
         <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-          {PARTNERS.map((p) => (
-            <Reveal key={p.title}>
-              <div className="group bg-white rounded-2xl p-6 md:p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col">
-                {/* Icon */}
+          {PARTNERS.map((p, index) => (
+            <motion.div
+              key={p.title}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{
+                duration: 0.6,
+                delay: index * 0.15,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+            >
+              <div
+                className="premium-card group relative bg-white/80 backdrop-blur-2xl rounded-3xl p-8 border border-slate-200/60 hover:border-orange-200/80 transition-all duration-500 h-full flex flex-col"
+                style={{
+                  transform: "perspective(1000px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg))",
+                  transition: "transform 0.1s ease-out, border-color 0.4s, box-shadow 0.4s",
+                  willChange: "transform",
+                  boxShadow: `
+                    0 4px 24px -4px rgba(0,0,0,0.06),
+                    0 1px 4px -1px rgba(0,0,0,0.04),
+                    0 0 0 1px rgba(255,255,255,0.6) inset
+                  `,
+                }}
+                onMouseEnter={(e) => {
+                  const card = e.currentTarget;
+                  card.style.boxShadow = `
+                    0 20px 60px -12px rgba(0,0,0,0.12),
+                    0 8px 24px -6px rgba(0,0,0,0.06),
+                    0 0 0 1px rgba(255,255,255,0.8) inset,
+                    0 0 40px -12px ${p.glowColor}
+                  `;
+                }}
+                onMouseLeave={(e) => {
+                  const card = e.currentTarget;
+                  card.style.boxShadow = `
+                    0 4px 24px -4px rgba(0,0,0,0.06),
+                    0 1px 4px -1px rgba(0,0,0,0.04),
+                    0 0 0 1px rgba(255,255,255,0.6) inset
+                  `;
+                }}
+              >
+                {/* Gradient border top accent */}
                 <div
-                  className={`w-14 h-14 rounded-2xl ${p.bg} flex items-center justify-center border ${p.border} mb-6 group-hover:scale-110 transition-transform duration-300`}
-                >
-                  <p.icon className={`w-6 h-6 ${p.color}`} />
+                  className="absolute top-0 left-6 right-6 h-[1.5px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${p.glowIntense}, transparent)`,
+                  }}
+                />
+
+                {/* Subtle card-top colored wash */}
+                <div
+                  className={`absolute top-0 left-0 right-0 h-32 rounded-t-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${p.lightBg}`}
+                />
+
+                {/* Icon with glow */}
+                <div className="relative mb-7 z-10">
+                  <div
+                    className={`w-16 h-16 rounded-2xl ${p.iconBg} border ${p.borderAccent} flex items-center justify-center group-hover:scale-110 transition-all duration-500`}
+                    style={{
+                      boxShadow: `0 0 30px -8px ${p.glowColor}`,
+                    }}
+                  >
+                    <p.icon className={`w-7 h-7 ${p.iconColor}`} />
+                  </div>
+                  {/* Ambient icon glow on hover */}
+                  <div
+                    className="absolute -inset-3 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none"
+                    style={{ background: p.glowColor }}
+                  />
                 </div>
 
                 {/* Content */}
-                <h3 className="text-xl font-bold text-slate-800 mb-3">
+                <h3 className="text-xl font-bold text-slate-800 mb-3 group-hover:text-slate-900 transition-colors duration-300 z-10">
                   {p.title}
                 </h3>
-                <p className="text-sm text-slate-500 leading-relaxed mb-6">
+                <p className="text-sm text-slate-500 leading-relaxed mb-6 group-hover:text-slate-600 transition-colors duration-300 z-10">
                   {p.description}
                 </p>
 
                 {/* Features */}
-                <ul className="space-y-2.5 mb-8 flex-grow">
+                <ul className="space-y-3 mb-8 flex-grow z-10">
                   {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5">
-                      <CheckCircle2
-                        className={`w-4 h-4 mt-0.5 ${p.color} shrink-0`}
-                      />
-                      <span className="text-sm text-slate-600">{f}</span>
+                    <li key={f} className="flex items-start gap-3 group/feature">
+                      <div className="relative shrink-0 mt-0.5">
+                        <CheckCircle2 className="w-4 h-4 text-orange-400 group-hover/feature:text-orange-500 transition-colors duration-200" />
+                      </div>
+                      <span className="text-sm text-slate-500 group-hover/feature:text-slate-700 transition-colors duration-200">
+                        {f}
+                      </span>
                     </li>
                   ))}
                 </ul>
 
-                {/* CTA */}
+                {/* CTA Button with shimmer */}
                 <Link
                   href={p.href}
-                  className={`group/btn inline-flex items-center justify-center gap-2 ${p.accentBg} text-white px-6 py-3.5 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200`}
+                  className="group/btn relative inline-flex items-center justify-center gap-2 w-full text-white px-6 py-3.5 rounded-xl font-bold text-sm overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white z-10"
+                  style={{
+                    background: p.btnGradient,
+                    boxShadow: `0 4px 20px -4px ${p.glowColor.replace("0.12", "0.3")}`,
+                  }}
                 >
-                  {p.cta}
-                  <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                  {/* Shimmer overlay */}
+                  <div className="absolute inset-0 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+                  {/* Button content */}
+                  <span className="relative z-10">{p.cta}</span>
+                  <ArrowRight className="relative z-10 w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-200" />
                 </Link>
               </div>
-            </Reveal>
+            </motion.div>
           ))}
         </div>
       </div>
