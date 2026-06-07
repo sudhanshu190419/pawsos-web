@@ -1,110 +1,56 @@
 import Link from "next/link";
-import {
-  AlertCircle,
-  Users,
-  Download,
-  ArrowRight,
-  Heart,
-  Shield,
-  Zap,
-} from "lucide-react";
 import Reveal from "../Reveal";
 
 export default function FinalCTA() {
   return (
-    <section className="relative py-14 sm:py-24 md:py-32 overflow-hidden bg-white border-t border-slate-100">
-      {/* Ambient blurs */}
-      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-orange-200 rounded-full blur-[100px] -mr-48 -mt-48" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-100 rounded-full blur-[100px] -ml-48 -mb-48" />
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="relative py-20 md:py-28 lg:py-36 bg-[#FEF4E8] overflow-hidden">
+      {/* Decorative background gradients */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(156,62,35,0.04),transparent_50%)] pointer-events-none" />
+      
+      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 text-center">
         <Reveal>
-          <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
-            {/* Community badge */}
-            <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-100 px-4 py-2 rounded-full mb-8 shadow-sm">
-              <div className="flex -space-x-2">
-                {["R", "S", "P", "A", "M"].map((l, i) => (
-                  <div
-                    key={i}
-                    className="w-7 h-7 rounded-full bg-orange-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-orange-600"
-                  >
-                    {l}
-                  </div>
-                ))}
-              </div>
-              <span className="text-orange-600 font-bold text-xs sm:text-sm uppercase tracking-wider ml-1">
-                Join 10,000+ Animal Lovers
-              </span>
-            </div>
-
+          <div className="max-w-3xl mx-auto flex flex-col items-center">
+            
             {/* Heading */}
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-slate-900 mb-6 tracking-tight leading-tight">
-              Ready to Make an{" "}
-              <span className="text-orange-500">Impact?</span>
+            <h2 className="font-display italic text-4xl md:text-5xl lg:text-6xl text-[#1a1c1c] leading-[1.1]">
+              Ready to make a difference?
             </h2>
 
-            {/* Description */}
-            <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl leading-relaxed">
-              Compassion becomes powerful when communities work together. Help us
-              build India&apos;s strongest animal rescue network today.
+            {/* Subtitle */}
+            <p className="text-slate-600 text-base md:text-lg font-sans mt-6 max-w-[50ch] mx-auto leading-relaxed">
+              Every report, every rescue, and every life saved starts with someone who cares. 
+              Join India's community-first network for stray animal rescue today.
             </p>
 
-            {/* Primary CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 w-full justify-center mb-8">
+            {/* CTAs */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 mt-10 w-full sm:w-auto">
+              
+              {/* Primary CTA: Report SOS */}
               <Link
                 href="/report"
-                className="group bg-orange-500 text-white px-8 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 hover:bg-orange-600 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200"
+                className="bg-primary text-on-primary font-bold text-base rounded-2xl py-4 px-8 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 group"
               >
-                <AlertCircle className="w-5 h-5" />
-                Report an SOS
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span>Report an SOS</span>
+                <span className="material-symbols-outlined text-sm font-bold group-hover:translate-x-1 transition-transform">
+                  arrow_forward
+                </span>
               </Link>
-              <Link
-                href="/volunteer-form"
-                className="border-2 border-slate-200 text-slate-700 px-8 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 bg-white hover:border-slate-300 hover:bg-slate-50 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200"
-              >
-                <Users className="w-5 h-5 text-slate-400" />
-                Become a Volunteer
-              </Link>
-            </div>
 
-            {/* Secondary CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 w-full justify-center mb-10">
+              {/* Secondary CTA: Download App */}
               <a
-                href="https://play.google.com/store/apps/details?id=com.pawsos"
+                href="https://play.google.com/store/apps/details?id=com.animalsathi.app"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-slate-800 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200"
+                className="border border-[#1C1614]/20 text-[#1C1614] hover:bg-[#1C1614]/5 font-bold text-base rounded-2xl py-4 px-8 active:scale-[0.98] transition-all duration-300 inline-flex items-center justify-center gap-2"
               >
-                <Download className="w-4 h-4" />
-                Download the App
+                <span className="material-symbols-outlined text-xl">
+                  download
+                </span>
+                <span>Download the app</span>
               </a>
-              <Link
-                href="/onboarding"
-                className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 border border-slate-200 px-6 py-3.5 rounded-xl hover:bg-slate-50 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200"
-              >
-                Join as an NGO Partner
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+
             </div>
 
-            {/* Trust strip */}
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-emerald-500" />
-                <span>100% Verified Network</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-orange-500" />
-                <span>Real-time Response</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Heart className="w-4 h-4 text-rose-500" />
-                <span>Free & Open to All</span>
-              </div>
-            </div>
           </div>
         </Reveal>
       </div>

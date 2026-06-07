@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
@@ -69,7 +69,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           resolve(nextLoc);
         },
         (err) => {
-          console.error("Location error:", err);
+          console.error("Location error:", err.message || `Error code: ${err.code}`);
           setError("Location permission denied or unavailable.");
           setIsLoading(false);
           resolve(null);

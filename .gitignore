@@ -51,3 +51,5 @@ PRODUCT.md
 .gemini/
 .graphifyignore
 GEMINI.md
+remoteconfig.template.json
+apphosting.emulator.yaml

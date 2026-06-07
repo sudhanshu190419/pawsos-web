@@ -6,18 +6,21 @@ import { AlertCircle, HeartPulse, Users, ShoppingBag } from "lucide-react";
 
 // ─── Design Tokens ──────────────────────────────────────────────────────────
 const ACCENT = {
-  red:   { dot: "#f87171", shadow: "rgba(248,113,113,0.15)", border: "rgba(248,113,113,0.25)", bg: "bg-red-50", text: "text-red-600", borderClass: "border-red-100" },
-  blue:  { dot: "#60a5fa", shadow: "rgba(96,165,250,0.15)",  border: "rgba(96,165,250,0.25)",  bg: "bg-blue-50", text: "text-blue-600", borderClass: "border-blue-100" },
-  green: { dot: "#4ade80", shadow: "rgba(74,222,128,0.15)",  border: "rgba(74,222,128,0.25)",  bg: "bg-green-50", text: "text-green-600", borderClass: "border-green-100" },
-  amber: { dot: "#fb923c", shadow: "rgba(251,146,60,0.15)",  border: "rgba(251,146,60,0.25)",  bg: "bg-orange-50", text: "text-orange-600", borderClass: "border-orange-100" },
+  red:   { dot: "#ef4444", shadow: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.15)", bg: "bg-red-50", text: "text-red-600", borderClass: "border-red-100" },
+  blue:  { dot: "#446464", shadow: "rgba(68,100,100,0.08)",  border: "rgba(68,100,100,0.15)",  bg: "bg-secondary/10", text: "text-secondary", borderClass: "border-secondary/20" },
+  green: { dot: "#10b981", shadow: "rgba(16,185,129,0.08)",  border: "rgba(16,185,129,0.15)",  bg: "bg-emerald-50", text: "text-emerald-600", borderClass: "border-emerald-100" },
+  amber: { dot: "#9c3e23", shadow: "rgba(156,62,37,0.08)",  border: "rgba(156,62,37,0.15)",  bg: "bg-primary/10", text: "text-primary", borderClass: "border-primary/20" },
 } as const;
 
 export default function CategoryCards() {
   return (
     <div className="relative z-20">
       <Reveal>
-        <section className="relative mt-8 sm:mt-12 md:mt-16 px-4 sm:px-6">
-          <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
+        <section className="relative bg-[#FEF4E8] py-12 sm:py-16 md:py-20 px-4 sm:px-6 overflow-hidden">
+          {/* Decorative subtle background accents */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(156,62,35,0.03),transparent_40%)] pointer-events-none" />
+          
+          <div className="relative z-10 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
             <CategoryCard
               title="SOS Alerts"
               subtitle="Report instantly"
@@ -80,7 +83,7 @@ function CategoryCard({
         className="relative h-full rounded-2xl sm:rounded-[1.75rem] overflow-hidden bg-white/90
                    transition-all duration-300 ease-out
                    hover:-translate-y-2 hover:shadow-2xl active:scale-[0.97]
-                   border backdrop-blur-sm border border-orange-100"
+                   border backdrop-blur-sm border border-warm-line"
         style={{ boxShadow: `0 2px 20px ${a.shadow}` }}
       >
         <div

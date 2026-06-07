@@ -29,7 +29,7 @@ export default function HeroSection() {
               {/* Primary Button: Report SOS */}
               <Link
                 href="/report"
-                className="w-[95%] sm:w-auto mx-auto sm:mx-0 py-2.5 sm:py-3.5 px-4 sm:px-6 bg-orange-500 text-white font-bold text-xs sm:text-sm rounded-xl hover:bg-orange-600 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg shadow-orange-500/20 min-h-[44px]"
+                className="w-[95%] sm:w-auto mx-auto sm:mx-0 py-2.5 sm:py-3.5 px-4 sm:px-6 bg-primary text-white font-bold text-xs sm:text-sm rounded-xl hover:bg-primary-container active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg shadow-primary/20 min-h-[44px]"
               >
                 <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 Report a SOS
