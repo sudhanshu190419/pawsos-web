@@ -62,9 +62,8 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
 
 useEffect(() => {
-  const handleScroll = () => {
-    setScrolled(window.scrollY > 10);
-  };
+  setScrolled(window.scrollY > 50);
+  const handleScroll = () => setScrolled(window.scrollY > 50);
   window.addEventListener("scroll", handleScroll, { passive: true });
   return () => window.removeEventListener("scroll", handleScroll);
 }, []);
@@ -273,19 +272,21 @@ useEffect(() => {
   };
 
   /* ─── Shared style fragments ─── */
-  const navLinkClass = `relative group text-slate-600 text-[13px] font-semibold tracking-wide uppercase
+  const navLinkClass = `relative group text-[13px] font-semibold tracking-wide uppercase
     after:absolute after:left-0 after:-bottom-1 
     after:h-[2px] after:w-0 
-    after:bg-orange-500 
+    after:bg-orange-400
     after:transition-all after:duration-300 
-    group-hover:after:w-full hover:text-orange-600 transition-colors`;
+    group-hover:after:w-full transition-colors duration-300
+    ${scrolled ? "text-slate-600 hover:text-orange-600" : "text-white/80 hover:text-white"}`;
 
-  const dropdownTriggerClass = `cursor-pointer relative text-slate-600 text-[13px] font-semibold tracking-wide uppercase
+  const dropdownTriggerClass = `cursor-pointer relative text-[13px] font-semibold tracking-wide uppercase
     after:absolute after:left-0 after:-bottom-1 
     after:h-[2px] after:w-0 
-    after:bg-orange-500 
+    after:bg-orange-400
     after:transition-all after:duration-300 
-    group-hover:after:w-full py-2 hover:text-orange-600 transition-colors flex items-center gap-1`;
+    group-hover:after:w-full py-2 transition-colors duration-300 flex items-center gap-1
+    ${scrolled ? "text-slate-600 hover:text-orange-600" : "text-white/80 hover:text-white"}`;
 
   const dropdownPanelClass = `absolute left-1/2 -translate-x-1/2 top-full pt-4 
     opacity-0 translate-y-[10px]
@@ -301,14 +302,13 @@ useEffect(() => {
   return (
     <>
       <header
-        className={`fixed top-3 inset-x-3 md:inset-x-6 lg:inset-x-10 z-[999] rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-          bg-white/80 backdrop-blur-2xl border border-slate-200/40
+        className={`fixed top-0 inset-x-0 z-[999] transition-[background,backdrop-filter,border-color,box-shadow,padding] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
           ${scrolled
-            ? "shadow-[0_12px_40px_rgba(0,0,0,0.12)] border-slate-200/60 bg-white/90"
-            : "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+            ? "bg-white/90 backdrop-blur-xl border-b border-slate-200/60 shadow-[0_4px_30px_rgba(0,0,0,0.08)]"
+            : "bg-transparent backdrop-blur-none border-transparent shadow-none"
           }`}
       >
-        <div className="px-4 md:px-6 lg:px-8 py-3 flex items-center justify-between">
+        <div className={`px-4 md:px-6 lg:px-8 flex items-center justify-between transition-all duration-500 ${scrolled ? "py-2.5" : "py-4"}`}>
           
           {/* LEFT SIDE: LOGO & LOCATION */}
           <div className="flex items-center gap-3 md:gap-4">
@@ -330,10 +330,10 @@ useEffect(() => {
  
             {/* INLINE LOCATION — pill style */}
             <div 
-              className="flex items-center rounded-full px-2.5 py-1.5 cursor-pointer max-w-[100px] sm:max-w-[140px] lg:max-w-[180px] transition-all duration-300 text-slate-700 bg-slate-100/70 hover:bg-slate-200/60"
+              className={`flex items-center rounded-full px-2.5 py-1.5 cursor-pointer max-w-[100px] sm:max-w-[140px] lg:max-w-[180px] transition-all duration-300 ${scrolled ? "text-slate-700 bg-slate-100/70 hover:bg-slate-200/60" : "text-white/80 bg-white/10 hover:bg-white/20"}`}
               onClick={!userLocation ? requestLocation : undefined}
             >
-              <MapPin className="w-3 h-3 text-orange-500 mr-1 shrink-0" />
+              <MapPin className="w-3 h-3 text-orange-400 mr-1 shrink-0" />
               <span className="text-[11px] sm:text-[12px] font-medium tracking-tight truncate">
                 {locationLoading ? "Fetching..." : userLocation ? (
                   <>{userLocation.address || `${userLocation.latitude.toFixed(2)}, ${userLocation.longitude.toFixed(2)}`}</>
@@ -367,7 +367,7 @@ useEffect(() => {
               <span className={dropdownTriggerClass}>
                 Services
                 <svg 
-                  className="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-hover:rotate-180"
+                  className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled ? "text-slate-400" : "text-white/60"}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -399,7 +399,7 @@ useEffect(() => {
             <div className="relative group">
               <span className={dropdownTriggerClass}>
                 Join Us
-                <svg className="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-hover:rotate-180" fill="none"
+                <svg className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled ? "text-slate-400" : "text-white/60"}`} fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
               </span>
@@ -434,7 +434,7 @@ useEffect(() => {
               <span className={dropdownTriggerClass}>
                 About Us
                 <svg 
-                  className="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-hover:rotate-180"
+                  className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled ? "text-slate-400" : "text-white/60"}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -567,14 +567,14 @@ useEffect(() => {
 
             {/* MOBILE HAMBURGER BUTTON - Animated morph */}
             <button 
-              className="md:hidden relative w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100/60 transition-colors"
+              className="md:hidden relative w-9 h-9 flex items-center justify-center rounded-xl transition-colors"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
             >
               <div className="w-5 h-4 relative flex flex-col justify-between">
-                <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
-                <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'opacity-0 scale-0' : 'opacity-100'}`} />
-                <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''} ${scrolled ? 'bg-slate-700' : 'bg-white'}`} />
+                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'opacity-0 scale-0' : 'opacity-100'} ${scrolled ? 'bg-slate-700' : 'bg-white'}`} />
+                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''} ${scrolled ? 'bg-slate-700' : 'bg-white'}`} />
               </div>
             </button>
           </div>
@@ -588,7 +588,7 @@ useEffect(() => {
       />
 
       {/* MOBILE SLIDE-DOWN MENU — floating panel */}
-      <div className={`md:hidden fixed top-[72px] inset-x-3 z-[999] bg-white/95 backdrop-blur-2xl border border-slate-200/60 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'max-h-[calc(100vh-6rem)] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-3 pointer-events-none'}`}>
+      <div className={`md:hidden fixed top-[60px] inset-x-3 z-[999] bg-white/95 backdrop-blur-2xl border border-slate-200/60 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'max-h-[calc(100vh-6rem)] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-3 pointer-events-none'}`}>
         <div className="flex flex-col py-2 px-4 overflow-y-auto overscroll-contain">
           
           {/* USER ACCOUNT SECTION (Visible only if logged in) */}
