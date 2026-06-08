@@ -272,344 +272,323 @@ useEffect(() => {
     }
   };
 
+  /* ─── Shared style fragments ─── */
+  const navLinkClass = `relative group text-slate-600 text-[13px] font-semibold tracking-wide uppercase
+    after:absolute after:left-0 after:-bottom-1 
+    after:h-[2px] after:w-0 
+    after:bg-orange-500 
+    after:transition-all after:duration-300 
+    group-hover:after:w-full hover:text-orange-600 transition-colors`;
+
+  const dropdownTriggerClass = `cursor-pointer relative text-slate-600 text-[13px] font-semibold tracking-wide uppercase
+    after:absolute after:left-0 after:-bottom-1 
+    after:h-[2px] after:w-0 
+    after:bg-orange-500 
+    after:transition-all after:duration-300 
+    group-hover:after:w-full py-2 hover:text-orange-600 transition-colors flex items-center gap-1`;
+
+  const dropdownPanelClass = `absolute left-1/2 -translate-x-1/2 top-full pt-4 
+    opacity-0 translate-y-[10px]
+    group-hover:opacity-100 group-hover:translate-y-0
+    transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
+    pointer-events-none group-hover:pointer-events-auto`;
+
+  const dropdownCardClass = `bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)]
+    w-64 p-2 flex flex-col`;
+
+  const dropdownItemClass = `flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 transition-colors group/item`;
+
   return (
-    <header className={`sticky top-0 z-50 backdrop-blur-xl transition-all duration-300
-${scrolled ? "bg-white/80 shadow-md" : "bg-white/60"}
-`}>
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
-        
-        {/* LEFT SIDE: LOGO & LOCATION */}
-        <div className="flex items-center gap-3 md:gap-5">
-          {/* LOGO */}
-          <Link
-            href="/"
-            className="hover:scale-105 transition-transform flex items-center shrink-0"
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            <Image 
-              src="/logo.png" 
-              alt="AnimalSathi Logo" 
-              width={180} 
-              height={60} 
-              priority={true}
-              className="h-9 md:h-12 lg:h-14 w-auto object-contain" 
-            />
-          </Link>
-
-          {/* INLINE LOCATION */}
-          <div className="flex items-center text-slate-800 border-l border-slate-200 pl-3 md:pl-5 cursor-pointer max-w-[100px] sm:max-w-[140px] lg:max-w-[180px]" onClick={!userLocation ? requestLocation : undefined}>
-            <MapPin className="w-3.5 h-3.5 text-slate-800 mr-1 shrink-0" />
-            <span className="text-[11px] sm:text-[13px] font-medium tracking-tight truncate">
-              {locationLoading ? "Fetching..." : userLocation ? (
-                <>{userLocation.address || `${userLocation.latitude.toFixed(2)}, ${userLocation.longitude.toFixed(2)}`}</>
-              ) : (
-                "Set location"
-              )}
-            </span>
-            {userLocation && (
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  requestLocation();
-                }}
-                className="ml-1.5 hover:text-orange-600 transition-colors shrink-0"
-                title="Reload location"
-              >
-                <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${locationLoading ? "animate-spin" : ""}`} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* CENTER NAV LINKS (DESKTOP ONLY) */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
-          <Link href="/" prefetch={false} className="relative group text-slate-600
-
-after:absolute after:left-0 after:-bottom-1 
-after:h-[2px] after:w-0 
-after:bg-primary 
-after:transition-all after:duration-300 
-group-hover:after:w-full transition-colors">Home</Link>
-
-          <Link href="/how-it-works" prefetch={false} className="relative group text-slate-600
-
-after:absolute after:left-0 after:-bottom-1 
-after:h-[2px] after:w-0 
-after:bg-primary 
-after:transition-all after:duration-300 
-group-hover:after:w-full transition-colors">How It Works</Link>
-
-          {/* SERVICES DROPDOWN */}
-          <div className="relative group">
-            <span className="cursor-pointer relative text-slate-600
-
-after:absolute after:left-0 after:-bottom-1 
-after:h-[2px] after:w-0 
-after:bg-primary 
-after:transition-all after:duration-300 
-group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
-              Services
-              <svg 
-                className="w-4 h-4 text-slate-400 transition-transform duration-200 group-hover:rotate-180"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-              </svg>
-            </span>
-            <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
-opacity-0 translate-y-[10px]
-group-hover:opacity-100 group-hover:translate-y-0
-transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
-pointer-events-none group-hover:pointer-events-auto">
-              <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
-backdrop-blur-sm w-64 p-2 flex flex-col">
-                <Link href="/playdate" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">pets</span>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-slate-700">Play Date</span>
-                    <span className="text-[10px] text-slate-500">Socialize your furry friend</span>
-                  </div>
-                </Link>
-                <Link href="/vet-appointments" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">medical_services</span>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-slate-700">Vet Appointments</span>
-                    <span className="text-[10px] text-slate-500">Expert medical care</span>
-                  </div>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* JOIN US DROPDOWN */}
-          <div className="relative group">
-            <span className="cursor-pointer relative text-slate-600
-
-after:absolute after:left-0 after:-bottom-1 
-after:h-[2px] after:w-0 
-after:bg-primary 
-after:transition-all after:duration-300 
-group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
-              Join Us
-              <svg className="w-4 h-4 text-slate-400 transition-transform duration-200 group-hover:rotate-180"fill="none"
-  stroke="currentColor"
-  viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-            </span>
-            <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
-opacity-0 translate-y-[10px]
-group-hover:opacity-100 group-hover:translate-y-0
-transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
-pointer-events-none group-hover:pointer-events-auto">
-              <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
-backdrop-blur-sm w-64 p-2 flex flex-col">
-                <Link href="/volunteer-form" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary">volunteer_activism</span>
-                  <span className="text-sm font-semibold text-slate-700">Become a Volunteer</span>
-                </Link>
-                <Link href="/onboarding" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary">corporate_fare</span>
-                  <span className="text-sm font-semibold text-slate-700">NGO Partnerships</span>
-                </Link>
-                <Link href="/onboarding/organization" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary">local_hospital</span>
-                  <span className="text-sm font-semibold text-slate-700">Hospital Onboarding</span>
-                </Link>
-                <Link href="/vets" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary">stethoscope</span>
-                  <span className="text-sm font-semibold text-slate-700">Register as a Vet</span>
-                </Link>
-                <Link href="/become-seller" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary">storefront</span>
-                  <span className="text-sm font-semibold text-slate-700">Become a Seller</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* ABOUT US DROPDOWN */}
-          <div className="relative group">
-            <span className="cursor-pointer relative text-slate-600
-
-after:absolute after:left-0 after:-bottom-1 
-after:h-[2px] after:w-0 
-after:bg-primary 
-after:transition-all after:duration-300 
-group-hover:after:w-full py-2 transition-colors flex items-center gap-1">
-              About Us
-              <svg 
-  className="w-4 h-4 text-slate-400 transition-transform duration-200 group-hover:rotate-180"
-  fill="none"
-  stroke="currentColor"
-  viewBox="0 0 24 24"
->
-  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-</svg>
-            </span>
-            <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 
-opacity-0 translate-y-[10px]
-group-hover:opacity-100 group-hover:translate-y-0
-transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
-pointer-events-none group-hover:pointer-events-auto">
-              <div className="bg-white border border-slate-200 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.08)]
-backdrop-blur-sm w-64 p-2 flex flex-col">
-                <Link href="/about" className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">auto_stories</span>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-slate-700">Our Story</span>
-                    <span className="text-[10px] text-slate-500">How AnimalSathi started</span>
-                  </div>
-                </Link>
-                <Link href="/investors" className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">business_center</span>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-slate-700">Investors</span>
-                    <span className="text-[10px] text-slate-500">Funding & growth details</span>
-                  </div>
-                </Link>
-                <Link href="/contact" className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 transition-colors group/item">
-                  <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">contact_support</span>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-slate-700">Contact Us</span>
-                    <span className="text-[10px] text-slate-500">Reach out to our team</span>
-                  </div>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <Link href="/shop" prefetch={false} className="relative group text-slate-600
-
-after:absolute after:left-0 after:-bottom-1 
-after:h-[2px] after:w-0 
-after:bg-primary 
-after:transition-all after:duration-300 
-group-hover:after:w-full transition-colors">Shop</Link>
-        </nav>
-
-        {/* RIGHT SIDE: PROFILE, APP CTA, & MOBILE MENU BUTTON */}
-        <div className="flex items-center gap-3 md:gap-4 lg:gap-6 ml-auto md:ml-0 shrink-0">
+    <>
+      <header
+        className={`fixed top-3 inset-x-3 md:inset-x-6 lg:inset-x-10 z-[999] rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+          bg-white/80 backdrop-blur-2xl border border-slate-200/40
+          ${scrolled
+            ? "shadow-[0_12px_40px_rgba(0,0,0,0.12)] border-slate-200/60 bg-white/90"
+            : "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+          }`}
+      >
+        <div className="px-4 md:px-6 lg:px-8 py-3 flex items-center justify-between">
           
-          {!loading && user ? (
-            <>
-              {/* DESKTOP PROFILE MENU (Hidden on Mobile) */}
-              <div className="hidden md:block relative group">
-                <img
-                  src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
-                  alt="User Profile"
-                  className="w-11 h-11 rounded-full cursor-pointer border-2 border-slate-100 hover:scale-105 hover:ring-2 hover:ring-blue-500/30 transition-all duration-200 transition-colors object-cover shadow-sm"
-                />
-                <div className="absolute right-0 top-full pt-4 
-opacity-0 translate-y-[10px]
-group-hover:opacity-100 group-hover:translate-y-0
-transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
-pointer-events-none group-hover:pointer-events-auto">
-                  <div className="bg-white border border-slate-200 rounded-xl shadow-lg
-backdrop-blur-sm w-60 flex flex-col overflow-hidden">
-                    <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
-                      <p className="text-sm font-bold text-slate-800 truncate">{user.displayName || "Animal Lover"}</p>
-                      <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
+          {/* LEFT SIDE: LOGO & LOCATION */}
+          <div className="flex items-center gap-3 md:gap-4">
+            {/* LOGO */}
+            <Link
+              href="/"
+              className="hover:scale-105 transition-transform flex items-center shrink-0"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <Image 
+                src="/logo.png" 
+                alt="AnimalSathi Logo" 
+                width={180} 
+                height={60} 
+                priority={true}
+                className="h-8 md:h-10 lg:h-12 w-auto object-contain" 
+              />
+            </Link>
+ 
+            {/* INLINE LOCATION — pill style */}
+            <div 
+              className="flex items-center rounded-full px-2.5 py-1.5 cursor-pointer max-w-[100px] sm:max-w-[140px] lg:max-w-[180px] transition-all duration-300 text-slate-700 bg-slate-100/70 hover:bg-slate-200/60"
+              onClick={!userLocation ? requestLocation : undefined}
+            >
+              <MapPin className="w-3 h-3 text-orange-500 mr-1 shrink-0" />
+              <span className="text-[11px] sm:text-[12px] font-medium tracking-tight truncate">
+                {locationLoading ? "Fetching..." : userLocation ? (
+                  <>{userLocation.address || `${userLocation.latitude.toFixed(2)}, ${userLocation.longitude.toFixed(2)}`}</>
+                ) : (
+                  "Set location"
+                )}
+              </span>
+              {userLocation && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestLocation();
+                  }}
+                  className="ml-1.5 hover:text-orange-600 transition-colors shrink-0"
+                  title="Reload location"
+                >
+                  <RefreshCw className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${locationLoading ? "animate-spin" : ""}`} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* CENTER NAV LINKS (DESKTOP ONLY) */}
+          <nav className="hidden md:flex items-center gap-7 lg:gap-8">
+            <Link href="/" prefetch={false} className={navLinkClass}>Home</Link>
+
+            <Link href="/how-it-works" prefetch={false} className={navLinkClass}>How It Works</Link>
+
+            {/* SERVICES DROPDOWN */}
+            <div className="relative group">
+              <span className={dropdownTriggerClass}>
+                Services
+                <svg 
+                  className="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-hover:rotate-180"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+              <div className={dropdownPanelClass}>
+                <div className={dropdownCardClass}>
+                  <Link href="/playdate" prefetch={false} className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">pets</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-slate-700">Play Date</span>
+                      <span className="text-[10px] text-slate-500">Socialize your furry friend</span>
                     </div>
-                    <div className="p-2 flex flex-col">
-                      {orgApproved && !orgApprovedLoading && (
-                        <Link href="/organization/dashboard" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
-                          <span className="material-symbols-outlined text-primary">dashboard</span>
-                          Organization Dashboard
-                        </Link>
-                      )}
-                      {sellerStatus === "approved" && !sellerStatusLoading && (
-                        <Link href="/seller-dashboard" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
-                          <span className="material-symbols-outlined text-primary">storefront</span>
-                          Seller Dashboard
-                        </Link>
-                      )}
-                      {(!sellerStatus || (sellerStatus !== "approved" && sellerStatus !== "pending")) && !sellerStatusLoading && (
-                        <Link href="/become-seller" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
-                          <span className="material-symbols-outlined text-primary">storefront</span>
-                          Become a Seller
-                        </Link>
-                      )}
-                      <Link href="/dashboard?tab=profile" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
-                        <span className="material-symbols-outlined text-primary">person</span>
-                        My Profile
-                      </Link>
-                      <Link href="/dashboard?tab=reports" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
-                        <span className="material-symbols-outlined text-primary">emergency</span>
-                        My SOS Reports
-                      </Link>
-                      <Link href="/dashboard?tab=settings" prefetch={false} className="flex items-center gap-3 p-3 rounded-lg hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
-                        <span className="material-symbols-outlined text-primary">settings</span>
-                        Settings
-                      </Link>
+                  </Link>
+                  <Link href="/vet-appointments" prefetch={false} className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">medical_services</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-slate-700">Vet Appointments</span>
+                      <span className="text-[10px] text-slate-500">Expert medical care</span>
                     </div>
-                    <div className="p-2 border-t border-slate-100">
-                      <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 transition-colors text-sm font-bold text-red-600">
-                        <span className="material-symbols-outlined text-red-500">logout</span>
-                        Sign Out
-                      </button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* JOIN US DROPDOWN */}
+            <div className="relative group">
+              <span className={dropdownTriggerClass}>
+                Join Us
+                <svg className="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-hover:rotate-180" fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+              </span>
+              <div className={dropdownPanelClass}>
+                <div className={dropdownCardClass}>
+                  <Link href="/volunteer-form" prefetch={false} className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary">volunteer_activism</span>
+                    <span className="text-sm font-semibold text-slate-700">Become a Volunteer</span>
+                  </Link>
+                  <Link href="/onboarding" prefetch={false} className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary">corporate_fare</span>
+                    <span className="text-sm font-semibold text-slate-700">NGO Partnerships</span>
+                  </Link>
+                  <Link href="/onboarding/organization" prefetch={false} className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary">local_hospital</span>
+                    <span className="text-sm font-semibold text-slate-700">Hospital Onboarding</span>
+                  </Link>
+                  <Link href="/vets" prefetch={false} className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary">stethoscope</span>
+                    <span className="text-sm font-semibold text-slate-700">Register as a Vet</span>
+                  </Link>
+                  <Link href="/become-seller" prefetch={false} className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary">storefront</span>
+                    <span className="text-sm font-semibold text-slate-700">Become a Seller</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* ABOUT US DROPDOWN */}
+            <div className="relative group">
+              <span className={dropdownTriggerClass}>
+                About Us
+                <svg 
+                  className="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-hover:rotate-180"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+              <div className={dropdownPanelClass}>
+                <div className={dropdownCardClass}>
+                  <Link href="/about" className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">auto_stories</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-slate-700">Our Story</span>
+                      <span className="text-[10px] text-slate-500">How AnimalSathi started</span>
+                    </div>
+                  </Link>
+                  <Link href="/investors" className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">business_center</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-slate-700">Investors</span>
+                      <span className="text-[10px] text-slate-500">Funding & growth details</span>
+                    </div>
+                  </Link>
+                  <Link href="/contact" className={dropdownItemClass}>
+                    <span className="material-symbols-outlined text-primary group-hover/item:scale-110 transition-transform">contact_support</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-slate-700">Contact Us</span>
+                      <span className="text-[10px] text-slate-500">Reach out to our team</span>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <Link href="/shop" prefetch={false} className={navLinkClass}>Shop</Link>
+          </nav>
+
+          {/* RIGHT SIDE: PROFILE, APP CTA, & MOBILE MENU BUTTON */}
+          <div className="flex items-center gap-3 md:gap-4 shrink-0">
+            
+            {!loading && user ? (
+              <>
+                {/* DESKTOP PROFILE MENU (Hidden on Mobile) */}
+                <div className="hidden md:block relative group">
+                  <img
+                    src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
+                    alt="User Profile"
+                    className="w-10 h-10 rounded-full cursor-pointer border-2 border-white/80 hover:scale-105 hover:ring-2 hover:ring-orange-400/30 transition-all duration-200 object-cover shadow-sm"
+                  />
+                  <div className="absolute right-0 top-full pt-4 
+                    opacity-0 translate-y-[10px]
+                    group-hover:opacity-100 group-hover:translate-y-0
+                    transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
+                    pointer-events-none group-hover:pointer-events-auto">
+                    <div className="bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)]
+                      w-60 flex flex-col overflow-hidden">
+                      <div className="px-5 py-4 bg-slate-50/80 border-b border-slate-100">
+                        <p className="text-sm font-bold text-slate-800 truncate">{user.displayName || "Animal Lover"}</p>
+                        <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{user.email}</p>
+                      </div>
+                      <div className="p-2 flex flex-col">
+                        {orgApproved && !orgApprovedLoading && (
+                          <Link href="/organization/dashboard" prefetch={false} className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                            <span className="material-symbols-outlined text-primary">dashboard</span>
+                            Organization Dashboard
+                          </Link>
+                        )}
+                        {sellerStatus === "approved" && !sellerStatusLoading && (
+                          <Link href="/seller-dashboard" prefetch={false} className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                            <span className="material-symbols-outlined text-primary">storefront</span>
+                            Seller Dashboard
+                          </Link>
+                        )}
+                        {(!sellerStatus || (sellerStatus !== "approved" && sellerStatus !== "pending")) && !sellerStatusLoading && (
+                          <Link href="/become-seller" prefetch={false} className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                            <span className="material-symbols-outlined text-primary">storefront</span>
+                            Become a Seller
+                          </Link>
+                        )}
+                        <Link href="/dashboard?tab=profile" prefetch={false} className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                          <span className="material-symbols-outlined text-primary">person</span>
+                          My Profile
+                        </Link>
+                        <Link href="/dashboard?tab=reports" prefetch={false} className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                          <span className="material-symbols-outlined text-primary">emergency</span>
+                          My SOS Reports
+                        </Link>
+                        <Link href="/dashboard?tab=settings" prefetch={false} className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm font-semibold text-slate-700">
+                          <span className="material-symbols-outlined text-primary">settings</span>
+                          Settings
+                        </Link>
+                      </div>
+                      <div className="p-2 border-t border-slate-100">
+                        <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 transition-colors text-sm font-bold text-red-600">
+                          <span className="material-symbols-outlined text-red-500">logout</span>
+                          Sign Out
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* MOBILE AVATAR (Triggers Hamburger Menu) */}
-              <img
-                src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
-                alt="User Profile"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden w-9 h-9 rounded-full cursor-pointer border-2 border-slate-100 object-cover shadow-sm"
-              />
-            </>
-          ) : (
-            /* SIGN IN BUTTON */
-            <Link href="/auth" className="text-slate-600 px-3 md:px-4 py-2 rounded-full text-sm font-bold relative group text-slate-600
+                {/* MOBILE AVATAR (Triggers Hamburger Menu) */}
+                <img
+                  src={user.photoURL || "https://ui-avatars.com/api/?name=User&background=fff4e6&color=ea580c"}
+                  alt="User Profile"
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className="md:hidden w-8 h-8 rounded-full cursor-pointer border-2 border-white/80 object-cover shadow-sm"
+                />
+              </>
+            ) : (
+              /* SIGN IN BUTTON */
+              <Link href="/auth" className={`${navLinkClass} px-3 md:px-4 py-2`}>
+                Log In
+              </Link>
+            )}
 
-after:absolute after:left-0 after:-bottom-1 
-after:h-[2px] after:w-0 
-after:bg-primary 
-after:transition-all after:duration-300 
-group-hover:after:w-full transition-colors">
-              Log In
+            {/* GET APP BUTTON */}
+            <Link
+              href="/download"
+              prefetch={false}
+              className="hidden sm:flex items-center gap-2
+                bg-orange-500 text-white px-5 py-2 rounded-full text-[13px] font-semibold tracking-wide
+                shadow-lg shadow-orange-500/20
+                hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/30
+                transition-all duration-200 shimmer-btn"
+            >
+              Get the App
             </Link>
-          )}
 
-          {/* GET APP BUTTON (Hidden on very small screens to save space) */}
-          <Link
-            href="/download"
-            prefetch={false}
-            className="hidden sm:flex items-center gap-2
-bg-orange-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold
-shadow-lg shadow-orange-500/25
-hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/30
-transition-all duration-200 shimmer-btn"
-          >
-            Get the App
-          </Link>
-
-          {/* MOBILE HAMBURGER BUTTON - Animated morph */}
-          <button 
-            className="md:hidden relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-          >
-            <div className="w-5 h-4 relative flex flex-col justify-between">
-              <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
-              <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'opacity-0 scale-0' : 'opacity-100'}`} />
-              <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
-            </div>
-          </button>
+            {/* MOBILE HAMBURGER BUTTON - Animated morph */}
+            <button 
+              className="md:hidden relative w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100/60 transition-colors"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            >
+              <div className="w-5 h-4 relative flex flex-col justify-between">
+                <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+                <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'opacity-0 scale-0' : 'opacity-100'}`} />
+                <span className={`block h-0.5 w-full bg-slate-700 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* MOBILE OVERLAY BACKDROP */}
       <div 
-        className={`md:hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`md:hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-[998] transition-opacity duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsMobileMenuOpen(false)}
       />
 
-      {/* MOBILE SLIDE-DOWN MENU */}
-      <div className={`md:hidden absolute top-full left-0 w-full bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'max-h-[calc(100vh-5rem)] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'}`}>
+      {/* MOBILE SLIDE-DOWN MENU — floating panel */}
+      <div className={`md:hidden fixed top-[72px] inset-x-3 z-[999] bg-white/95 backdrop-blur-2xl border border-slate-200/60 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'max-h-[calc(100vh-6rem)] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-3 pointer-events-none'}`}>
         <div className="flex flex-col py-2 px-4 overflow-y-auto overscroll-contain">
           
           {/* USER ACCOUNT SECTION (Visible only if logged in) */}
@@ -771,6 +750,6 @@ transition-all duration-200 shimmer-btn"
           <div className="h-4" />
         </div>
       </div>
-    </header>
+    </>
   );
 }

@@ -434,3 +434,36 @@ body {
     --tw-blur: blur(24px);
   }
 }
+
+/* ─── Floating Navbar Page Offset Spacing ─── */
+/* Automatically applies padding to the first section/div on every page to prevent floating navbar overlap */
+main#main-content > main > section:first-of-type,
+main#main-content > main > div:first-of-type,
+main#main-content > section:first-of-type,
+main#main-content > div:first-of-type {
+  padding-top: 104px !important;
+}
+
+@media (min-width: 768px) {
+  main#main-content > main > section:first-of-type,
+  main#main-content > main > div:first-of-type,
+  main#main-content > section:first-of-type,
+  main#main-content > div:first-of-type {
+    padding-top: 120px !important;
+  }
+}
+
+/* Sticky shop header position aligned under the floating glass navbar */
+.sticky-shop-header {
+  position: sticky;
+  top: 68px;
+  z-index: 50;
+}
+
+@media (min-width: 768px) {
+  .sticky-shop-header {
+    top: 76px;
+  }
+}
+
+

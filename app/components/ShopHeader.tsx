@@ -731,7 +731,7 @@ export default function ShopHeader({ onCartClick, cartCount = 0, onSearch, produ
 
       {/* ── MAIN BAR ── */}
       <div
-        className={`sticky top-0 z-50 bg-white transition-all duration-200 ${
+        className={`sticky-shop-header bg-white transition-all duration-200 ${
           isScrolled ? "shadow-[0_1px_12px_rgba(0,0,0,0.06)]" : ""
         }`}
       >

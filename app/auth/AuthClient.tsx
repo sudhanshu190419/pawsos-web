@@ -470,7 +470,7 @@ export default function AuthPage() {
       `}</style>
 
       <main
-        className="min-h-screen flex items-start justify-center md:pt-14"
+        className="min-h-screen flex items-start justify-center pt-28 md:pt-36"
         style={{ backgroundColor: "#fcf2dc", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
       >
         <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none opacity-40">

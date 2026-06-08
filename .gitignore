@@ -53,3 +53,7 @@ PRODUCT.md
 GEMINI.md
 remoteconfig.template.json
 apphosting.emulator.yaml
+
+.playwright-cli/
+output/
+test-results/
