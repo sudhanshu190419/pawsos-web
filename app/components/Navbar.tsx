@@ -302,10 +302,10 @@ useEffect(() => {
   return (
     <>
       <header
-        className={`fixed top-0 inset-x-0 z-[999] transition-[background,backdrop-filter,border-color,box-shadow,padding] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+        className={`fixed z-[999] transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
           ${scrolled
-            ? "bg-white/90 backdrop-blur-xl border-b border-slate-200/60 shadow-[0_4px_30px_rgba(0,0,0,0.08)]"
-            : "bg-transparent backdrop-blur-none border-transparent shadow-none"
+            ? "top-3 inset-x-3 md:inset-x-6 lg:inset-x-10 rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.1)]"
+            : "top-0 inset-x-0 rounded-none bg-white/0 backdrop-blur-[2px] border border-transparent shadow-none"
           }`}
       >
         <div className={`px-4 md:px-6 lg:px-8 flex items-center justify-between transition-all duration-500 ${scrolled ? "py-2.5" : "py-4"}`}>
@@ -588,7 +588,7 @@ useEffect(() => {
       />
 
       {/* MOBILE SLIDE-DOWN MENU — floating panel */}
-      <div className={`md:hidden fixed top-[60px] inset-x-3 z-[999] bg-white/95 backdrop-blur-2xl border border-slate-200/60 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'max-h-[calc(100vh-6rem)] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-3 pointer-events-none'}`}>
+      <div className={`md:hidden fixed inset-x-3 z-[999] bg-white/95 backdrop-blur-2xl border border-slate-200/60 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'max-h-[calc(100vh-6rem)] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-3 pointer-events-none'} top-[64px]`}>
         <div className="flex flex-col py-2 px-4 overflow-y-auto overscroll-contain">
           
           {/* USER ACCOUNT SECTION (Visible only if logged in) */}
