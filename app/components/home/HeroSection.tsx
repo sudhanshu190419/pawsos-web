@@ -11,7 +11,7 @@ const stats = [
 
 export default function HeroSection() {
   return (
-    <section className="relative w-full min-h-screen flex items-end justify-between overflow-hidden bg-[#1a1410]">
+    <section className="relative w-full min-h-screen flex items-start justify-between overflow-hidden bg-[#1a1410]">
       {/* ─── BACKGROUND IMAGE ─── */}
       <div className="absolute inset-0 z-0">
         <Image
@@ -26,7 +26,7 @@ export default function HeroSection() {
         {/* Deep warm gradient overlays — inspired by the Flock hero */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#1a1410] via-[#1a1410]/40 to-black/10" />
         <div className="absolute inset-0 bg-gradient-to-br from-orange-500/15 via-amber-600/5 to-amber-900/25" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1a1410]/70 via-transparent to-[#1a1410]/30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1a1410]/85 via-[#1a1410]/40 via-30% to-transparent" />
       </div>
 
       {/* ─── GLASSMORPHISM STAT BADGE (desktop) ─── */}
@@ -48,9 +48,9 @@ export default function HeroSection() {
       </div>
 
       {/* ─── MAIN CONTENT ─── */}
-      <div className="relative z-10 w-full px-4 sm:px-8 md:px-12 pb-12 sm:pb-16 md:pb-20 flex flex-col md:flex-row md:items-end justify-between gap-8">
+      <div className="relative z-10 w-full px-4 sm:px-8 md:px-12 pt-8 sm:pt-10 pb-12 sm:pb-16 flex flex-col md:flex-row md:items-start justify-between gap-8">
         {/* ── TEXT COLUMN ── */}
-        <div className="max-w-2xl animate-fadeInUp">
+        <div className="max-w-xl md:ml-[8vw] lg:ml-[10vw] animate-fadeInUp">
           {/* Category tag */}
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-4 py-1.5 mb-6">
             <span className="relative flex h-2 w-2">
@@ -58,16 +58,15 @@ export default function HeroSection() {
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
             </span>
             <span className="text-white/80 text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em]">
-              Community-Powered Animal Rescue
+              TRUSTED BY ANIMAL LOVERS ACROSS INDIA
             </span>
           </div>
 
           {/* Main heading */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-[0.92] tracking-[-0.03em] text-white max-w-[14ch]">
+          <h1 className="text-[48px] sm:text-[56px] md:text-[64px] lg:text-[72px] font-bold leading-[0.95] tracking-[-0.03em] text-white max-w-[16ch]">
             Help animals
             <br />
-            near you in
-            <br />
+            near you in{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-400 to-orange-300">
               real time.
             </span>
