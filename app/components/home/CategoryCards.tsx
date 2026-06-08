@@ -40,7 +40,7 @@ const cards = [
 
 export default function CategoryCards() {
   return (
-    <section className="relative overflow-hidden bg-[#fff8f0] px-4 pb-14 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden bg-[#fff8f0] px-4 pb-14 pt-8 sm:px-6 sm:pt-12 lg:px-8">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#eadfd5] to-transparent" />
       <div className="relative mx-auto grid max-w-7xl gap-3 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {

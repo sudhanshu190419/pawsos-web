@@ -113,11 +113,11 @@ export default function HowItWorks() {
 
   // Map scroll value to active index (0 to 4)
   useMotionValueEvent(scrollYProgress, "change", (latest) => {
-    // Map latest [0, 0.7] to indices 0 to 4
-    // And latest [0.7, 1.0] remains on index 4 (Step 5 stays active)
+    // Map latest [0, 0.85] to indices 0 to 4
+    // And latest [0.85, 1.0] remains on index 4 (Step 5 stays active)
     let index = 0;
-    if (latest <= 0.7) {
-      index = Math.min(Math.floor((latest / 0.7) * 5), 4);
+    if (latest <= 0.85) {
+      index = Math.min(Math.floor((latest / 0.85) * 5), 4);
     } else {
       index = 4;
     }
@@ -488,7 +488,7 @@ export default function HowItWorks() {
 
   return (
     /* Parent track height h-[3000px] pins the section for natural vertical scroll sequence on desktop */
-    <section ref={targetRef} className="relative bg-[#fff8f0] h-auto lg:h-[3000px] overflow-visible">
+    <section ref={targetRef} className="relative bg-[#fff8f0] h-auto lg:h-[2000px] overflow-visible">
       {/* Decorative ambient background accent */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,90,36,0.03),transparent_40%)] pointer-events-none" />
 
