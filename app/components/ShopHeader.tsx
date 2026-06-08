@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Search,
   MapPin,
@@ -747,14 +748,14 @@ export default function ShopHeader({ onCartClick, cartCount = 0, onSearch, produ
           </button>
 
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center shadow-sm shadow-orange-200">
               <span className="text-white text-xs font-black tracking-tight">A</span>
             </div>
             <span className="hidden sm:block font-bold text-neutral-900 text-[15px] tracking-tight">
               AnimalSathi
             </span>
-          </a>
+          </Link>
 
           {/* Search Bar (desktop) */}
           <button

@@ -60,7 +60,7 @@ export default function NearbyVetsPage() {
       for (const b of bounds) {
         const collections = ['vet_clinics', 'vets_web'];
         for (const colName of collections) {
-          let q = query(
+          const q = query(
             collection(db, colName),
             orderBy('geohash'),
             startAt(b[0]),
