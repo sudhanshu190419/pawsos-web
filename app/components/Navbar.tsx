@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { MapPin, RefreshCw } from "lucide-react";
 import { fetchVetVerificationStatus, VetVerificationStatus } from "../lib/vet";
@@ -38,6 +38,8 @@ export default function Navbar() {
     setMobileAccordion(prev => ({...prev, [section]: !prev[section]}));
   };
 
+  const pathname = usePathname();
+  const isHomePage = pathname === "/";
   const router = useRouter();
 
   // Lock body scroll & signal bottom nav when mobile menu is open
@@ -278,7 +280,7 @@ useEffect(() => {
     after:bg-orange-400
     after:transition-all after:duration-300 
     group-hover:after:w-full transition-colors duration-300
-    ${scrolled ? "text-slate-600 hover:text-orange-600" : "text-white/80 hover:text-white"}`;
+    ${scrolled || !isHomePage ? "text-slate-600 hover:text-orange-600" : "text-white/80 hover:text-white"}`;
 
   const dropdownTriggerClass = `cursor-pointer relative text-[13px] font-semibold tracking-wide uppercase
     after:absolute after:left-0 after:-bottom-1 
@@ -286,7 +288,7 @@ useEffect(() => {
     after:bg-orange-400
     after:transition-all after:duration-300 
     group-hover:after:w-full py-2 transition-colors duration-300 flex items-center gap-1
-    ${scrolled ? "text-slate-600 hover:text-orange-600" : "text-white/80 hover:text-white"}`;
+    ${scrolled || !isHomePage ? "text-slate-600 hover:text-orange-600" : "text-white/80 hover:text-white"}`;
 
   const dropdownPanelClass = `absolute left-1/2 -translate-x-1/2 top-full pt-4 
     opacity-0 translate-y-[10px]
@@ -330,7 +332,7 @@ useEffect(() => {
  
             {/* INLINE LOCATION — pill style */}
             <div 
-              className={`flex items-center rounded-full px-2.5 py-1.5 cursor-pointer max-w-[100px] sm:max-w-[140px] lg:max-w-[180px] transition-all duration-300 ${scrolled ? "text-slate-700 bg-slate-100/70 hover:bg-slate-200/60" : "text-white/80 bg-white/10 hover:bg-white/20"}`}
+              className={`flex items-center rounded-full px-2.5 py-1.5 cursor-pointer max-w-[100px] sm:max-w-[140px] lg:max-w-[180px] transition-all duration-300 ${scrolled || !isHomePage ? "text-slate-700 bg-slate-100/70 hover:bg-slate-200/60" : "text-white/80 bg-white/10 hover:bg-white/20"}`}
               onClick={!userLocation ? requestLocation : undefined}
             >
               <MapPin className="w-3 h-3 text-orange-400 mr-1 shrink-0" />
@@ -367,7 +369,7 @@ useEffect(() => {
               <span className={dropdownTriggerClass}>
                 Services
                 <svg 
-                  className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled ? "text-slate-400" : "text-white/60"}`}
+                  className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled || !isHomePage ? "text-slate-400" : "text-white/60"}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -399,7 +401,7 @@ useEffect(() => {
             <div className="relative group">
               <span className={dropdownTriggerClass}>
                 Join Us
-                <svg className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled ? "text-slate-400" : "text-white/60"}`} fill="none"
+                <svg className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled || !isHomePage ? "text-slate-400" : "text-white/60"}`} fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
               </span>
@@ -434,7 +436,7 @@ useEffect(() => {
               <span className={dropdownTriggerClass}>
                 About Us
                 <svg 
-                  className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled ? "text-slate-400" : "text-white/60"}`}
+                  className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180 ${scrolled || !isHomePage ? "text-slate-400" : "text-white/60"}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -572,9 +574,9 @@ useEffect(() => {
               aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
             >
               <div className="w-5 h-4 relative flex flex-col justify-between">
-                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''} ${scrolled ? 'bg-slate-700' : 'bg-white'}`} />
-                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'opacity-0 scale-0' : 'opacity-100'} ${scrolled ? 'bg-slate-700' : 'bg-white'}`} />
-                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''} ${scrolled ? 'bg-slate-700' : 'bg-white'}`} />
+                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''} ${scrolled || !isHomePage ? 'bg-slate-700' : 'bg-white'}`} />
+                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen ? 'opacity-0 scale-0' : 'opacity-100'} ${scrolled || !isHomePage ? 'bg-slate-700' : 'bg-white'}`} />
+                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] origin-center ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''} ${scrolled || !isHomePage ? 'bg-slate-700' : 'bg-white'}`} />
               </div>
             </button>
           </div>
