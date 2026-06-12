@@ -5,31 +5,25 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   collection,
-  doc,
   GeoPoint,
-  getDoc,
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
-  updateDoc,
   Timestamp,
 } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { auth, db, storage } from "../lib/firebase";
+import { db } from "../lib/firebase";
+import { useLocation } from "../lib/LocationContext";
 import {
-  Filter,
   Dog,
   AlertTriangle,
   Stethoscope,
   Info,
   CheckCircle,
-  Clock,
   Zap,
-  Activity,
-  ShieldCheck,
   RefreshCw,
+  WifiOff,
+  MapPinOff,
+  SlidersHorizontal,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -37,7 +31,6 @@ const LiveMap = dynamic(() => import("../components/LiveMap"), { ssr: false });
 
 type AlertStatus = "active" | "responding" | "resolved";
 type FilterValue = "All" | "Critical" | "High Priority" | "Medical";
-type Role = "user" | "volunteer" | "ngo" | "vet" | "admin" | null;
 
 type SosAlert = {
   id: string;
@@ -60,14 +53,7 @@ type SosAlert = {
   distance?: number;
 };
 
-type UserMeta = {
-  role: Role;
-  volunteerApproved: boolean;
-  ngoApproved: boolean;
-  name: string;
-};
-
-const MAX_DISTANCE_KM = 20;
+const DISTANCE_OPTIONS = [5, 10, 20, 50, 100];
 
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371;
@@ -107,101 +93,45 @@ function getUrgencyProps(urgency?: string) {
 export default function ReportPageContent() {
   const [alerts, setAlerts] = useState<SosAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<FilterValue>("All");
   const [activeCase, setActiveCase] = useState<string | null>(null);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [maxDistanceKm, setMaxDistanceKm] = useState(5);
+  const [showRadiusControl, setShowRadiusControl] = useState(false);
 
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userMeta, setUserMeta] = useState<UserMeta>({
-    role: null,
-    volunteerApproved: false,
-    ngoApproved: false,
-    name: "",
-  });
-
-  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [actionBusy, setActionBusy] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const isResponder = (userMeta.role === "volunteer" && userMeta.volunteerApproved) || userMeta.ngoApproved;
-
-  const hydrateUserMeta = useCallback(async (user: User) => {
-    try {
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) return;
-      const data = userDoc.data();
-      setUserMeta({
-        role: (data.role as Role) || null,
-        volunteerApproved: data.volunteerApproved === true,
-        ngoApproved: data.ngoApproved === true,
-        name: data.name || "",
-      });
-    } catch {
-      setUserMeta((prev) => ({ ...prev }));
-    }
-  }, []);
+  const { location: currentLocation, requestLocation, isLoading: locationLoading } = useLocation();
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     setTimeout(() => setIsRefreshing(false), 800);
   }, []);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        await hydrateUserMeta(user);
-      } else {
-        setUserMeta({ role: null, volunteerApproved: false, ngoApproved: false, name: "" });
-      }
-    });
-    return () => unsub();
-  }, [hydrateUserMeta]);
+  const handleRetryLocation = useCallback(async () => {
+    await requestLocation({ showToast: true });
+  }, [requestLocation]);
 
+  // ── Subscribe to ALL sos_alerts (no auth required after rule change) ──
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCurrentLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      () => setCurrentLocation(null),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-    );
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 1024);
-    handleResize(); // Set initial value
-    setIsLayoutReady(true);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const subscribeToAlerts = useCallback(() => {
-    return onSnapshot(
+    setFetchError(null);
+    const unsub = onSnapshot(
       query(collection(db, "sos_alerts"), orderBy("time", "desc")),
       (snapshot) => {
         const data = snapshot.docs
           .map((item) => {
             const raw = item.data() as Omit<SosAlert, "id">;
-            let latitude: number | null = null;
-            let longitude: number | null = null;
+            let latitude: number | null = typeof raw.latitude === "number" ? raw.latitude : null;
+            let longitude: number | null = typeof raw.longitude === "number" ? raw.longitude : null;
 
             if (raw.location instanceof GeoPoint) {
               latitude = raw.location.latitude;
               longitude = raw.location.longitude;
             } else if (raw.location && typeof raw.location === "object") {
-              latitude = typeof raw.location.latitude === "number" ? raw.location.latitude : null;
-              longitude = typeof raw.location.longitude === "number" ? raw.location.longitude : null;
+              latitude = typeof raw.location.latitude === "number" ? raw.location.latitude : latitude;
+              longitude = typeof raw.location.longitude === "number" ? raw.location.longitude : longitude;
             }
 
             return { id: item.id, ...raw, latitude, longitude } as SosAlert;
@@ -210,130 +140,74 @@ export default function ReportPageContent() {
 
         setAlerts(data);
         setLoading(false);
+        setFetchError(null);
       },
-      () => setLoading(false)
+      (error) => {
+        console.error("Failed to load SOS alerts:", error);
+        setFetchError("Failed to load live alerts. Please check your connection and try again.");
+        setLoading(false);
+      }
     );
+    return () => unsub();
   }, []);
 
-  useEffect(() => {
-    const unsub = subscribeToAlerts();
-    return () => unsub();
-  }, [subscribeToAlerts]);
+  // ── Compute distances & filter to active + responding, sorted by distance ──
+  const processedAlerts = useMemo(() => {
+    return alerts
+      .map((alert) => {
+        let distance: number | undefined = undefined;
+        const hasUserLocation = !!currentLocation;
+        const hasAlertLocation = typeof alert.latitude === "number" && typeof alert.longitude === "number";
 
-  const roleFilteredAlerts = useMemo(() => {
-    const results = alerts.map((alert) => {
-      let distance: number | undefined = undefined;
-      const hasUserLocation = !!currentLocation;
-      const hasAlertLocation = typeof alert.latitude === "number" && typeof alert.longitude === "number";
-      
-      if (hasUserLocation && hasAlertLocation) {
-        distance = getDistanceKm(currentLocation.latitude, currentLocation.longitude, alert.latitude!, alert.longitude!);
-      }
-      return { ...alert, distance };
-    }).filter((alert) => {
-      const hasUserLocation = !!currentLocation;
-      const hasAlertLocation = typeof alert.latitude === "number" && typeof alert.longitude === "number";
-
-      if (isResponder) {
-        if (alert.acceptedBy === currentUser?.uid) return true;
-        if ((alert.status || "active") === "active") {
-          if (!hasUserLocation || !hasAlertLocation) return false;
-          return alert.distance! <= MAX_DISTANCE_KM;
+        if (hasUserLocation && hasAlertLocation) {
+          distance = getDistanceKm(currentLocation.latitude, currentLocation.longitude, alert.latitude!, alert.longitude!);
         }
-        return false;
-      }
+        return { ...alert, distance };
+      })
+      .filter((alert) => {
+        const status = alert.status || "active";
+        // Show active + responding alerts to everyone
+        if (status !== "active" && status !== "responding") return false;
 
-      if (alert.createdBy === currentUser?.uid) return true;
-      if ((alert.status || "active") === "active") {
-        if (!hasUserLocation || !hasAlertLocation) return false;
-        return alert.distance! <= MAX_DISTANCE_KM;
-      }
-      return false;
-    });
+        // If we have both locations, apply distance filter
+        if (alert.distance !== undefined) {
+          return alert.distance <= maxDistanceKm;
+        }
+        // If location unknown, still show it
+        return true;
+      })
+      .sort((a, b) => {
+        // Sort by distance first (closest first), then by time
+        if (a.distance !== undefined && b.distance !== undefined) {
+          return a.distance - b.distance;
+        }
+        if (a.distance !== undefined) return -1;
+        if (b.distance !== undefined) return 1;
 
-    return results.sort((a, b) => {
-      if (a.distance !== undefined && b.distance !== undefined) {
-        return a.distance - b.distance;
-      }
-      return 0;
-    });
-  }, [alerts, currentLocation, currentUser?.uid, isResponder]);
+        const timeA = a.time ? (typeof (a.time as Timestamp).toDate === "function" ? (a.time as Timestamp).toDate().getTime() : new Date(a.time as Date | string).getTime()) : 0;
+        const timeB = b.time ? (typeof (b.time as Timestamp).toDate === "function" ? (b.time as Timestamp).toDate().getTime() : new Date(b.time as Date | string).getTime()) : 0;
+        return timeB - timeA;
+      });
+  }, [alerts, currentLocation, maxDistanceKm]);
 
+  // ── Urgency filter ──
   const filteredAlerts = useMemo(() => {
-    let filtered = roleFilteredAlerts;
-    if (activeFilter === "Critical") filtered = roleFilteredAlerts.filter((a) => (a.urgency || "").toLowerCase() === "critical");
-    else if (activeFilter === "High Priority") filtered = roleFilteredAlerts.filter((a) => (a.urgency || "").toLowerCase() === "high");
-    else if (activeFilter === "Medical") filtered = roleFilteredAlerts.filter((a) => ["critical", "high"].includes((a.urgency || "").toLowerCase()));
-    
-    return filtered;
-  }, [roleFilteredAlerts, activeFilter]);
+    if (activeFilter === "All") return processedAlerts;
+    if (activeFilter === "Critical") return processedAlerts.filter((a) => (a.urgency || "").toLowerCase() === "critical");
+    if (activeFilter === "High Priority") return processedAlerts.filter((a) => (a.urgency || "").toLowerCase() === "high");
+    if (activeFilter === "Medical") return processedAlerts.filter((a) => ["critical", "high"].includes((a.urgency || "").toLowerCase()));
+    return processedAlerts;
+  }, [processedAlerts, activeFilter]);
 
   const paginatedAlerts = useMemo(() => {
     return filteredAlerts.slice(0, visibleCount);
   }, [filteredAlerts, visibleCount]);
 
-  const markAsResponding = useCallback(
-    async (alertId: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!currentUser?.uid) return;
-      setActionBusy(true);
-      try {
-        const profileDoc = await getDoc(doc(db, "users", currentUser.uid));
-        const volunteerName = profileDoc.exists() && profileDoc.data().name ? profileDoc.data().name : userMeta.name || "Volunteer";
-
-        await updateDoc(doc(db, "sos_alerts", alertId), {
-          status: "responding",
-          acceptedBy: currentUser.uid,
-          acceptedByName: volunteerName,
-          acceptedAt: serverTimestamp(),
-        });
-      } finally {
-        setActionBusy(false);
-      }
-    },
-    [currentUser?.uid, userMeta.name]
-  );
-
-  const startResolveFlow = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (actionBusy) return;
-    fileInputRef.current?.click();
-  }, [actionBusy]);
-
-  const handleAfterImagePicked = useCallback(
-    async (file: File | null) => {
-      if (!file || !activeCase || !currentUser) return;
-      const selectedAlert = roleFilteredAlerts.find(a => a.id === activeCase);
-      if (!selectedAlert) return;
-
-      const authorizedResponder = (userMeta.role === "volunteer" && userMeta.volunteerApproved) || userMeta.ngoApproved;
-      if (!authorizedResponder || selectedAlert.acceptedBy !== currentUser.uid) return;
-
-      setActionBusy(true);
-      try {
-        const storageRef = ref(storage, `after_images/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file, { contentType: file.type || "image/jpeg" });
-        const afterImageURL = await getDownloadURL(storageRef);
-
-        await updateDoc(doc(db, "sos_alerts", selectedAlert.id), {
-          status: "resolved",
-          afterImageURL,
-          resolvedBy: currentUser.uid,
-          resolvedByName: selectedAlert.acceptedByName || userMeta.name || "Volunteer",
-          resolvedAt: serverTimestamp(),
-        });
-      } finally {
-        setActionBusy(false);
-      }
-    },
-    [activeCase, currentUser, userMeta, roleFilteredAlerts]
-  );
-
   const stats = useMemo(() => {
     return {
       critical: alerts.filter(a => (a.urgency || "").toLowerCase() === "critical").length,
       active: alerts.filter(a => (a.status || "active") === "active").length,
-      accepted: alerts.filter(a => a.status === "responding").length,
+      responding: alerts.filter(a => a.status === "responding").length,
     };
   }, [alerts]);
 
@@ -377,6 +251,10 @@ export default function ReportPageContent() {
               <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
               <span className="text-[11px] font-bold text-orange-600 uppercase tracking-wider">{stats.active} Active</span>
             </div>
+            <div className="px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">{stats.responding} Responding</span>
+            </div>
           </div>
 
           <button
@@ -388,24 +266,32 @@ export default function ReportPageContent() {
         </div>
       </header>
       
-      {/* Centered Content Layout (Reverted Layout) */}
+      {/* Centered Content Layout */}
       <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 flex-1 min-h-0 flex flex-col gap-5 py-6">
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 lg:max-h-[78vh]">
           
           {/* Map — Left Column */}
           <section className="lg:col-span-7 h-[20vh] lg:h-full relative rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm">
             <LiveMap 
-              alerts={roleFilteredAlerts} 
+              alerts={processedAlerts} 
               activeCase={activeCase} 
               setActiveCase={setActiveCase} 
               isExpanded={isMapExpanded}
               setIsExpanded={setIsMapExpanded}
               currentLocation={currentLocation}
             />
-            {!currentLocation && (
-              <div className="absolute top-4 left-4 right-4 z-[100] p-3 bg-red-600/90 backdrop-blur-md rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg animate-fade-in">
-                <AlertTriangle className="w-4 h-4" />
-                Enable Location for Nearby Alerts
+            {!currentLocation && !locationLoading && (
+              <div className="absolute top-4 left-4 right-4 z-[100] p-3 bg-red-600/90 backdrop-blur-md rounded-xl text-white text-xs font-bold flex items-center justify-between gap-2 shadow-lg animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <MapPinOff className="w-4 h-4 shrink-0" />
+                  <span>Enable location for nearby alerts</span>
+                </div>
+                <button 
+                  onClick={handleRetryLocation}
+                  className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors whitespace-nowrap"
+                >
+                  Enable
+                </button>
               </div>
             )}
           </section>
@@ -415,10 +301,55 @@ export default function ReportPageContent() {
             <div className="p-5 border-b border-slate-100 flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-black text-slate-900 uppercase tracking-[0.15em]">Nearby Alerts</h2>
-                <span className="px-2 py-1 bg-slate-50 border border-slate-100 rounded text-[10px] font-black text-slate-400 uppercase">
-                  {filteredAlerts.length} Total
-                </span>
+                <div className="flex items-center gap-2">
+                  {/* Distance Radius Control */}
+                  <button
+                    onClick={() => setShowRadiusControl(!showRadiusControl)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                      showRadiusControl 
+                        ? "bg-primary text-white shadow-sm" 
+                        : "bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100"
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-3 h-3" />
+                    {maxDistanceKm} km
+                  </button>
+                  <span className="px-2 py-1 bg-slate-50 border border-slate-100 rounded text-[10px] font-black text-slate-400 uppercase">
+                    {filteredAlerts.length} Total
+                  </span>
+                </div>
               </div>
+
+              {/* Radius slider - expandable */}
+              <AnimatePresence>
+                {showRadiusControl && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Radius</span>
+                      <div className="flex items-center gap-1.5 flex-1">
+                        {DISTANCE_OPTIONS.map((km) => (
+                          <button
+                            key={km}
+                            onClick={() => { setMaxDistanceKm(km); setVisibleCount(10); }}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                              maxDistanceKm === km
+                                ? "bg-primary text-white shadow-sm"
+                                : "bg-white text-slate-500 border border-slate-200 hover:border-primary/30"
+                            }`}
+                          >
+                            {km} km
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                 {["All", "Critical", "High Priority", "Medical"].map((filter) => (
@@ -441,25 +372,85 @@ export default function ReportPageContent() {
             </div>
 
             <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4 bg-slate-50/30">
-              {loading ? (
+              {/* ── Error State ── */}
+              {fetchError ? (
+                <div className="py-16 text-center flex flex-col items-center gap-4">
+                  <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center border border-red-100">
+                    <WifiOff className="w-10 h-10 text-red-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Failed to load alerts</h3>
+                    <p className="text-xs text-slate-400 mt-1 max-w-[220px] mx-auto">{fetchError}</p>
+                  </div>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-5 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+                  >
+                    Retry
+                  </button>
+                </div>
+
+              /* ── Location Not Found State ── */
+              ) : !currentLocation && !locationLoading && !loading && alerts.length > 0 && filteredAlerts.length === 0 ? (
+                <div className="py-16 text-center flex flex-col items-center gap-4">
+                  <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center border border-amber-100">
+                    <MapPinOff className="w-10 h-10 text-amber-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Location not available</h3>
+                    <p className="text-xs text-slate-400 mt-1 max-w-[220px] mx-auto">
+                      Enable location access to see nearby alerts, or increase the search radius.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleRetryLocation}
+                      className="px-5 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+                    >
+                      Enable Location
+                    </button>
+                    <button
+                      onClick={() => { setMaxDistanceKm(100); setShowRadiusControl(true); }}
+                      className="px-5 py-2.5 bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
+                    >
+                      Show All
+                    </button>
+                  </div>
+                </div>
+
+              /* ── Loading State ── */
+              ) : loading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-50">
                   <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Syncing live data...</p>
                 </div>
+
+              /* ── Empty State ── */
               ) : filteredAlerts.length === 0 ? (
                 <div className="py-20 text-center flex flex-col items-center">
                   <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
                     <Dog className="w-10 h-10 text-slate-200" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-800">No alerts found</h3>
-                  <p className="text-xs text-slate-400 mt-1 max-w-[180px] mx-auto">Try expanding your search radius or changing filters.</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto">
+                    No active alerts within {maxDistanceKm} km. Try increasing the search radius.
+                  </p>
+                  <button
+                    onClick={() => { setMaxDistanceKm(100); setShowRadiusControl(true); }}
+                    className="mt-4 px-5 py-2.5 bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-200 hover:bg-slate-50 transition-all"
+                  >
+                    Expand to 100 km
+                  </button>
                 </div>
+
+              /* ── Alert Cards ── */
               ) : (
                 <AnimatePresence mode="popLayout">
                   {paginatedAlerts.map((alert, idx) => {
                     const { color, icon } = getUrgencyProps(alert.urgency);
                     const isActive = activeCase === alert.id;
                     const distanceStr = getAlertDistance(alert);
+                    const isRespondingAlert = alert.status === "responding";
                     
                     return (
                       <motion.article 
@@ -477,23 +468,24 @@ export default function ReportPageContent() {
                         }`}
                       >
                         <div className={`absolute left-0 top-6 bottom-6 w-1 rounded-r-full transition-colors ${
-                          color === "error" ? "bg-red-500" : color === "primary" ? "bg-orange-500" : "bg-slate-400"
+                          isRespondingAlert ? "bg-blue-500" : color === "error" ? "bg-red-500" : color === "primary" ? "bg-orange-500" : "bg-slate-400"
                         }`} />
 
                         <div className="flex gap-4">
                           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 shrink-0 relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={alert.photoURL || "/sos-dog.png"} alt="SOS" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                             <div className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${
-                              color === "error" ? "bg-red-500" : color === "primary" ? "bg-orange-500" : "bg-slate-400"
+                              isRespondingAlert ? "bg-blue-500" : color === "error" ? "bg-red-500" : color === "primary" ? "bg-orange-500" : "bg-slate-400"
                             }`} />
                           </div>
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2 mb-1.5">
                               <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${
-                                color === "error" ? "text-red-600" : "text-orange-600"
+                                isRespondingAlert ? "text-blue-600" : color === "error" ? "text-red-600" : "text-orange-600"
                               }`}>
-                                {icon} {alert.urgency || "NORMAL"}
+                                {isRespondingAlert ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : icon} {isRespondingAlert ? "RESPONDING" : alert.urgency || "NORMAL"}
                               </span>
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{getReadableTime(alert.time)}</span>
                             </div>
@@ -508,6 +500,7 @@ export default function ReportPageContent() {
                               <span className="text-[10px] font-bold text-slate-300 ml-auto whitespace-nowrap">{distanceStr}</span>
                             </div>
 
+                            {/* Expanded content when clicked */}
                             <AnimatePresence>
                               {isActive && (
                                 <motion.div 
@@ -516,35 +509,21 @@ export default function ReportPageContent() {
                                   exit={{ height: 0, opacity: 0 }}
                                   className="overflow-hidden"
                                 >
-                                  {alert.status === "active" && isResponder ? (
-                                    <button 
-                                      onClick={(e) => markAsResponding(alert.id, e)}
-                                      disabled={actionBusy}
-                                      className="w-full py-3 mt-2 rounded-xl bg-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-container transition-all active:scale-[0.97]"
-                                    >
-                                      {actionBusy ? "Processing..." : "Accept Alert"}
-                                    </button>
-                                  ) : alert.status === "active" && !isResponder ? (
+                                  {/* All users → Accept goes to download page */}
+                                  {(alert.status === "active") && (
                                     <Link 
                                       href="/download"
-                                      className="w-full block text-center py-3 mt-2 rounded-xl bg-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-container transition-all active:scale-[0.97]"
+                                      className="w-full block text-center py-3 mt-2 rounded-xl bg-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-[0.97]"
                                     >
-                                      Accept Case
+                                      Accept via App
                                     </Link>
-                                  ) : alert.status === "responding" && isResponder && alert.acceptedBy === currentUser?.uid ? (
-                                    <button 
-                                      onClick={(e) => startResolveFlow(e)}
-                                      disabled={actionBusy}
-                                      className="w-full py-3 mt-2 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-[0.97]"
-                                    >
-                                      {actionBusy ? "Uploading..." : "Complete Rescue"}
-                                    </button>
-                                  ) : null}
+                                  )}
                                 </motion.div>
                               )}
                             </AnimatePresence>
 
-                            {alert.status === "responding" && (
+                            {/* Status badges */}
+                            {isRespondingAlert && (
                               <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold">
                                 <RefreshCw className="w-3 h-3 animate-spin" />
                                 RESPONDING: {alert.acceptedByName || "Volunteer"}
@@ -578,18 +557,6 @@ export default function ReportPageContent() {
           </section>
         </div>
       </main>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0] || null;
-          void handleAfterImagePicked(file);
-          e.currentTarget.value = "";
-        }}
-      />
     </div>
   );
 }
