@@ -785,7 +785,7 @@ function HowItWorksMobileShowcase({
     setProgress(0);
     intervalRef.current = setInterval(() => {
       setProgress(Math.min(((Date.now() - startMs.current) / totalMs) * 100, 100));
-    }, 30);
+    }, 100);
     timerRef.current = setTimeout(() => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       setProgress(0);

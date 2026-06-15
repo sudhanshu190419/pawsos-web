@@ -112,25 +112,39 @@ export default function PartnershipSection() {
     const section = sectionRef.current;
     if (!section) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    let rafId: number | null = null;
+    let lastX = 0;
+    let lastY = 0;
+
+    const updateCards = () => {
       const cards = section.querySelectorAll<HTMLDivElement>(".premium-card");
       cards.forEach((card) => {
         const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = lastX - rect.left;
+        const y = lastY - rect.top;
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
-        const normX = (x - centerX) / centerX;
-        const normY = (y - centerY) / centerY;
-        const rotateX = Math.max(-1, Math.min(1, normY)) * 6;
-        const rotateY = Math.max(-1, Math.min(1, normX)) * 6;
-        card.style.setProperty("--rotate-x", `${rotateX}deg`);
-        card.style.setProperty("--rotate-y", `${rotateY}deg`);
+        const normX = Math.max(-1, Math.min(1, (x - centerX) / centerX));
+        const normY = Math.max(-1, Math.min(1, (y - centerY) / centerY));
+        card.style.setProperty("--rotate-x", `${normY * 6}deg`);
+        card.style.setProperty("--rotate-y", `${normX * 6}deg`);
       });
+      rafId = null;
     };
 
-    section.addEventListener("mousemove", handleMouseMove);
-    return () => section.removeEventListener("mousemove", handleMouseMove);
+    const handleMouseMove = (e: MouseEvent) => {
+      lastX = e.clientX;
+      lastY = e.clientY;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(updateCards);
+      }
+    };
+
+    section.addEventListener("mousemove", handleMouseMove, { passive: true });
+    return () => {
+      section.removeEventListener("mousemove", handleMouseMove);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   return (

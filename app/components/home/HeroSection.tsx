@@ -11,7 +11,7 @@ const stats = [
 
 export default function HeroSection() {
   return (
-    <section className="relative w-full min-h-screen flex items-start justify-between overflow-hidden bg-[#1a1410]">
+    <section className="relative w-full min-h-screen flex items-start justify-between overflow-hidden bg-[#1a1410] gpu-layer">
       {/* ─── BACKGROUND IMAGE ─── */}
       <div className="absolute inset-0 z-0">
         <Image

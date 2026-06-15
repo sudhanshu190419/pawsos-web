@@ -17,25 +17,39 @@ export default function HomePage() {
       <HeroSection />
       
       {/* 2. Original Four Horizontal Category Cards Section */}
-      <CategoryCards />
+      <div className="content-visibility-auto">
+        <CategoryCards />
+      </div>
       
       {/* 3. Redesigned How It Works Section */}
-      <HowItWorks />
+      <div className="content-visibility-auto">
+        <HowItWorks />
+      </div>
       
       {/* 4. Redesigned Services Bento Section */}
-      <ServicesBento />
+      <div className="content-visibility-auto">
+        <ServicesBento />
+      </div>
       
       {/* 5. Standalone Volunteer ID Card Section */}
-      <VolunteerSection />
+      <div className="content-visibility-auto">
+        <VolunteerSection />
+      </div>
       
       {/* 6. Join the Movement (NGO / Clinic / Hospital Onboarding) */}
-      <JoinMovement />
+      <div className="content-visibility-auto">
+        <JoinMovement />
+      </div>
       
       {/* 7. Marketplace Shop Section */}
-      <MarketplaceSection />
+      <div className="content-visibility-auto">
+        <MarketplaceSection />
+      </div>
       
       {/* 8. Final CTA Section */}
-      <FinalCTA />
+      <div className="content-visibility-auto">
+        <FinalCTA />
+      </div>
     </main>
   );
 }

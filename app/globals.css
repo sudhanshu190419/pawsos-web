@@ -471,3 +471,56 @@ main#main-content > div:first-of-type {
 }
 
 
+/* ─── Performance: GPU layer promotion ─── */
+.gpu-layer {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* ─── Performance: Content-visibility for below-fold sections ─── */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 500px;
+}
+
+/* ─── Performance: will-change transform hint ─── */
+.will-change-transform {
+  will-change: transform;
+}
+
+/* ─── Performance: Contain paint to isolate layer ─── */
+.contain-paint {
+  contain: paint style layout;
+}
+
+/* ─── Mobile performance: disable backdrop-filter on elements not visible ─── */
+@media (max-width: 768px) {
+  /* Further reduce expensive CSS properties on mobile */
+  
+  /* Reduce backdrop-blur intensity across the board */
+  .backdrop-blur-xl {
+    --tw-backdrop-blur: blur(12px);
+  }
+  .backdrop-blur-md {
+    --tw-backdrop-blur: blur(6px);
+  }
+  .backdrop-blur-sm {
+    --tw-backdrop-blur: blur(3px);
+  }
+  .backdrop-blur {
+    --tw-backdrop-blur: blur(4px);
+  }
+  .backdrop-blur-lg {
+    --tw-backdrop-blur: blur(8px);
+  }
+  .backdrop-blur-2xl {
+    --tw-backdrop-blur: blur(16px);
+  }
+  
+  /* Prevent continuous animations on off-screen sections */
+  .content-visibility-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 500px;
+  }
+}
