@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, ComponentType } from "react";
+import React, { useState, useEffect, useRef, ComponentType } from "react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
 import {
   Camera,
@@ -498,11 +498,7 @@ export default function HowItWorks() {
         {/* Full-width Section Header */}
         <div className="max-w-7xl mx-auto px-5 sm:px-8 relative z-10 w-full mb-6 lg:mb-0">
           <div className="max-w-3xl text-left">
-            {/* Trust Badge */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ff5a24]/10 border border-[#ff5a24]/20 text-[#ff5a24] text-[10px] font-extrabold tracking-wider mb-3 uppercase font-mono shadow-sm">
-              <Award className="w-3.5 h-3.5" />
-              <span>99.8% Grid Dispatch Response</span>
-            </div>
+
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#ff5a24] font-bold mb-1.5 block">
               Simple & transparent
             </span>
@@ -736,73 +732,253 @@ export default function HowItWorks() {
 
           </div>
 
-          {/* Mobile Only: Normal Linear Stack Flow (Sticky viewport disabled on small screens for scroll safety) */}
-          <div className="lg:hidden flex flex-col space-y-12 py-4 mt-4 w-full">
-            {STEPS.map((step, index) => {
-              const IconComponent = step.icon;
-
-              return (
-                <div key={index} className="flex flex-col items-center text-center px-4 py-8 rounded-[2rem] bg-white border border-[#ff5a24]/10 shadow-[0_15px_45px_-12px_rgba(156,62,35,0.05)] w-full">
-                  <div className="flex items-center justify-between w-full mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-extrabold uppercase tracking-wider text-[#ff5a24]">
-                        Step {step.step}
-                      </span>
-                      <div className={`p-1.5 rounded-xl border text-xs shrink-0 ${step.accentBg}`}>
-                        <IconComponent className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-1">
-                      {step.tags.slice(0, 2).map((tag, tIdx) => (
-                        <span
-                          key={tIdx}
-                          className={`text-[8px] font-mono font-extrabold tracking-wide px-2 py-0.5 rounded-full border ${step.accentBg}`}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <h3 className="text-xl font-bold text-[#151d19] font-sans w-full text-left">
-                    {step.title}
-                  </h3>
-                  
-                  <p className="text-[#58655f] text-xs sm:text-sm font-semibold mt-2 max-w-full leading-relaxed text-left w-full">
-                    {step.description}
-                  </p>
-
-                  {/* Double-Bezel Tech Specs Container (Mobile) */}
-                  <div className="mt-4 p-1 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/5 ring-1 ring-black/5 w-full">
-                    <div className="bg-[#fffcf9] dark:bg-[#1a2333] rounded-[calc(1rem-0.25rem)] p-3 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] border border-[#ff5a24]/10 text-left">
-                      <div className="flex items-center justify-between border-b border-[#ff5a24]/5 pb-1.5 mb-2">
-                        <span className="text-[8px] font-mono font-black tracking-widest text-[#ff5a24] uppercase">
-                          {step.technicalLabel}
-                        </span>
-                        <span className="text-[8.5px] font-mono text-[#58655f] font-semibold">
-                          {step.bullets[0]}
-                        </span>
-                      </div>
-                      <p className="text-[10.5px] text-[#58655f] leading-relaxed font-sans font-semibold italic">
-                        {step.technicalHighlight}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Inline phone mockup demo */}
-                  <div className="w-full mt-6 rounded-[24px] border-[5px] border-[#151d19] bg-[#fffbf7] aspect-[1/2] max-w-[190px] overflow-hidden shadow-lg mx-auto relative">
-                    <div className="w-full h-full">
-                      {renderPhoneScreen(index)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {/* Mobile Only: Auto-playing single phone showcase */}
+          <HowItWorksMobileShowcase
+            renderPhoneScreen={renderPhoneScreen}
+            uploadProgress={uploadProgress}
+            setActiveStep={setActiveStep}
+          />
 
         </div>
       </div>
     </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MOBILE SHOWCASE — single auto-playing phone (HowItWorks)
+───────────────────────────────────────────────────────────── */
+const HIW_STEP_DURATION = 3000;
+const HIW_LAST_PAUSE    = 5000;
+
+interface HowItWorksMobileShowcaseProps {
+  renderPhoneScreen: (index: number) => React.ReactNode;
+  uploadProgress: number;
+  setActiveStep: (i: number) => void;
+}
+
+function HowItWorksMobileShowcase({
+  renderPhoneScreen,
+  setActiveStep,
+}: HowItWorksMobileShowcaseProps) {
+  const [active, setActive]       = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const [progress, setProgress]   = useState(0);
+
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startMs     = useRef<number>(Date.now());
+  const dragStartX  = useRef<number | null>(null);
+
+  const goTo = (next: number, dir: 1 | -1 = 1) => {
+    setDirection(dir);
+    setActive(next);
+    setActiveStep(next); // keep desktop state in sync (for upload progress etc.)
+  };
+
+  const startTimer = (currentStep: number) => {
+    if (timerRef.current)    clearTimeout(timerRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    const isLast  = currentStep === STEPS.length - 1;
+    const totalMs = isLast ? HIW_LAST_PAUSE : HIW_STEP_DURATION;
+    startMs.current = Date.now();
+    setProgress(0);
+    intervalRef.current = setInterval(() => {
+      setProgress(Math.min(((Date.now() - startMs.current) / totalMs) * 100, 100));
+    }, 30);
+    timerRef.current = setTimeout(() => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setProgress(0);
+      goTo(isLast ? 0 : currentStep + 1, 1);
+    }, totalMs);
+  };
+
+  useEffect(() => {
+    startTimer(active);
+    return () => {
+      if (timerRef.current)    clearTimeout(timerRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    dragStartX.current = e.clientX;
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (dragStartX.current === null) return;
+    const delta = e.clientX - dragStartX.current;
+    dragStartX.current = null;
+    if (Math.abs(delta) < 40) return;
+    if (delta < 0) {
+      goTo(active < STEPS.length - 1 ? active + 1 : 0, 1);
+    } else {
+      goTo(active > 0 ? active - 1 : STEPS.length - 1, -1);
+    }
+  };
+
+  const step = STEPS[active];
+  const IconComponent = step.icon;
+
+  const variants = {
+    enter:  (dir: number) => ({ opacity: 0, x: dir > 0 ? 40 : -40 }),
+    center: { opacity: 1, x: 0 },
+    exit:   (dir: number) => ({ opacity: 0, x: dir > 0 ? -40 : 40 }),
+  };
+
+  return (
+    <div className="lg:hidden py-8 px-4 w-full select-none">
+      {/* Phone + flanking arrows in a flex row */}
+      <div
+        className="flex items-center justify-center gap-3"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        style={{ touchAction: "pan-y" }}
+      >
+        {/* Prev arrow */}
+        <button
+          onClick={() => goTo(active > 0 ? active - 1 : STEPS.length - 1, -1)}
+          aria-label="Previous step"
+          className="shrink-0 w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 active:scale-95 transition-transform"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Phone mockup — fluid via clamp */}
+        <div
+          className="relative rounded-[2.5rem] bg-[#151d19] border-[5px] border-[#0d1410] shadow-[0_24px_60px_-14px_rgba(156,62,35,0.22)] overflow-hidden flex-shrink-0"
+          style={{
+            width:  "clamp(170px, 55vw, 220px)",
+            height: "clamp(323px, 104.5vw, 420px)",
+          }}
+        >
+          {/* Inner glass highlight */}
+          <div className="absolute inset-[1px] rounded-[calc(2.5rem-1px)] border border-white/10 pointer-events-none z-40" />
+
+          {/* Dynamic glow behind the phone */}
+          <div
+            className="absolute -inset-8 -z-10 rounded-full blur-3xl opacity-40 transition-all duration-700 pointer-events-none"
+            style={{ backgroundColor: step.color }}
+          />
+
+          {/* Screen */}
+          <div className="absolute inset-[9px] rounded-[2rem] bg-[#fffbf7] overflow-hidden border border-[#151d19]/5">
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={active}
+                custom={direction}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+                className="absolute inset-0"
+              >
+                {renderPhoneScreen(active)}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Progress bar inside bezel */}
+          <div className="absolute bottom-3 left-5 right-5 h-[3px] rounded-full bg-white/10 overflow-hidden z-50">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ backgroundColor: step.color }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.03, ease: "linear" }}
+            />
+          </div>
+        </div>
+
+        {/* Next arrow */}
+        <button
+          onClick={() => goTo(active < STEPS.length - 1 ? active + 1 : 0, 1)}
+          aria-label="Next step"
+          className="shrink-0 w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 active:scale-95 transition-transform"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Step info below phone */}
+      <div className="mt-6 px-1 min-h-[180px]">
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={active}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+          >
+            {/* Step header row */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-black uppercase tracking-wider" style={{ color: step.color }}>
+                  Step {step.step}
+                </span>
+                <div className={`p-1.5 rounded-xl border text-xs shrink-0 ${step.accentBg}`}>
+                  <IconComponent className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-wrap justify-end">
+                {step.tags.slice(0, 2).map((tag, tIdx) => (
+                  <span key={tIdx} className={`text-[8px] font-mono font-extrabold tracking-wide px-2 py-0.5 rounded-full border ${step.accentBg}`}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Title + description */}
+            <h3 className="text-lg sm:text-xl font-extrabold text-[#151d19] font-sans tracking-tight leading-tight">
+              {step.title}
+            </h3>
+            <p className="text-[#58655f] text-sm font-semibold mt-2 leading-relaxed">
+              {step.description}
+            </p>
+
+            {/* Tech spec box */}
+            <div className="mt-4 p-1 bg-black/5 rounded-2xl border border-black/5 ring-1 ring-black/5">
+              <div className="bg-[#fffcf9] rounded-[calc(1rem-0.25rem)] p-3 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] border border-[#ff5a24]/10">
+                <div className="flex items-center justify-between border-b border-[#ff5a24]/5 pb-1.5 mb-2">
+                  <span className="text-[8px] font-mono font-black tracking-widest text-[#ff5a24] uppercase">
+                    {step.technicalLabel}
+                  </span>
+                  <span className="text-[8.5px] font-mono text-[#58655f] font-semibold">
+                    {step.bullets[0]}
+                  </span>
+                </div>
+                <p className="text-[10.5px] text-[#58655f] leading-relaxed font-sans font-semibold italic">
+                  {step.technicalHighlight}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Dot navigation */}
+      <div className="flex items-center justify-center gap-2 mt-5">
+        {STEPS.map((s, idx) => (
+          <button
+            key={idx}
+            onClick={() => goTo(idx, idx > active ? 1 : -1)}
+            aria-label={`Go to step ${idx + 1}`}
+            className="rounded-full transition-all duration-300"
+            style={{
+              width:           idx === active ? 28 : 8,
+              height:          8,
+              backgroundColor: idx === active ? step.color : "#cbd5e1",
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
