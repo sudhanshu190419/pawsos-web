@@ -870,7 +870,7 @@ function SellerRegistrationForm({ onClose }: { onClose: () => void }) {
             label="Phone Number *"
             type="tel"
             value={form.phone}
-            onChange={(v) => handleChange("phone", v)}
+            onChange={(v) => handleChange("phone", v.replace(/[^\d]/g, ""))}
             placeholder="9876543210"
             inputMode="numeric"
             error={errors.phone}

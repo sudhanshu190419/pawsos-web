@@ -40,6 +40,9 @@ export default function AuthPage() {
   const [checking, setChecking] = useState(true);
   const [loadingText, setLoadingText] = useState("");
   const [toast, setToast] = useState<ToastData>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const [step, setStep] = useState<"form" | "otp">("form");
   const [verificationId, setVerificationId] = useState("");
@@ -396,6 +399,44 @@ export default function AuthPage() {
     }
   };
 
+  /* ── Forgot password ── */
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!forgotEmail.trim()) {
+      showToast("Please enter your email address.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotEmail.trim())) {
+      showToast("Please enter a valid email address.");
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const sendPasswordReset = httpsCallable(functions, "sendPasswordReset");
+      const res = await sendPasswordReset({ email: forgotEmail.trim() });
+      const resData = res.data as { success: boolean; emailSent: boolean };
+
+      if (resData.success) {
+        showToast("Password reset email sent! Check your inbox.", "success");
+        setShowForgotPassword(false);
+        setForgotEmail("");
+      } else {
+        showToast("Unable to send reset email at this time.");
+      }
+    } catch (err: any) {
+      console.error("[AUTH] ❌ Password reset error:", err.code, err.message);
+      const message = err?.details?.message || err?.message || "Failed to send reset email. Please try again.";
+      showToast(message);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   /* ── Google auth ── */
 
   const handleGoogleLogin = async () => {
@@ -470,7 +511,7 @@ export default function AuthPage() {
       `}</style>
 
       <main
-        className="min-h-screen flex items-start justify-center pt-28 md:pt-36"
+        className={`min-h-screen flex items-start justify-center pt-16 ${isSignup ? "md:pt-20" : "md:pt-36"}`}
         style={{ backgroundColor: "#fcf2dc", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
       >
         <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none opacity-40">
@@ -479,7 +520,7 @@ export default function AuthPage() {
         </div>
 
         {toast && (
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl shadow-lg text-sm font-medium backdrop-blur-md" style={{ backgroundColor: toast.type === "success" ? "rgba(16, 185, 129, 0.9)" : "rgba(186, 26, 26, 0.9)", color: "#ffffff" }}>
+          <div            className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] px-5 py-3 rounded-xl shadow-lg text-sm font-medium backdrop-blur-md" style={{ backgroundColor: toast.type === "success" ? "rgba(16, 185, 129, 0.9)" : "rgba(186, 26, 26, 0.9)", color: "#ffffff" }}>
             {toast.msg}
           </div>
         )}
@@ -510,8 +551,6 @@ export default function AuthPage() {
           {/* Right: Auth Form */}
           <section className="flex-1 flex flex-col justify-center px-5 md:px-16 py-8 md:py-10" style={{ backgroundColor: "#ffffff" }}>
             <div className="w-full max-w-md mx-auto">
-
-              <div className="md:hidden" style={{ marginBottom: "16px" }}><Logo width={108} height={34} /></div>
 
               <div className="mb-6 md:mb-8">
                 <h1 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: step === "otp" ? "32px" : (isSignup ? "clamp(28px, 3.5vw, 32px)" : "clamp(32px, 4.5vw, 48px)"), lineHeight: step === "otp" ? "40px" : (isSignup ? "clamp(36px, 1.2em, 40px)" : "clamp(40px, 1.2em, 56px)"), letterSpacing: "-0.02em", fontWeight: 700, color: "#1c1c13" }}>
@@ -746,7 +785,7 @@ export default function AuthPage() {
                         </div>
                         <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "16px", lineHeight: "24px", fontWeight: 400, color: "#424941" }}>Remember Me</span>
                       </label>
-                      <button type="button" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "14px", lineHeight: "20px", letterSpacing: "0.05em", fontWeight: 500, color: "#835500" }}>Forgot Password?</button>
+                      <button type="button" onClick={() => { setShowForgotPassword(true); setForgotEmail(email); }} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "14px", lineHeight: "20px", letterSpacing: "0.05em", fontWeight: 500, color: "#835500" }}>Forgot Password?</button>
                     </div>
                   )}
 
@@ -784,6 +823,91 @@ export default function AuthPage() {
           
         </section>
       </div>
+      {/* ── Forgot Password Modal ── */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowForgotPassword(false)}>
+          <div
+            className="relative w-full max-w-md mx-4 p-8 rounded-2xl shadow-2xl border"
+            style={{ backgroundColor: "#ffffff", borderColor: "rgba(193, 201, 190, 0.4)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => { setShowForgotPassword(false); setForgotEmail(""); }}
+              className="absolute top-4 right-4 p-1.5 rounded-full transition-colors hover:bg-slate-100"
+              style={{ color: "#727970" }}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: "#fcf2dc" }}>
+                <svg className="w-7 h-7" style={{ color: "#835500" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#1c1c13" }}>Reset Password</h2>
+              <p className="mt-1 text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#424941" }}>
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+            </div>
+
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <label className="ml-1 text-sm font-medium" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#424941" }}>Email Address</label>
+                <div className="relative group">
+                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: "#727970" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                  </svg>
+                  <input
+                    type="email"
+                    placeholder="name@example.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    autoFocus
+                    className="w-full pl-12 pr-4 py-3.5 rounded-xl outline-none transition-all placeholder:opacity-50"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "16px", lineHeight: "24px", fontWeight: 400, color: "#1c1c13", backgroundColor: "#f6f4e5", border: "1px solid rgba(193, 201, 190, 0.4)" }}
+                    onFocus={(e) => { e.target.style.borderColor = "#325b38"; e.target.style.boxShadow = "0 0 0 2px rgba(50, 91, 56, 0.1)"; e.target.style.backgroundColor = "#ffffff"; }}
+                    onBlur={(e) => { e.target.style.borderColor = "rgba(193, 201, 190, 0.4)"; e.target.style.boxShadow = "none"; e.target.style.backgroundColor = "#f6f4e5"; }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "16px", lineHeight: "24px", fontWeight: 600, backgroundColor: "#325b38", color: "#ffffff", boxShadow: "0 8px 16px rgba(50, 91, 56, 0.1)" }}
+                  onMouseEnter={(e) => { if (!forgotLoading) e.currentTarget.style.backgroundColor = "#264f2e"; }}
+                  onMouseLeave={(e) => { if (!forgotLoading) e.currentTarget.style.backgroundColor = "#325b38"; }}
+                >
+                  {forgotLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Sending...
+                    </span>
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotPassword(false); setForgotEmail(""); }}
+                  className="w-full py-3.5 rounded-xl font-semibold transition-colors border"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "15px", color: "#424941", borderColor: "rgba(193, 201, 190, 0.6)", backgroundColor: "transparent" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </main>
   </>
   );

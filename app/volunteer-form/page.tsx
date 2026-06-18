@@ -74,10 +74,14 @@ export default function VolunteerFormPage() {
   }, [router]);
 
   const handleChange = (e: any) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    // Strip non-numeric chars from phone input
+    if (name === "phone") {
+      const filtered = value.replace(/[^\d+\s-]/g, "");
+      setForm((prev) => ({ ...prev, phone: filtered }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: any) => {
@@ -92,6 +96,20 @@ export default function VolunteerFormPage() {
       alert("Please fill all fields before submitting.");
       return;
     }
+
+    // Phone validation: at least 10 digits
+    const phoneDigits = form.phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
+    // Email format validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
     if (!photo) {
       alert("Please upload a profile photo for your Volunteer ID Card.");
       return;
@@ -354,6 +372,7 @@ export default function VolunteerFormPage() {
               name="phone"
               value={form.phone}
               onChange={handleChange}
+              inputMode="tel"
             />
             <InputField
               icon="✉️"
@@ -439,7 +458,8 @@ function InputField({
   name,
   value,
   onChange,
-  readOnly = false
+  readOnly = false,
+  inputMode
 }: any) {
   return (
     <div className="relative">
@@ -447,13 +467,14 @@ function InputField({
         {icon}
       </span>
       <input
-        type="text"
+        type={inputMode === "tel" ? "tel" : "text"}
         name={name}
         placeholder={placeholder}
         value={value}
         onChange={onChange}
         readOnly={readOnly}
         required
+        inputMode={inputMode}
         className={`w-full border border-gray-300 rounded-xl py-3.5 sm:py-4 pr-4 pl-12 sm:pl-12 text-sm sm:text-base transition focus:outline-none focus:ring-2 focus:ring-orange-400 ${
           readOnly
             ? "bg-slate-100 text-slate-500 cursor-not-allowed"

@@ -294,6 +294,15 @@ export default function OrganizationOnboardingPage() {
           transform: translateY(-6px);
           box-shadow: 0 20px 40px -12px rgba(0,0,0,0.10);
         }
+        /* Override global 104px navbar offset — set to match navbar height */
+        main#main-content > main > section:first-of-type {
+          padding-top: 68px !important;
+        }
+        @media (min-width: 768px) {
+          main#main-content > main > section:first-of-type {
+            padding-top: 80px !important;
+          }
+        }
       `}</style>
 
       <main className="min-h-screen bg-[#FAFAF8] text-slate-900 overflow-hidden selection:bg-orange-100 selection:text-orange-900">
@@ -317,7 +326,7 @@ export default function OrganizationOnboardingPage() {
 
 function HeroSection({ onApply }: { onApply: () => void }) {
   return (
-    <section className="relative pt-12 pb-20 md:pt-8 md:pb-28 overflow-hidden">
+    <section className="relative pt-4 pb-20 md:pt-2 md:pb-28 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-orange-100/50 rounded-full blur-[140px]" />
@@ -574,7 +583,7 @@ function RegistrationModal({ onClose, showToast }: { onClose: () => void; showTo
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-16 sm:pt-12 p-4 sm:p-6">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose} />
       <div className="relative w-full max-w-4xl h-full max-h-[90vh] bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col animate-scaleIn border border-slate-100">
         {/* Modal Header */}
@@ -639,7 +648,25 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
     return () => unsub();
   }, []);
 
-  const handleNext = () => setStep(s => Math.min(s + 1, 4));
+    const validateStep1 = () => {
+    // Phone: at least 10 digits
+    const phoneDigits = formData.phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      showToast("Please enter a valid 10-digit phone number.", "error");
+      return false;
+    }
+    // Email format
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      showToast("Please enter a valid email address.", "error");
+      return false;
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    if (step === 1 && !validateStep1()) return;
+    setStep(s => Math.min(s + 1, 4));
+  };
   const handleBack = () => setStep(s => Math.max(s - 1, 1));
 
   const ensureHqReady = () => {
@@ -659,6 +686,20 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
       showToast("Please sign in first", "error");
       return;
     }
+
+    // Phone validation
+    const phoneDigits = formData.phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      showToast("Please enter a valid 10-digit phone number.", "error");
+      return;
+    }
+
+    // Email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      showToast("Please enter a valid email address.", "error");
+      return;
+    }
+
     setLoading(true);
     try {
       // 1. Upload Files
@@ -736,8 +777,8 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
 
             <InputField icon={UserRound} label="Primary Admin / Manager" value={formData.contactPerson} onChange={v => setFormData({...formData, contactPerson: v})} placeholder="Full name of authority" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputField icon={Mail} label="Official Email" value={formData.email} onChange={v => setFormData({...formData, email: v})} placeholder="admin@org.org" disabled={true} />
-              <InputField icon={Phone} label="Contact Number" value={formData.phone} onChange={v => setFormData({...formData, phone: v})} placeholder="+91" />
+              <InputField icon={Mail} label="Official Email" value={formData.email} onChange={v => setFormData({...formData, email: v})} placeholder="admin@org.org" disabled={true} type="email" />
+              <InputField icon={Phone} label="Contact Number" value={formData.phone} onChange={v => setFormData({...formData, phone: v.replace(/[^\d+\s-]/g, "")})} placeholder="+91" inputMode="tel" type="tel" />
             </div>
           </div>
         </div>
@@ -936,14 +977,18 @@ function InputField({
   value,
   onChange,
   placeholder,
-  disabled = false
+  disabled = false,
+  inputMode,
+  type
 }: {
   icon: any,
   label: string,
   value: string,
   onChange: (v: string) => void,
   placeholder: string,
-  disabled?: boolean
+  disabled?: boolean,
+  inputMode?: "text" | "tel" | "email" | "url" | "numeric" | "decimal" | "search",
+  type?: string
 }) {
   return (
     <div className={`relative group ${disabled ? 'opacity-80' : ''}`}>
@@ -952,12 +997,13 @@ function InputField({
         {disabled && <Lock className="w-2.5 h-2.5 text-slate-400" />}
       </label>
       <input
-        type="text"
+        type={type || "text"}
         value={value}
         onChange={e => !disabled && onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
         readOnly={disabled}
+        inputMode={inputMode}
         className={`w-full border rounded-2xl px-6 py-4 text-sm sm:text-base font-bold transition-all outline-none shadow-sm ${
           disabled
             ? 'bg-slate-50 border-slate-100 text-slate-500 cursor-not-allowed'
@@ -975,4 +1021,4 @@ function SummaryItem({ label, value, isPrimary = false }: { label: string, value
       <span className={isPrimary ? "text-orange-500" : "text-slate-700"}>{value}</span>
     </div>
   );
-}
+}

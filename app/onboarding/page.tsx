@@ -681,8 +681,16 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
   );
 
   const handleInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      set(e.target.name as keyof FormData, e.target.value as never),
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      // Strip non-digits from phone input for cleaner UX
+      if (name === "phone") {
+        const filtered = value.replace(/[^\d+\s-]/g, "");
+        set("phone", filtered as never);
+        return;
+      }
+      set(name as keyof FormData, value as never);
+    },
     [set]
   );
 
@@ -711,9 +719,33 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
     if (s === 1) {
       if (!form.ngoName.trim()) errs.ngoName = "Required";
       if (!form.contactPerson.trim()) errs.contactPerson = "Required";
-      if (!form.email.trim()) errs.email = "Required";
-      if (!form.phone.trim()) errs.phone = "Required";
-      if (!form.regNumber.trim()) errs.regNumber = "Required";
+      
+      if (!form.email.trim()) {
+        errs.email = "Required";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        errs.email = "Enter a valid email address";
+      }
+      
+      if (!form.phone.trim()) {
+        errs.phone = "Required";
+      } else {
+        const digits = form.phone.replace(/\D/g, "");
+        if (digits.length < 10) {
+          errs.phone = "Enter a valid 10-digit phone number";
+        } else if (digits.length > 15) {
+          errs.phone = "Phone number too long";
+        }
+      }
+      
+      if (!form.regNumber.trim()) {
+        errs.regNumber = "Required";
+      } else if (form.regNumber.trim().length < 5) {
+        errs.regNumber = "Enter a valid registration number (min 5 characters)";
+      }
+      
+      if (form.darpanId.trim() && form.darpanId.trim().length < 5) {
+        errs.darpanId = "Invalid Darpan ID format";
+      }
     }
     if (s === 2) {
       if (!form.city.trim()) errs.city = "Required";
@@ -968,10 +1000,12 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
             <FormField
               label="Official Phone *"
               name="phone"
+              type="tel"
               value={form.phone}
               onChange={handleInput}
               placeholder="+91 98765 43210"
               error={errors.phone}
+              inputMode="tel"
             />
           </div>
           <FormField
@@ -1204,6 +1238,7 @@ interface FormFieldProps {
   readOnly?: boolean;
   required?: boolean;
   error?: string;
+  inputMode?: "text" | "tel" | "email" | "url" | "numeric" | "decimal" | "search";
 }
 
 function FormField({
@@ -1216,6 +1251,7 @@ function FormField({
   readOnly = false,
   required = true,
   error,
+  inputMode,
 }: FormFieldProps) {
   return (
     <div>
@@ -1235,6 +1271,7 @@ function FormField({
         readOnly={readOnly}
         required={required}
         placeholder={placeholder}
+        inputMode={inputMode}
         className={`input-field w-full rounded-xl px-4 py-3 text-sm font-medium border transition-all duration-200 ${
           error
             ? "bg-red-50 border-red-300 text-slate-900 focus:ring-red-500/10 focus:border-red-400"

@@ -685,9 +685,20 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   const validate = (s: number): boolean => {
     const errs: typeof errors = {};
     if (s === 1) {
-      if (!/^\d{10}$/.test(form.phone.trim())) {
-  errs.phone = "Enter valid 10-digit phone number";
-}
+      if (!form.fullName.trim()) errs.fullName = "Required";
+      
+      if (!form.email.trim()) {
+        errs.email = "Required";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        errs.email = "Enter a valid email address";
+      }
+      
+      if (!form.phone.trim()) {
+        errs.phone = "Required";
+      } else if (!/^\d{10}$/.test(form.phone.trim())) {
+        errs.phone = "Enter valid 10-digit phone number";
+      }
+      
       if (
   form.clinicAddress.trim().length < 15 ||
   !/\d/.test(form.clinicAddress)
@@ -695,9 +706,6 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   errs.clinicAddress =
     "Enter full address with house/flat/shop number";
 }
-      if (!form.fullName.trim()) errs.fullName = "Required";
-      if (!form.email.trim()) errs.email = "Required";
-      if (!form.phone.trim()) errs.phone = "Required";
       
       if (!form.city.trim()) errs.city = "Required";
       if (!form.clinicAddress.trim()) errs.clinicAddress = "Required";
@@ -901,7 +909,7 @@ if (!/^\d{6}$/.test(form.pincode.trim())) {
           <FormField label="Full Name *" name="fullName" value={form.fullName} onChange={handleInput} placeholder="Dr. Priya Sharma" error={errors.fullName} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Email Address *" name="email" type="email" value={form.email} onChange={handleInput} readOnly={!!user?.email} error={errors.email} />
-            <FormField label="Phone Number *" name="phone" value={form.phone} onChange={handleInput} placeholder="+91 98765 43210" error={errors.phone} />
+            <FormField label="Phone Number *" name="phone" value={form.phone} onChange={handleInput} placeholder="+91 98765 43210" inputMode="tel" type="tel" error={errors.phone} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
   <FormField

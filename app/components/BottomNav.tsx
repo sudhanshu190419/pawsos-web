@@ -37,6 +37,9 @@ export default function BottomNav() {
     return () => window.removeEventListener("scroll", controlNavbar);
   }, [lastScrollY]);
 
+  // Hide on auth (login/signup) page
+  if (pathname === "/auth") return null;
+
   const navItems = [
     { 
       name: "Home", 

@@ -4054,3 +4054,222 @@ exports.notifyOrgApprovalStatus = onCall(
     };
   }
 );
+
+// ---------------------------------------------------------------------------
+// sendPasswordReset  –  callable function
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a password reset email to the user via the custom SMTP transporter
+ * (instead of Firebase's default noreply sender).
+ *
+ * Uses the Firebase Admin SDK to generate a password reset link, then sends
+ * it through the same nodemailer transporter used for OTP and notification
+ * emails, so the sender address matches the app's brand.
+ *
+ * Request body:
+ *   { email: string }
+ *
+ * Response:
+ *   { success: true, emailSent: boolean }
+ */
+exports.sendPasswordReset = onCall(
+  {
+    secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+    minInstances: 0,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const { email } = request.data || {};
+
+    logger.info("[PAWSOS-RESET] ════════════════════════════════════════════");
+    logger.info("[PAWSOS-RESET] 🚀 sendPasswordReset called", {
+      hasEmail: !!email,
+      callerAuthenticated: !!request.auth,
+    });
+
+    // ── Input validation ──
+    if (!email) {
+      logger.error("[PAWSOS-RESET] ❌ Email is required");
+      throw new HttpsError("invalid-argument", "Email is required.");
+    }
+
+    const emailStr = String(email).trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailStr)) {
+      logger.error("[PAWSOS-RESET] ❌ Invalid email format", { email: emailStr });
+      throw new HttpsError("invalid-argument", "Please enter a valid email address.");
+    }
+
+    // ── Check if user exists in Firebase Auth ──
+    logger.info("[PAWSOS-RESET] 🔍 Checking if user exists", { email: emailStr });
+    try {
+      await admin.auth().getUserByEmail(emailStr);
+      logger.info("[PAWSOS-RESET] ✅ User found, proceeding");
+    } catch (err) {
+      if (err.code === "auth/user-not-found") {
+        logger.warn("[PAWSOS-RESET] ⚠️ User not found — sending generic response for security");
+        // Return success even if user not found (security best practice)
+        return { success: true, emailSent: false };
+      }
+      logger.error("[PAWSOS-RESET] ❌ getUserByEmail unexpected error:", err.message);
+      throw new HttpsError("internal", "Unable to process request. Please try again.");
+    }
+
+    // ── Generate password reset link ──
+    logger.info("[PAWSOS-RESET] 🔗 Generating password reset link", { email: emailStr });
+    let resetLink;
+    try {
+      resetLink = await admin.auth().generatePasswordResetLink(emailStr, {
+        url: process.env.APP_URL || "https://animalsathi.com",
+        handleCodeInApp: false,
+      });
+      logger.info("[PAWSOS-RESET] ✅ Reset link generated");
+    } catch (linkErr) {
+      logger.error("[PAWSOS-RESET] ❌ Failed to generate reset link:", linkErr.message);
+      throw new HttpsError("internal", "Failed to generate reset link. Please try again.");
+    }
+
+    // ── Send email via custom SMTP ──
+    let emailSent = false;
+
+    try {
+      const transport = await getTransporter();
+      const fromAddr = process.env.SMTP_FROM || "noreply@pawsos.app";
+
+      const mailOptions = {
+        from: fromAddr,
+        to: emailStr,
+        subject: "Reset Your AnimalSathi Password",
+        text: [
+          "Hello,",
+          "",
+          "We received a request to reset the password for your AnimalSathi account.",
+          "",
+          "Click the link below to reset your password. This link is valid for 1 hour.",
+          "",
+          resetLink,
+          "",
+          "If you did not request a password reset, you can safely ignore this email.",
+          "",
+          "For security, do not share this link with anyone.",
+          "",
+          "Warm regards,",
+          "Team AnimalSathi",
+        ].join("\n"),
+        html: [
+          '<!DOCTYPE html>',
+          '<html lang="en">',
+          '<head>',
+          '  <meta charset="UTF-8" />',
+          '  <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+          '  <title>Reset Your Password</title>',
+          '</head>',
+          '<body style="margin:0; padding:0; background-color:#f5ede0; font-family:\'Segoe UI\', Arial, sans-serif;">',
+          '  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5ede0; padding: 40px 16px;">',
+          '    <tr>',
+          '      <td align="center">',
+          '        <table width="100%" cellpadding="0" cellspacing="0" border="0"',
+          '          style="max-width:520px; background:#ffffff; border-radius:20px; overflow:hidden;',
+          '                 box-shadow: 0 4px 24px rgba(156,62,35,0.10);">',
+          '          <tr>',
+          '            <td style="background: linear-gradient(135deg, #9c3e23 0%, #c0522e 60%, #e07040 100%);',
+          '                        padding: 36px 40px 28px; text-align:center;">',
+          '              <div style="display:inline-block; background:rgba(255,255,255,0.15);',
+          '                          border-radius:50%; width:64px; height:64px; line-height:64px;',
+          '                          font-size:30px; margin-bottom:14px;">&#x1F510;</div>',
+          '              <h1 style="margin:0; color:#ffffff; font-size:26px; font-weight:700;',
+          '                          letter-spacing:0.5px;">Reset Your Password</h1>',
+          '              <p style="margin:6px 0 0; color:rgba(255,255,255,0.80); font-size:13px;',
+          '                         letter-spacing:0.3px;">by AnimalSathi · Community Animal Rescue</p>',
+          '            </td>',
+          '          </tr>',
+          '          <tr>',
+          '            <td style="height:4px;',
+          '                        background: linear-gradient(90deg, #FF5722, #ff8a50, #FF5722);"></td>',
+          '          </tr>',
+          '          <tr>',
+          '            <td style="padding: 36px 40px 28px;">',
+          '              <p style="margin:0 0 6px; color:#333333; font-size:16px; font-weight:600;">',
+          '                Hello 👋</p>',
+          '              <p style="margin:0 0 24px; color:#666666; font-size:14px; line-height:1.6;">',
+          '                We received a request to reset the password for your <strong style="color:#9c3e23;">AnimalSathi</strong> account.',
+          '                Click the button below to set a new password.</p>',
+          '              <table width="100%" cellpadding="0" cellspacing="0" border="0">',
+          '                <tr>',
+          '                  <td align="center" style="padding: 8px 0 20px;">',
+          '                    <table cellpadding="0" cellspacing="0" border="0">',
+          '                      <tr>',
+          '                        <td align="center" style="background: linear-gradient(135deg, #9c3e23 0%, #c0522e 100%);',
+          '                                    border-radius: 12px; padding: 14px 36px;">',
+          '                          <a href="' + resetLink + '" target="_blank"',
+          '                            style="color:#ffffff; font-size:15px; font-weight:700; text-decoration:none;',
+          '                                   letter-spacing:0.5px; display:inline-block;">',
+          '                            Reset Password',
+          '                          </a>',
+          '                        </td>',
+          '                      </tr>',
+          '                    </table>',
+          '                  </td>',
+          '                </tr>',
+          '              </table>',
+          '              <p style="margin:0 0 20px; color:#888888; font-size:12px; line-height:1.6; text-align:center;">',
+          '                Or copy this link into your browser:<br/>',
+          '                <span style="color:#9c3e23; font-size:11px; word-break:break-all;">' + resetLink + '</span></p>',
+          '              <div style="background:#fff8f5; border:1px solid #f0e0d0; border-radius:12px; padding:16px 20px; margin-bottom:8px;">',
+          '                <p style="margin:0; color:#888888; font-size:12px; line-height:1.6;">',
+          '                  🔒 This link is valid for <strong>1 hour</strong>.<br/>',
+          '                  If you did not request this, you can safely ignore this email.</p>',
+          '              </div>',
+          '            </td>',
+          '          </tr>',
+          '          <tr>',
+          '            <td style="padding: 0 40px;">',
+          '              <hr style="border:none; border-top:1px solid #f0e8e0; margin:0;" />',
+          '            </td>',
+          '          </tr>',
+          '          <tr>',
+          '            <td style="padding: 24px 40px 32px; text-align:center;">',
+          '              <p style="margin:0 0 8px; color:#aaaaaa; font-size:11px;">',
+          '                Need help? Write to us at <a href="mailto:info@animalsathi.com" style="color:#9c3e23;">info@animalsathi.com</a></p>',
+          '              <p style="margin:16px 0 0; color:#cccccc; font-size:10px;">',
+          '                © 2026 AnimalSathi &nbsp;·&nbsp; Made with 🧡 for animals across India<br/>',
+          '                GL Bajaj Institute, Knowledge Park III, Greater Noida, UP</p>',
+          '            </td>',
+          '          </tr>',
+          '        </table>',
+          '      </td>',
+          '    </tr>',
+          '  </table>',
+          '</body>',
+          '</html>',
+        ].join("\n"),
+      };
+
+      const sendResult = await transport.sendMail(mailOptions);
+      emailSent = true;
+
+      logger.info("[PAWSOS-RESET] ✅ Password reset email sent", {
+        to: emailStr,
+        messageId: sendResult.messageId || "N/A",
+      });
+    } catch (emailError) {
+      logger.error("[PAWSOS-RESET] ❌ Email send failed:", {
+        error: emailError.message || "N/A",
+        to: emailStr,
+      });
+      throw new HttpsError("internal", "Failed to send reset email. Please try again.");
+    }
+
+    logger.info("[PAWSOS-RESET] ✅ sendPasswordReset completed successfully", {
+      email: emailStr,
+      emailSent,
+    });
+    logger.info("[PAWSOS-RESET] ════════════════════════════════════════════");
+
+    return {
+      success: true,
+      emailSent,
+    };
+  }
+);

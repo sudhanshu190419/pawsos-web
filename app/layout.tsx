@@ -103,7 +103,7 @@ export default function RootLayout({
             <Navbar />
 
             {/* Page Content */}
-            <main id="main-content" className="relative z-10 min-h-[100dvh]">
+            <main id="main-content" className="min-h-[100dvh]">
               {children}
             </main>
 
