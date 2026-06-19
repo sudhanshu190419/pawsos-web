@@ -15,8 +15,11 @@ import {
   GeoPoint,
   getDoc,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, User } from "firebase/auth";
+import { validateFile, uploadFileWithTimeout, ALLOWED_IMAGE_TYPES, ALLOWED_DOCUMENT_TYPES, FORMATTED_MAX_SIZE } from "../lib/uploadUtils";
+import { logError, filePayload, setupGlobalErrorHandling, type FormType } from "../lib/errorLogger";
+
+const FORM_TYPE: FormType = "vet";
 
 /* ─────────────────────────── Types ─────────────────────────── */
 
@@ -577,6 +580,8 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
   /* ── Setup ── */
 
   useEffect(() => {
+    setupGlobalErrorHandling(FORM_TYPE);
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -664,8 +669,24 @@ function VetRegistrationForm({ onClose }: { onClose: () => void }) {
 
   const handleFile = useCallback(
     (key: "profilePhoto" | "document") =>
-      (e: React.ChangeEvent<HTMLInputElement>) =>
-        set(key, (e.target.files?.[0] ?? null) as never),
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] ?? null;
+        if (file) {
+          const allowed = key === "profilePhoto" ? ALLOWED_IMAGE_TYPES : ALLOWED_DOCUMENT_TYPES;
+          const err = validateFile(file, allowed);
+          if (err) {
+            setErrors((prev) => ({ ...prev, [key]: err }));
+            return;
+          }
+          // Clear any previous file error
+          setErrors((prev) => {
+            const next = { ...prev };
+            delete next[key as keyof typeof prev];
+            return next;
+          });
+        }
+        set(key, file as never);
+      },
     [set]
   );
 
@@ -739,23 +760,82 @@ if (!/^\d{6}$/.test(form.pincode.trim())) {
     e.preventDefault();
     if (!validate(4)) return;
     if (!user) { alert("Please sign in to apply."); return; }
-    if (!location) { alert("Location access is required. Please enable it and retry."); return; }
-
-    const uploadFile = async (file: File, path: string) => {
-      const r = ref(storage, path);
-      await uploadBytes(r, file);
-      return getDownloadURL(r);
-    };
+    if (!location) { alert("Location access is required. Please enable it and retry."); return; }      // ── Validate files before starting any upload ──
+    const fileChecks: { file: File | null; key: keyof VetFormData; label: string; types: string[] }[] = [
+      { file: form.profilePhoto, key: "profilePhoto", label: "Profile photo", types: ALLOWED_IMAGE_TYPES },
+      { file: form.document, key: "document", label: "License document", types: ALLOWED_DOCUMENT_TYPES },
+    ];
+    const fileErrors: Partial<Record<keyof VetFormData, string>> = {};
+    for (const c of fileChecks) {
+      if (c.file) {
+        const msg = validateFile(c.file, c.types);
+        if (msg) {
+          fileErrors[c.key] = msg;
+          logError({ formType: FORM_TYPE, step: "validation", errorMessage: msg, ...filePayload(c.file), isError: true });
+        }
+      }
+    }
+    if (Object.keys(fileErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...fileErrors }));
+      alert("Please fix the file errors shown on the form and try again.");
+      return;
+    }
 
     try {
-      setSubmitStatus("Uploading documents…");
-      const ts = Date.now();
-      const [profilePhotoURL, documentURL] = await Promise.all([
-        form.profilePhoto ? uploadFile(form.profilePhoto, `vets/profilePhotos/${user.uid}_${ts}`) : Promise.resolve(""),
-        form.document ? uploadFile(form.document, `vets/documents/${user.uid}_${ts}`) : Promise.resolve(""),
-      ]);
+      let profilePhotoURL = "";
+      let documentURL = "";
+
+      // ── Upload profile photo (sequential, with timeout & per-file error) ──
+      if (form.profilePhoto) {
+        setSubmitStatus("Uploading profile photo…");
+        logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Profile photo upload started", ...filePayload(form.profilePhoto) });
+        console.log("[VetSubmit] Uploading profile photo");
+        try {
+          profilePhotoURL = await uploadFileWithTimeout(
+            storage,
+            form.profilePhoto,
+            `vets/profilePhotos/${user.uid}_${Date.now()}`,
+            "Profile photo"
+          );
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Profile photo upload completed", ...filePayload(form.profilePhoto) });
+        } catch (photoErr: any) {
+          console.error("[VetSubmit] Profile photo upload failed:", photoErr);
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: photoErr?.message || "Profile photo upload failed", stackTrace: photoErr?.stack, ...filePayload(form.profilePhoto), isError: true });
+          alert(photoErr?.message || "Profile photo upload failed. Please check your file and connection.");
+          setSubmitStatus(null);
+          return;
+        }
+      } else {
+        console.warn("[VetSubmit] No profile photo selected");
+      }
+
+      // ── Upload license document (sequential, with timeout & per-file error) ──
+      if (form.document) {
+        setSubmitStatus("Uploading license document…");
+        logError({ formType: FORM_TYPE, step: "upload", errorMessage: "License document upload started", ...filePayload(form.document) });
+        console.log("[VetSubmit] Uploading license document");
+        try {
+          documentURL = await uploadFileWithTimeout(
+            storage,
+            form.document,
+            `vets/documents/${user.uid}_${Date.now()}`,
+            "License document"
+          );
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: "License document upload completed", ...filePayload(form.document) });
+        } catch (docErr: any) {
+          console.error("[VetSubmit] License document upload failed:", docErr);
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: docErr?.message || "License document upload failed", stackTrace: docErr?.stack, ...filePayload(form.document), isError: true });
+          alert(docErr?.message || "License document upload failed. Please check your file and connection.");
+          setSubmitStatus(null);
+          return;
+        }
+      } else {
+        console.warn("[VetSubmit] No license document selected");
+      }
 
       setSubmitStatus("Saving your profile…");
+      console.log("[VetSubmit] All uploads complete, writing to Firestore");
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: "Firestore save started" });
       await setDoc(doc(db, "vets_web", user.uid), {
         uid: user.uid,
         fullName: form.fullName,
@@ -782,13 +862,15 @@ if (!/^\d{6}$/.test(form.pincode.trim())) {
       }, { merge: true });
 
       setSubmitStatus("Done!");
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: "Firestore save completed" });
       setTimeout(() => {
         setHasApplied(true);
         setExistingApp({ verificationStatus: "pending_review", fullName: form.fullName, email: form.email });
         setSubmitStatus(null);
       }, 800);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Submission error:", err);
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: err?.message || "Firestore save failed", stackTrace: err?.stack, isError: true });
       alert("Submission failed. Please check your connection and try again.");
       setSubmitStatus(null);
     }
@@ -981,7 +1063,7 @@ if (!/^\d{6}$/.test(form.pincode.trim())) {
             onChange={handleFile("profilePhoto")}
             file={form.profilePhoto}
             error={errors.profilePhoto}
-            hint="JPG, PNG · Max 5 MB"
+            hint={`JPG, PNG · Max ${FORMATTED_MAX_SIZE}`}
           />
         </div>
       )}
@@ -1001,7 +1083,7 @@ if (!/^\d{6}$/.test(form.pincode.trim())) {
             onChange={handleFile("document")}
             file={form.document}
             error={errors.document}
-            hint="PDF, JPG, PNG · Max 5 MB"
+            hint={`PDF, JPG, PNG · Max ${FORMATTED_MAX_SIZE}`}
           />
         </div>
       )}

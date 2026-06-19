@@ -287,6 +287,19 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────
+    // ERROR LOGS (client-side error reporting)
+    // ─────────────────────────────────────────────
+    // Any authenticated user can write error logs so that
+    // onboarding/download issues are captured from all users.
+    // Only admins can read them (stack traces may contain
+    // sensitive info).
+    match /error_logs/{logId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ─────────────────────────────────────────────
     // OTPs (written by Cloud Functions via Admin SDK)
     // ─────────────────────────────────────────────
     // The Admin SDK bypasses security rules, so this is

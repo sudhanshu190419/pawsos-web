@@ -17,8 +17,11 @@ const HQMapClient = dynamic(() => import("./HQMapClient"), {
   loading: () => <div className="w-full h-full min-h-[240px] bg-slate-100 animate-pulse rounded-2xl"></div>
 });
 
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, User } from "firebase/auth";
+import { validateFile, uploadFileWithTimeout, ALLOWED_IMAGE_TYPES, ALLOWED_DOCUMENT_TYPES, FORMATTED_MAX_SIZE, ACCEPT_DOCUMENTS } from "../../lib/uploadUtils";
+import { logError, filePayload, setupGlobalErrorHandling, type FormType } from "../../lib/errorLogger";
+
+const FORM_TYPE: FormType = "hospital";
 import {
   Building2,
   ShieldCheck,
@@ -639,6 +642,8 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
   });
 
   useEffect(() => {
+    setupGlobalErrorHandling(FORM_TYPE);
+
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u?.email) {
@@ -700,25 +705,77 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
       return;
     }
 
+    // ── File validation before uploading ──
+    const fileChecks: { file: File | null; types: string[]; label: string }[] = [
+      { file: formData.logo, types: ALLOWED_IMAGE_TYPES, label: "Logo" },
+      { file: formData.licenseFile, types: ALLOWED_DOCUMENT_TYPES, label: "License document" },
+    ];
+    for (const c of fileChecks) {
+      if (c.file) {
+        const msg = validateFile(c.file, c.types);
+        if (msg) {
+          logError({ formType: FORM_TYPE, step: "validation", errorMessage: `${c.label}: ${msg}`, ...filePayload(c.file), isError: true });
+          showToast(`${c.label}: ${msg}`, "error");
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     try {
-      // 1. Upload Files
       let logoUrl = "";
       let licenseUrl = "";
 
+      // ── Upload logo (sequential, with timeout & per-file error) ──
       if (formData.logo) {
-        const logoRef = ref(storage, `orgs/logos/${user.uid}_${Date.now()}`);
-        await uploadBytes(logoRef, formData.logo);
-        logoUrl = await getDownloadURL(logoRef);
+        logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Logo upload started", ...filePayload(formData.logo) });
+        console.log("[OrgSubmit] Uploading logo");
+        try {
+          logoUrl = await uploadFileWithTimeout(
+            storage,
+            formData.logo,
+            `orgs/logos/${user.uid}_${Date.now()}`,
+            "Logo"
+          );
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Logo upload completed", ...filePayload(formData.logo) });
+        } catch (logoErr: any) {
+          console.error("[OrgSubmit] Logo upload failed:", logoErr);
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: logoErr?.message || "Logo upload failed", stackTrace: logoErr?.stack, ...filePayload(formData.logo), isError: true });
+          showToast(logoErr?.message || "Logo upload failed. Please try again.", "error");
+          setLoading(false);
+          return;
+        }
+      } else {
+        console.warn("[OrgSubmit] No logo to upload");
       }
 
+      // ── Upload license file (sequential, with timeout & per-file error) ──
       if (formData.licenseFile) {
-        const licRef = ref(storage, `orgs/licenses/${user.uid}_${Date.now()}`);
-        await uploadBytes(licRef, formData.licenseFile);
-        licenseUrl = await getDownloadURL(licRef);
+        logError({ formType: FORM_TYPE, step: "upload", errorMessage: "License document upload started", ...filePayload(formData.licenseFile) });
+        console.log("[OrgSubmit] Uploading license document");
+        try {
+          licenseUrl = await uploadFileWithTimeout(
+            storage,
+            formData.licenseFile,
+            `orgs/licenses/${user.uid}_${Date.now()}`,
+            "License document"
+          );
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: "License document upload completed", ...filePayload(formData.licenseFile) });
+        } catch (licErr: any) {
+          console.error("[OrgSubmit] License document upload failed:", licErr);
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: licErr?.message || "License document upload failed", stackTrace: licErr?.stack, ...filePayload(formData.licenseFile), isError: true });
+          showToast(licErr?.message || "License document upload failed. Please try again.", "error");
+          setLoading(false);
+          return;
+        }
+      } else {
+        console.warn("[OrgSubmit] No license document to upload");
       }
 
-      // 2. Create Application
+      // ── Create Application ──
+      console.log("[OrgSubmit] All uploads done, writing to Firestore");
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: "Firestore save started" });
       await setDoc(doc(db, "pending_organizations", user.uid), {
         ...formData,
         logo: logoUrl,
@@ -730,11 +787,14 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
         createdAt: serverTimestamp(),
       });
 
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: "Firestore save completed" });
       showToast("Application submitted successfully!", "success");
       onClose();
       router.push("/dashboard");
     } catch (e: any) {
-      showToast(e.message, "error");
+      console.error("[OrgSubmit] Unexpected error:", e);
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: e?.message || "Unexpected submission error", stackTrace: e?.stack, isError: true });
+      showToast(e.message || "Submission failed. Please check your connection.", "error");
     } finally {
       setLoading(false);
     }
@@ -889,7 +949,9 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
             <InputField icon={MapPin} label="City" value={formData.city} onChange={v => setFormData({...formData, city: v})} placeholder="e.g. New Delhi" />
 
             <div className="mt-4">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 ml-1">Registration Document (PDF/JPG)</label>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 ml-1">
+                Registration Document (PDF/JPG) — Max {FORMATTED_MAX_SIZE}
+              </label>
               <label className="flex flex-col items-center justify-center w-full h-36 sm:h-52 border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-[2.5rem] cursor-pointer hover:border-orange-400/40 hover:bg-orange-50/30 transition-all group bg-white shadow-sm">
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all mb-4 ${formData.licenseFile ? 'bg-emerald-50 text-emerald-500 border-emerald-300' : 'bg-slate-50 border-slate-100 text-slate-400 group-hover:text-orange-500'}`}>
@@ -898,9 +960,26 @@ function RegistrationForm({ onClose, showToast }: { onClose: () => void; showToa
                   <p className={`font-bold text-sm ${formData.licenseFile ? "text-emerald-600" : "text-slate-600 group-hover:text-orange-600"}`}>
                     {formData.licenseFile ? formData.licenseFile.name : "Select License File"}
                   </p>
-                  {!formData.licenseFile && <p className="text-xs text-slate-400 mt-1.5 font-medium italic tracking-tight">Required for organization verification</p>}
+                  {!formData.licenseFile && (
+                    <p className="text-xs text-slate-400 mt-1.5 font-medium italic tracking-tight">Required for organization verification</p>
+                  )}
                 </div>
-                <input type="file" className="hidden" onChange={e => setFormData({...formData, licenseFile: e.target.files?.[0] || null})} />
+                <input
+                  type="file"
+                  accept={ACCEPT_DOCUMENTS}
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      const err = validateFile(file, ALLOWED_DOCUMENT_TYPES);
+                      if (err) {
+                        showToast(err, "error");
+                        return; // don't set the file
+                      }
+                    }
+                    setFormData({...formData, licenseFile: file});
+                  }}
+                />
               </label>
             </div>
           </div>

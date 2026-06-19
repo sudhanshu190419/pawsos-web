@@ -12,8 +12,11 @@ import {
   GeoPoint,
   getDoc,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, User } from "firebase/auth";
+import { validateFile, uploadFileWithTimeout, ALLOWED_IMAGE_TYPES, ALLOWED_DOCUMENT_TYPES, FORMATTED_MAX_SIZE } from "../lib/uploadUtils";
+import { logError, filePayload, setupGlobalErrorHandling, type FormType } from "../lib/errorLogger";
+
+const FORM_TYPE: FormType = "ngo";
 
 /* ─────────────────────────── Types ─────────────────────────── */
 
@@ -618,6 +621,8 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
   /* ── Side effects ── */
 
   useEffect(() => {
+    setupGlobalErrorHandling(FORM_TYPE);
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -696,8 +701,24 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
 
   const handleFile = useCallback(
     (key: "logo" | "regCert" | "eightyGCert") =>
-      (e: React.ChangeEvent<HTMLInputElement>) =>
-        set(key, (e.target.files?.[0] ?? null) as never),
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] ?? null;
+        if (file) {
+          const allowed = key === "logo" ? ALLOWED_IMAGE_TYPES : ALLOWED_DOCUMENT_TYPES;
+          const err = validateFile(file, allowed);
+          if (err) {
+            setErrors((prev) => ({ ...prev, [key]: err }));
+            logError({ formType: FORM_TYPE, step: "validation", errorMessage: err, ...filePayload(file), isError: true });
+            return;
+          }
+          setErrors((prev) => {
+            const next = { ...prev };
+            delete next[key as keyof typeof prev];
+            return next;
+          });
+        }
+        set(key, file as never);
+      },
     [set]
   );
 
@@ -773,22 +794,87 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    const uploadFile = async (file: File, path: string) => {
-      const r = ref(storage, path);
-      await uploadBytes(r, file);
-      return getDownloadURL(r);
-    };
+    // ── File validation ──
+    const submitFileChecks: { file: File | null; types: string[]; label: string }[] = [
+      { file: form.logo, types: ALLOWED_IMAGE_TYPES, label: "Logo" },
+      { file: form.regCert, types: ALLOWED_DOCUMENT_TYPES, label: "Registration cert" },
+      { file: form.eightyGCert, types: ALLOWED_DOCUMENT_TYPES, label: "80G cert" },
+    ];
+    for (const c of submitFileChecks) {
+      if (c.file) {
+        const msg = validateFile(c.file, c.types);
+        if (msg) {
+          logError({ formType: FORM_TYPE, step: "validation", errorMessage: `${c.label}: ${msg}`, ...filePayload(c.file), isError: true });
+          alert(`Please fix file errors: ${c.label} — ${msg}`);
+          return;
+        }
+      }
+    }
 
     try {
-      setSubmitStatus("Uploading documents…");
-      const ts = Date.now();
-      const [logoURL, regCertURL, eightyGCertURL] = await Promise.all([
-        form.logo ? uploadFile(form.logo, `ngos/logos/${user.uid}_${ts}`) : Promise.resolve(""),
-        form.regCert ? uploadFile(form.regCert, `ngos/certs/${user.uid}_${ts}`) : Promise.resolve(""),
-        form.eightyGCert ? uploadFile(form.eightyGCert, `ngos/80G/${user.uid}_${ts}`) : Promise.resolve(""),
-      ]);
+      let logoURL = "";
+      let regCertURL = "";
+      let eightyGCertURL = "";
+
+      // ── Upload logo (sequential, with timeout) ──
+      if (form.logo) {
+        setSubmitStatus("Uploading logo…");
+        logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Logo upload started", ...filePayload(form.logo) });
+        console.log("[NGOSubmit] Uploading logo");
+        try {
+          logoURL = await uploadFileWithTimeout(storage, form.logo, `ngos/logos/${user.uid}_${Date.now()}`, "Logo");
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Logo upload completed", ...filePayload(form.logo) });
+        } catch (logoErr: any) {
+          console.error("[NGOSubmit] Logo upload failed:", logoErr);
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: logoErr?.message || "Logo upload failed", stackTrace: logoErr?.stack, ...filePayload(form.logo), isError: true });
+          alert(logoErr?.message || "Logo upload failed. Please check your file and connection.");
+          setSubmitStatus(null);
+          return;
+        }
+      } else {
+        console.warn("[NGOSubmit] No logo to upload");
+      }
+
+      // ── Upload reg cert (sequential, with timeout) ──
+      if (form.regCert) {
+        setSubmitStatus("Uploading registration certificate…");
+        logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Registration cert upload started", ...filePayload(form.regCert) });
+        console.log("[NGOSubmit] Uploading registration cert");
+        try {
+          regCertURL = await uploadFileWithTimeout(storage, form.regCert, `ngos/certs/${user.uid}_${Date.now()}`, "Registration cert");
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Registration cert upload completed", ...filePayload(form.regCert) });
+        } catch (regErr: any) {
+          console.error("[NGOSubmit] Registration cert upload failed:", regErr);
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: regErr?.message || "Registration cert upload failed", stackTrace: regErr?.stack, ...filePayload(form.regCert), isError: true });
+          alert(regErr?.message || "Registration certificate upload failed. Please check your file and connection.");
+          setSubmitStatus(null);
+          return;
+        }
+      } else {
+        console.warn("[NGOSubmit] No reg cert to upload");
+      }
+
+      // ── Upload 80G cert (sequential, with timeout) ──
+      if (form.eightyGCert) {
+        setSubmitStatus("Uploading 80G certificate…");
+        logError({ formType: FORM_TYPE, step: "upload", errorMessage: "80G cert upload started", ...filePayload(form.eightyGCert) });
+        console.log("[NGOSubmit] Uploading 80G cert");
+        try {
+          eightyGCertURL = await uploadFileWithTimeout(storage, form.eightyGCert, `ngos/80G/${user.uid}_${Date.now()}`, "80G cert");
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: "80G cert upload completed", ...filePayload(form.eightyGCert) });
+        } catch (eightyErr: any) {
+          console.error("[NGOSubmit] 80G cert upload failed:", eightyErr);
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: eightyErr?.message || "80G cert upload failed", stackTrace: eightyErr?.stack, ...filePayload(form.eightyGCert), isError: true });
+          alert(eightyErr?.message || "80G certificate upload failed. Please check your file and connection.");
+          setSubmitStatus(null);
+          return;
+        }
+      } else {
+        console.warn("[NGOSubmit] No 80G cert to upload");
+      }
 
       setSubmitStatus("Saving your profile…");
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: "Firestore save started" });
       await setDoc(
         doc(db, "ngos_web", user.uid),
         {
@@ -811,6 +897,7 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
       );
 
       setSubmitStatus("Done!");
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: "Firestore save completed" });
       setTimeout(() => {
         setHasApplied(true);
         setExistingApp({
@@ -820,8 +907,9 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
         });
         setSubmitStatus(null);
       }, 800);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Submission error:", err);
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: err?.message || "Firestore save failed", stackTrace: err?.stack, isError: true });
       alert("Submission failed. Please check your connection and try again.");
       setSubmitStatus(null);
     }
@@ -1115,21 +1203,21 @@ function NGORegistrationForm({ onClose }: { onClose: () => void }) {
             </p>
           </div>
           <FileDropzone
-            label="NGO Logo *"
+            label={`NGO Logo * — Max ${FORMATTED_MAX_SIZE}`}
             accept="image/*"
             onChange={handleFile("logo")}
             file={form.logo}
             error={errors.logo}
           />
           <FileDropzone
-            label="Registration Certificate *"
+            label={`Registration Certificate * — Max ${FORMATTED_MAX_SIZE}`}
             accept=".pdf,.jpg,.jpeg,.png"
             onChange={handleFile("regCert")}
             file={form.regCert}
             error={errors.regCert}
           />
           <FileDropzone
-            label="80G Tax Certificate (Optional)"
+            label={`80G Tax Certificate — Max ${FORMATTED_MAX_SIZE}`}
             accept=".pdf,.jpg,.jpeg,.png"
             onChange={handleFile("eightyGCert")}
             file={form.eightyGCert}

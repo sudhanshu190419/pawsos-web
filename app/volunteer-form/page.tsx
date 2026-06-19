@@ -7,9 +7,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { auth, db, storage } from "../lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp, GeoPoint } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged } from "firebase/auth";
-import { useRouter } from "next/navigation"; // 🔥 Make sure this is imported!
+import { useRouter } from "next/navigation";
+import { validateFile, uploadFileWithTimeout, ALLOWED_IMAGE_TYPES, FORMATTED_MAX_SIZE } from "../lib/uploadUtils";
+import { logError, filePayload, setupGlobalErrorHandling, type FormType } from "../lib/errorLogger";
+
+const FORM_TYPE: FormType = "volunteer";
 
 export default function VolunteerFormPage() {
   const [user, setUser] = useState<any>(null);
@@ -32,6 +35,8 @@ export default function VolunteerFormPage() {
   const router = useRouter(); // 🔥 Initialize the router
 
   useEffect(() => {
+    setupGlobalErrorHandling(FORM_TYPE);
+
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -63,7 +68,6 @@ export default function VolunteerFormPage() {
         
         setChecking(false); // Only stop checking if they are logged in
       } else {
-        // 🔥 NEW: If no user is found, instantly redirect to the auth page
         router.push(
   `/auth?redirect=${encodeURIComponent("/volunteer-form")}`
 );
@@ -115,15 +119,37 @@ export default function VolunteerFormPage() {
       return;
     }
 
+    // ── File validation ──
+    const photoValidateMsg = validateFile(photo, ALLOWED_IMAGE_TYPES);
+    if (photoValidateMsg) {
+      logError({ formType: FORM_TYPE, step: "validation", errorMessage: photoValidateMsg, ...filePayload(photo), isError: true });
+      alert(`Photo: ${photoValidateMsg}`);
+      return;
+    }
+
     try {
       let photoURL = "";
 
       /* 1. Upload photo to Firebase Storage */
       if (photo) {
         setSubmitStatus("📸 Uploading your photo...");
-        const storageRef = ref(storage, `volunteerPhotos/${user.uid}_${Date.now()}_${photo.name}`);
-        await uploadBytes(storageRef, photo);
-        photoURL = await getDownloadURL(storageRef);
+        logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Photo upload started", ...filePayload(photo) });
+        console.log("[VolSubmit] Uploading photo");
+        try {
+          photoURL = await uploadFileWithTimeout(
+            storage,
+            photo,
+            `volunteerPhotos/${user.uid}_${Date.now()}_${photo.name}`,
+            "Profile photo"
+          );
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: "Photo upload completed", ...filePayload(photo) });
+        } catch (photoErr: any) {
+          console.error("[VolSubmit] Photo upload failed:", photoErr);
+          logError({ formType: FORM_TYPE, step: "upload", errorMessage: photoErr?.message || "Photo upload failed", stackTrace: photoErr?.stack, ...filePayload(photo), isError: true });
+          alert(photoErr?.message || "Photo upload failed. Please check your file and connection.");
+          setSubmitStatus(null);
+          return;
+        }
       }
 
       /* 2. Call backend to generate ID card and certificate */
@@ -150,6 +176,7 @@ export default function VolunteerFormPage() {
 
       /* 4. Update existing user document in Firestore */
       setSubmitStatus("🔐 Securing your profile...");
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: "Firestore save started" });
       await setDoc(
         doc(db, "users", user.uid),
         {
@@ -171,6 +198,7 @@ export default function VolunteerFormPage() {
       );
 
       setSubmitStatus("✅ Done!");
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: "Firestore save completed" });
 
       setTimeout(() => {
         setStatus("pending");
@@ -186,8 +214,9 @@ export default function VolunteerFormPage() {
         setSubmitStatus(null);
       }, 800);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting form:", error);
+      logError({ formType: FORM_TYPE, step: "firestore", errorMessage: error?.message || "Submission error", stackTrace: error?.stack, isError: true });
       alert("Something went wrong while generating documents or updating profile.");
       setSubmitStatus(null);
     }
@@ -407,12 +436,23 @@ export default function VolunteerFormPage() {
           {/* PHOTO UPLOAD */}
           <div className="border border-orange-300 rounded-xl p-4 sm:p-6 text-center bg-orange-50 hover:bg-orange-100 transition">
             <label className="cursor-pointer text-orange-600 font-semibold text-base sm:text-lg flex flex-col items-center gap-2">
-              <span>📷 Upload Photo</span>
+              <span>📷 Upload Photo — Max {FORMATTED_MAX_SIZE}</span>
               <input
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => setPhoto(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (file) {
+                    const err = validateFile(file, ALLOWED_IMAGE_TYPES);
+                    if (err) {
+                      logError({ formType: FORM_TYPE, step: "validation", errorMessage: err, ...filePayload(file), isError: true });
+                      alert(`Photo: ${err}`);
+                      return;
+                    }
+                  }
+                  setPhoto(file);
+                }}
               />
             </label>
             {photo && (
