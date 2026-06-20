@@ -26,6 +26,7 @@ import { sanitizeIndianPhone, extractPincodeState } from "../lib/shiprocket";
 import type { CartItem } from "./cart/cartTypes";
 import { calculateCheckoutTotals } from "./cart/cartHelpers";
 import type { CheckoutTotals } from "./cart/cartHelpers";
+import { PLATFORM_COMMISSION_RATE, createSellerPayout } from "../lib/orders";
 
 type CheckoutItem = CartItem;
 
@@ -448,11 +449,11 @@ export default function CheckoutPanel({
       }));
 
       const vendorGroups = Object.values(
-        items.reduce<Record<string, { brandId: string; brandName: string; shiprocketPickupId: number | null; shiprocketPickupName: string | null; items: typeof orderItems; subtotal: number }>>(
+        items.reduce<Record<string, { brandId: string; brandName: string; shiprocketPickupId: number | null; shiprocketPickupName: string | null; items: typeof orderItems; subtotal: number; platformFee: number; sellerPayoutAmount: number }>>(
           (acc, item) => {
             const key = item.brandId || "unknown";
             if (!acc[key]) {
-              acc[key] = { brandId: item.brandId, brandName: item.brandName || "Verified Store", shiprocketPickupId: item.shiprocketPickupId, shiprocketPickupName: null, items: [], subtotal: 0 };
+              acc[key] = { brandId: item.brandId, brandName: item.brandName || "Verified Store", shiprocketPickupId: item.shiprocketPickupId, shiprocketPickupName: null, items: [], subtotal: 0, platformFee: 0, sellerPayoutAmount: 0 };
             }
             acc[key].items.push({
               productId: item.id,
@@ -471,7 +472,17 @@ export default function CheckoutPanel({
             acc[key].subtotal += item.price * item.qty;
             return acc;
           }, {})
-      );
+      ).map((group) => {
+        const fee = Math.round(group.subtotal * PLATFORM_COMMISSION_RATE);
+        return {
+          ...group,
+          platformFee: fee,
+          sellerPayoutAmount: group.subtotal - fee,
+        };
+      });
+
+      const totalPlatformFee = vendorGroups.reduce((sum, g) => sum + g.platformFee, 0);
+      const totalSellerPayout = vendorGroups.reduce((sum, g) => sum + g.sellerPayoutAmount, 0);
 
       let orderRefId = "";
       const orderRef = doc(collection(db, "orders"));
@@ -529,6 +540,8 @@ export default function CheckoutPanel({
           paidAt: paidAt || null,
           orderStatus: "placed",
           createdAt: serverTimestamp(),
+          totalPlatformFee,
+          totalSellerPayout,
         });
       });
 
@@ -634,6 +647,26 @@ export default function CheckoutPanel({
       };
 
       createShipmentsAsync();
+
+      // ── Create seller payout records (non-blocking, fire-and-forget) ──
+      const createPayoutsAsync = async () => {
+        for (const group of vendorGroups) {
+          if (!group.brandId || group.brandId === "unknown") continue;
+          try {
+            await createSellerPayout({
+              sellerId: group.brandId,
+              sellerName: group.brandName,
+              orderId: orderRefId,
+              orderItemCount: group.items.length,
+              amount: group.sellerPayoutAmount,
+              platformFee: group.platformFee,
+            });
+          } catch (err) {
+            console.error(`[PAYOUT] Failed to create payout for ${group.brandName}:`, err);
+          }
+        }
+      };
+      createPayoutsAsync();
 
       // ── Send order confirmation email (non-blocking, fire-and-forget) ──
       sendOrderEmailAsync(orderRefId);

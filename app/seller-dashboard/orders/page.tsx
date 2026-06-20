@@ -10,6 +10,7 @@ import {
   listenToSellerOrders,
   getSellerItemsFromOrder,
   getSellerSubtotalFromOrder,
+  PLATFORM_COMMISSION_RATE,
   type Order,
   type OrderItem,
   type OrderStatus,
@@ -393,6 +394,20 @@ const SellerOrderRow = ({
               {sellerItems.length} item{sellerItems.length !== 1 ? "s" : ""} · ₹{sellerSubtotal.toLocaleString("en-IN")}
             </p>
           </div>
+          {/* Seller payout amount */}
+          {(() => {
+            const vendorGroup = order.vendorGroups?.find((g) => g.brandId === brandId);
+            const payout = vendorGroup?.sellerPayoutAmount ?? sellerSubtotal;
+            const platformFee = vendorGroup?.platformFee ?? Math.round(sellerSubtotal * PLATFORM_COMMISSION_RATE);
+            return (
+              <div className="hidden sm:flex flex-col items-end flex-shrink-0 mr-2">
+                <p className="text-xs font-bold text-emerald-600">₹{payout.toLocaleString("en-IN")}</p>
+                {platformFee > 0 && (
+                  <p className="text-[9px] text-slate-400">Fee: ₹{platformFee.toLocaleString("en-IN")}</p>
+                )}
+              </div>
+            );
+          })()}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${ORDER_STATUS_COLORS[order.orderStatus] || "bg-slate-100 text-slate-600"}`}>

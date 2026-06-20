@@ -8,10 +8,22 @@ import {
   query,
   where,
   limit,
+  addDoc,
+  serverTimestamp,
   type Timestamp,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
+
+/* ═══════════════════════════════════════════════════
+   PLATFORM COMMISSION
+   ═══════════════════════════════════════════════════ */
+
+/**
+ * Platform commission rate as a decimal (e.g., 0.10 = 10%).
+ * Currently 0% - update this when ready to charge commission.
+ */
+export const PLATFORM_COMMISSION_RATE = 0; // 0% – configurable
 
 /* ═══════════════════════════════════════════════════
    ORDER STATUS
@@ -151,6 +163,10 @@ export interface VendorGroup {
   shiprocketPickupName: string | null;
   items: OrderItem[];
   subtotal: number;
+  /** Platform commission charged on this vendor's items (₹) */
+  platformFee: number;
+  /** Net amount the seller receives after platform fees (₹) */
+  sellerPayoutAmount: number;
 }
 
 export interface OrderAddress {
@@ -182,6 +198,10 @@ export interface Order {
   paymentStatus: string;
   orderStatus: OrderStatus;
   createdAt: Timestamp;
+  /** Sum of platform fees across all vendor groups (₹) */
+  totalPlatformFee?: number;
+  /** Sum of seller payouts across all vendor groups (₹) */
+  totalSellerPayout?: number;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -236,6 +256,31 @@ export function listenToSellerOrders(
   const q = query(
     collection(db, "orders"),
     where("vendorIds", "array-contains", brandId),
+    orderBy("createdAt", "desc"),
+    limit(50)
+  );
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const orders = snapshot.docs.map((d) => ({
+        orderId: d.id,
+        ...d.data(),
+      })) as Order[];
+      onData(orders);
+    },
+    onError
+  );
+}
+
+/**
+ * Listen to ALL orders (admin view) — no filters, newest first.
+ */
+export function listenToAllOrders(
+  onData: (orders: Order[]) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, "orders"),
     orderBy("createdAt", "desc"),
     limit(50)
   );
@@ -384,6 +429,134 @@ export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
 }
 
 /* ═══════════════════════════════════════════════════
+   SELLER PAYOUT TYPES
+   ═══════════════════════════════════════════════════ */
+
+export type SellerPayoutStatus = "pending" | "paid" | "failed";
+
+export interface SellerPayout {
+  id?: string;
+  sellerId: string;
+  /** Brand name of the seller (denormalized for admin view) */
+  sellerName: string;
+  orderId: string;
+  /** Number of items from this seller in the order */
+  orderItemCount: number;
+  amount: number;
+  platformFee: number;
+  status: SellerPayoutStatus;
+  paidAt?: Timestamp | null;
+  paidBy?: string | null;
+  paymentNote?: string | null;
+  createdAt?: Timestamp;
+}
+
+/**
+ * Create a seller payout record when an order is placed.
+ */
+export async function createSellerPayout(params: {
+  sellerId: string;
+  sellerName: string;
+  orderId: string;
+  orderItemCount: number;
+  amount: number;
+  platformFee: number;
+}): Promise<string> {
+  const docRef = await addDoc(collection(db, "seller_payouts"), {
+    sellerId: params.sellerId,
+    sellerName: params.sellerName,
+    orderId: params.orderId,
+    orderItemCount: params.orderItemCount,
+    amount: params.amount,
+    platformFee: params.platformFee,
+    status: "pending",
+    paidAt: null,
+    paidBy: null,
+    paymentNote: null,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+/**
+ * Listen to payouts for a specific seller in real-time.
+ */
+export function listenToSellerPayouts(
+  sellerId: string,
+  onData: (payouts: SellerPayout[]) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, "seller_payouts"),
+    where("sellerId", "==", sellerId),
+    orderBy("createdAt", "desc"),
+    limit(50)
+  );
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const payouts = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as SellerPayout[];
+      onData(payouts);
+    },
+    onError
+  );
+}
+
+/**
+ * Listen to all pending seller payouts (admin view).
+ */
+export function listenToPendingPayouts(
+  onData: (payouts: SellerPayout[]) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, "seller_payouts"),
+    where("status", "==", "pending"),
+    orderBy("createdAt", "desc"),
+    limit(100)
+  );
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const payouts = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as SellerPayout[];
+      onData(payouts);
+    },
+    onError
+  );
+}
+
+/**
+ * Listen to ALL payouts (admin view - for history tab).
+ */
+export function listenToAllPayouts(
+  onData: (payouts: SellerPayout[]) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, "seller_payouts"),
+    orderBy("createdAt", "desc"),
+    limit(100)
+  );
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const payouts = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as SellerPayout[];
+      onData(payouts);
+    },
+    onError
+  );
+}
+
+/* ═══════════════════════════════════════════════════
    ORDER ITEM HELPERS
    ═══════════════════════════════════════════════════ */
 
@@ -426,7 +599,7 @@ export function buildOrderItems(
  * Build vendor groups from order items for grouped shipping.
  */
 export function buildVendorGroups(items: OrderItem[]): VendorGroup[] {
-  const groups = items.reduce<Record<string, VendorGroup>>((acc, item) => {
+  const groups = items.reduce<Record<string, Omit<VendorGroup, "platformFee" | "sellerPayoutAmount">>>((acc, item) => {
     const key = item.brandId || "unknown";
     if (!acc[key]) {
       acc[key] = {
@@ -442,5 +615,12 @@ export function buildVendorGroups(items: OrderItem[]): VendorGroup[] {
     acc[key].subtotal += item.price * item.quantity;
     return acc;
   }, {});
-  return Object.values(groups);
+  return Object.values(groups).map((group) => {
+    const fee = Math.round(group.subtotal * PLATFORM_COMMISSION_RATE);
+    return {
+      ...group,
+      platformFee: fee,
+      sellerPayoutAmount: group.subtotal - fee,
+    };
+  });
 }

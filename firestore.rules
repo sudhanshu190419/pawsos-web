@@ -264,6 +264,23 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────
+    // SELLER PAYOUTS
+    // ─────────────────────────────────────────────
+    // - Read: the seller (sellerId matches uid) or admin.
+    // - Create: any authenticated user (written at checkout time).
+    // - Update: only admin (to mark as paid).
+    // - Delete: none.
+    match /seller_payouts/{payoutId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.sellerId ||
+        isAdmin()
+      );
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && isAdmin();
+      allow delete: if false;
+    }
+
+    // ─────────────────────────────────────────────
     // PLATFORM SETTINGS (admin only)
     // ─────────────────────────────────────────────
     match /platform_settings/{settingId} {

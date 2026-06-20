@@ -19,7 +19,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Heart,
-  Stethoscope
+  Stethoscope,
+  DollarSign
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
@@ -32,6 +33,14 @@ import OrganizationApprovals from "../components/OrganizationApprovals";
 import SellerApprovals from "../components/SellerApprovals";
 
 import { useUserMeta } from "../hooks/useUserMeta";
+import {
+  listenToAllPayouts,
+  listenToAllOrders,
+  type SellerPayout,
+  type Order,
+} from "../lib/orders";
+import AdminPayoutsPanel from "../components/AdminPayoutsPanel";
+import AdminOrdersPanel from "../components/AdminOrdersPanel";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -54,6 +63,10 @@ export default function AdminDashboard() {
   const [pendingVetCount, setPendingVetCount] = useState(0);
   const [pendingOrgCount, setPendingOrgCount] = useState(0);
   const [pendingSellerCount, setPendingSellerCount] = useState(0);
+  const [pendingPayoutCount, setPendingPayoutCount] = useState(0);
+  const [payouts, setPayouts] = useState<SellerPayout[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
   // Existing Data Fetching (Only runs if authorized)
   useEffect(() => {
@@ -84,12 +97,33 @@ export default function AdminDashboard() {
       setPendingSellerCount(snapshot.size);
     });
 
+    const unsubPayouts = listenToAllPayouts(
+      (data) => {
+        setPayouts(data);
+        setPendingPayoutCount(data.filter((p) => p.status === "pending").length);
+      },
+      (err) => console.error("Failed to load payouts:", err)
+    );
+
+    const unsubOrders = listenToAllOrders(
+      (data) => {
+        setAllOrders(data);
+        setOrdersLoading(false);
+      },
+      (err) => {
+        console.error("Failed to load orders:", err);
+        setOrdersLoading(false);
+      }
+    );
+
     return () => {
       unsubNGO();
       unsubSOS();
       unsubVet();
       unsubOrg();
       unsubSeller();
+      unsubPayouts();
+      unsubOrders();
     };
   }, [isAdminAuthorized]);
 
@@ -142,8 +176,11 @@ export default function AdminDashboard() {
           <div onClick={() => setActiveTab("sellers")}>
             <NavItem icon={ShoppingBag} label="Sellers" badge={pendingSellerCount > 0 ? pendingSellerCount : null} active={activeTab === "sellers"} isOpen={isSidebarOpen} />
           </div>
+          <div onClick={() => setActiveTab("payouts")}>
+            <NavItem icon={DollarSign} label="Payouts" badge={pendingPayoutCount > 0 ? pendingPayoutCount : null} active={activeTab === "payouts"} isOpen={isSidebarOpen} />
+          </div>
           <div onClick={() => setActiveTab("shop")}>
-            <NavItem icon={ShoppingBag} label="Marketplace" active={activeTab === "shop"} isOpen={isSidebarOpen} />
+            <NavItem icon={ShoppingBag} label="Orders" active={activeTab === "shop"} isOpen={isSidebarOpen} />
           </div>
         </nav>
 
@@ -294,20 +331,21 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {activeTab === "payouts" && (
+            <div className="animate-fadeUp max-w-5xl mx-auto">
+              <AdminPayoutsPanel
+                payouts={payouts}
+                user={user}
+                onUpdated={() => {
+                  // Refresh is handled by the listener
+                }}
+              />
+            </div>
+          )}
+
           {activeTab === "shop" && (
-            <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm flex flex-col animate-fadeUp">
-              <div className="px-8 py-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-                <h2 className="text-lg font-bold text-slate-800">Shop Orders Management</h2>
-              </div>
-              <div className="p-24 flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 rounded-[2rem] bg-primary/5 flex items-center justify-center mb-8 border border-primary/10">
-                  <ShoppingBag className="w-10 h-10 text-primary opacity-40" />
-                </div>
-                <h3 className="text-2xl font-extrabold text-slate-800 mb-3 tracking-tight">Marketplace Terminal Offline</h3>
-                <p className="text-slate-500 max-w-md font-medium leading-relaxed">
-                  This secure gateway will track merchandise orders, medical supply logistics, and vendor inventory once the commerce layer is activated.
-                </p>
-              </div>
+            <div className="animate-fadeUp max-w-6xl mx-auto">
+              <AdminOrdersPanel orders={allOrders} loading={ordersLoading} />
             </div>
           )}
         </div>
