@@ -132,7 +132,7 @@ export default function CheckoutPanel({
 
   // ── SINGLE SOURCE OF TRUTH for all checkout pricing ──
   const totals: CheckoutTotals = calculateCheckoutTotals(items, promoApplied);
-  const { subtotal, deliveryFee, discount, taxes, total } = totals;
+  const { subtotal, deliveryFee, discount, total } = totals;
 
   // ── Firebase Functions: send order confirmation email (non-blocking) ──
   const functions = getFunctions();
@@ -154,7 +154,6 @@ export default function CheckoutPanel({
             price: item.price,
           })),
           subtotal,
-          taxes,
           deliveryFee,
           totalAmount: total,
           paymentMethod: selectedPayment,
@@ -174,7 +173,7 @@ export default function CheckoutPanel({
         console.warn("[ORDER EMAIL] Failed to send (non-blocking):", err);
       }
     },
-    [items, userName, subtotal, taxes, deliveryFee, total, selectedPayment]
+    [items, userName, subtotal, deliveryFee, total, selectedPayment]
   );
 
   const steps = [
@@ -472,12 +471,17 @@ export default function CheckoutPanel({
             acc[key].subtotal += item.price * item.qty;
             return acc;
           }, {})
-      ).map((group) => {
+      ).map((group, _, arr) => {
         const fee = Math.round(group.subtotal * PLATFORM_COMMISSION_RATE);
+        // Allocate delivery fee proportionally by subtotal across sellers
+        const totalSubtotal = arr.reduce((sum, g) => sum + g.subtotal, 0);
+        const deliveryShare = totalSubtotal > 0
+          ? Math.round((deliveryFee * (group.subtotal / totalSubtotal)) * 100) / 100
+          : 0;
         return {
           ...group,
           platformFee: fee,
-          sellerPayoutAmount: group.subtotal - fee,
+          sellerPayoutAmount: group.subtotal - fee + deliveryShare,
         };
       });
 
@@ -530,7 +534,6 @@ export default function CheckoutPanel({
           shipments: [],
           subtotal,
           deliveryFee,
-          taxes,
           totalAmount: total,
           address,
           paymentMethod,
@@ -673,7 +676,7 @@ export default function CheckoutPanel({
 
       return orderRefId;
     },
-    [items, userId, userName, subtotal, deliveryFee, taxes, total, customerPhone]
+    [items, userId, userName, subtotal, deliveryFee, total, customerPhone]
   );
 
   // ── Razorpay online payment handler ──
@@ -1517,10 +1520,6 @@ export default function CheckoutPanel({
                     <span className="text-emerald-600 font-semibold">-₹{discount.toLocaleString("en-IN")}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500">Taxes &amp; Charges</span>
-                  <span className="text-slate-700 font-medium">₹{taxes.toLocaleString("en-IN")}</span>
-                </div>
                 <div className="border-t border-slate-200 pt-2 mt-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-slate-900">Total</span>

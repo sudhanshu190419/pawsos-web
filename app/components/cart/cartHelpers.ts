@@ -15,21 +15,18 @@ export type CheckoutTotals = {
   subtotal: number;
   deliveryFee: number;
   discount: number;
-  taxes: number;
   total: number;
 };
 
 const DELIVERY_FEE_THRESHOLD = 500;
 const DELIVERY_FEE_AMOUNT = 40;
-const TAX_RATE = 0.05; // 5%
 const DISCOUNT_RATE = 0.1; // 10% – for "save10" promo
 
 /**
  * Returns checkout pricing derived from cart items.
  * - deliveryFee: ₹40 waived if subtotal > 500
- * - taxes: 5% of subtotal
  * - discount: 10% of subtotal when promoApplied
- * - total: subtotal + deliveryFee + taxes - discount
+ * - total: subtotal + deliveryFee - discount
  */
 export function calculateCheckoutTotals(
   items: CartItem[],
@@ -42,10 +39,9 @@ export function calculateCheckoutTotals(
 
   const deliveryFee = subtotal > DELIVERY_FEE_THRESHOLD ? 0 : DELIVERY_FEE_AMOUNT;
   const discount = promoApplied ? Math.round(subtotal * DISCOUNT_RATE) : 0;
-  const taxes = Math.round(subtotal * TAX_RATE);
-  const total = subtotal + deliveryFee + taxes - discount;
+  const total = subtotal + deliveryFee - discount;
 
-  const totals: CheckoutTotals = { subtotal, deliveryFee, discount, taxes, total };
+  const totals: CheckoutTotals = { subtotal, deliveryFee, discount, total };
 
   console.log("CHECKOUT TOTALS", totals);
 

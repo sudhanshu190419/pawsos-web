@@ -445,9 +445,20 @@ const SellerOrderRow = ({
             ))}
           </div>
 
-          {/* Customer & dates */}
+          {/* Customer, delivery fee & dates */}
           <div className="flex items-center justify-between text-[10px] text-slate-400">
-            <span>Customer: {order.userName || "Anonymous"}</span>
+            <div className="flex items-center gap-3">
+              <span>Customer: {order.userName || "Anonymous"}</span>
+              <span className="w-px h-3 bg-slate-200" />
+              <span className="flex items-center gap-1">
+                Delivery:
+                {order.deliveryFee === 0 ? (
+                  <span className="text-emerald-600 font-semibold">FREE</span>
+                ) : (
+                  <span>₹{order.deliveryFee.toLocaleString("en-IN")}</span>
+                )}
+              </span>
+            </div>
             <span>
               {order.createdAt?.toDate?.().toLocaleDateString("en-IN", {
                 day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",

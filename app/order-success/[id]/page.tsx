@@ -364,12 +364,6 @@ export default function OrderSuccessPage() {
                 )}
               </span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-500">Taxes</span>
-              <span className="text-slate-700 font-medium">
-                ₹{order.taxes.toLocaleString("en-IN")}
-              </span>
-            </div>
             <div className="border-t border-slate-200 pt-2 mt-2">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-slate-900">Total</span>

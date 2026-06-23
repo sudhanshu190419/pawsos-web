@@ -173,7 +173,7 @@ const CartDrawer = memo(
                   </p>
                 </div>
                 <span className="text-[10px] text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full font-medium">
-                  Taxes calculated at checkout
+                  FREE delivery above ₹500
                 </span>
               </div>
               <button

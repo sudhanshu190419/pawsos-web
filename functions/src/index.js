@@ -2367,7 +2367,6 @@ function buildPriceRow(label, value, isTotal) {
  *     customerEmail: string,
  *     items: Array<{ productName: string, quantity: number, price: number }>,
  *     subtotal: number,
- *     taxes: number,
  *     deliveryFee: number,
  *     totalAmount: number,
  *     paymentMethod: string,
@@ -2392,7 +2391,6 @@ exports.sendOrderConfirmation = onCall(
       customerEmail,
       items,
       subtotal,
-      taxes,
       deliveryFee,
       totalAmount,
       paymentMethod,
@@ -2472,8 +2470,7 @@ exports.sendOrderConfirmation = onCall(
           ...(Array.isArray(items) ? items.map((i) => `  ${i.productName || "Item"} x${i.quantity || 1} — ₹${(Number(i.price || 0) * (i.quantity || 1)).toLocaleString("en-IN")}`) : []),
           "",
           `Subtotal: ₹${Number(subtotal || 0).toLocaleString("en-IN")}`,
-          `Delivery Fee: ₹${Number(deliveryFee || 0).toLocaleString("en-IN")}`,
-          `Taxes: ₹${Number(taxes || 0).toLocaleString("en-IN")}`,
+          `Delivery Fee: ${deliveryFee === 0 ? 'FREE' : `₹${Number(deliveryFee).toLocaleString("en-IN")}`}`,
           `Total: ₹${Number(totalAmount || 0).toLocaleString("en-IN")}`,
           "",
           `Payment Method: ${paymentLabel}`,
@@ -2528,7 +2525,6 @@ exports.sendOrderConfirmation = onCall(
                 <table width="100%" cellpadding="0" cellspacing="0" border="0">
                   ${buildPriceRow("Subtotal", `₹${Number(subtotal || 0).toLocaleString("en-IN")}`, false)}
                   ${buildPriceRow("Delivery Fee", deliveryFee === 0 ? '<span style="color:#16a34a;font-weight:700;">FREE</span>' : `₹${Number(deliveryFee).toLocaleString("en-IN")}`, false)}
-                  ${buildPriceRow("Taxes & Charges", `₹${Number(taxes || 0).toLocaleString("en-IN")}`, false)}
                   ${buildPriceRow("Total Amount", `₹${Number(totalAmount || 0).toLocaleString("en-IN")}`, true)}
                 </table>
               </div>

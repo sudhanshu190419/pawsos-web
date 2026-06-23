@@ -154,6 +154,12 @@ export interface Shipment {
   trackingUrl: string | null;
   shipmentStatus: string | null;
   createdAt: any;
+  /** The delivery fee collected from the customer for this shipment (₹) */
+  deliveryFeeCollected?: number;
+  /** The actual shipping cost charged by Shiprocket (₹). Null until fetched. */
+  actualShippingCost?: number | null;
+  /** Profit/loss = deliveryFeeCollected - actualShippingCost (₹) */
+  shippingMargin?: number | null;
 }
 
 export interface VendorGroup {
@@ -191,7 +197,6 @@ export interface Order {
   shipments: Shipment[];
   subtotal: number;
   deliveryFee: number;
-  taxes: number;
   totalAmount: number;
   shippingAddress: OrderAddress;
   paymentMethod: string;
@@ -202,6 +207,12 @@ export interface Order {
   totalPlatformFee?: number;
   /** Sum of seller payouts across all vendor groups (₹) */
   totalSellerPayout?: number;
+  /** Total delivery fee collected across all shipments (₹) — same as deliveryFee */
+  totalDeliveryFeeCollected?: number;
+  /** Sum of actual shipping costs across all shipments (₹). Null until data arrives. */
+  totalActualShippingCost?: number | null;
+  /** Total shipping profit/loss across all shipments (₹) */
+  totalShippingMargin?: number | null;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -554,6 +565,160 @@ export function listenToAllPayouts(
     },
     onError
   );
+}
+
+/* ═══════════════════════════════════════════════════
+   SHIPPING ANALYTICS HELPERS
+   ═══════════════════════════════════════════════════ */
+
+export interface ShippingAnalytics {
+  totalDeliveryFeesCollected: number;
+  totalActualShippingCost: number;
+  totalShippingMargin: number;
+  /** Number of orders that have at least one shipment with actual cost data */
+  ordersWithCostData: number;
+  /** Number of shipments that have actual cost data */
+  shipmentsWithCostData: number;
+  avgShippingCostPerOrder: number | null;
+  avgShippingCostPerShipment: number | null;
+  avgShippingMarginPerOrder: number | null;
+  avgShippingCostPerKg: number | null;
+  /** Breakdown by courier name */
+  byCourier: Record<string, {
+    count: number;
+    totalCost: number;
+    totalCollected: number;
+    totalMargin: number;
+  }>;
+}
+
+/**
+ * Calculate the total weight of items belonging to a specific vendor group in an order.
+ */
+function getVendorGroupWeight(order: Order, brandId: string): number {
+  const group = order.vendorGroups?.find((g) => g.brandId === brandId);
+  if (!group) return 0;
+  return group.items.reduce((sum, item) => sum + (item.weight || 0.5) * item.quantity, 0);
+}
+
+/**
+ * Calculate shipping analytics from a list of orders.
+ *
+ * Delivery fee allocation (Option C):
+ * The delivery fee is stored ONLY at the order level (order.deliveryFee).
+ * For the per-courier breakdown, the fee is allocated proportionally
+ * by shipment weight using:
+ *   allocatedFee = order.deliveryFee × (shipmentWeight / totalOrderWeight)
+ *
+ * Backward compatibility: Old shipments that have deliveryFeeCollected
+ * stored directly are also handled.
+ */
+export function calculateShippingAnalytics(orders: Order[]): ShippingAnalytics {
+  let totalDeliveryFeesCollected = 0;
+  let totalActualShippingCost = 0;
+  let totalWeight = 0;
+  let ordersWithCostData = 0;
+  let shipmentsWithCostData = 0;
+  const byCourier: Record<string, {
+    count: number;
+    totalCost: number;
+    totalCollected: number;
+    totalMargin: number;
+  }> = {};
+
+  for (const order of orders) {
+    totalDeliveryFeesCollected += order.deliveryFee || 0;
+
+    // Calculate total order weight once per order
+    const orderWeight = (order.items || []).reduce(
+      (sum, item) => sum + (item.weight || 0.5) * item.quantity,
+      0
+    );
+    totalWeight += orderWeight;
+
+    let hasCostData = false;
+
+    for (const shipment of (order.shipments || [])) {
+      const cost = shipment.actualShippingCost;
+      if (cost !== null && cost !== undefined) {
+        totalActualShippingCost += cost;
+        shipmentsWithCostData++;
+        hasCostData = true;
+      }
+
+      // ── Allocate delivery fee for this shipment ──
+      // Option C: Use weight-proportional allocation from order.deliveryFee
+      let allocatedFee: number;
+      if (shipment.deliveryFeeCollected !== undefined && shipment.deliveryFeeCollected !== null) {
+        // Backward compatibility: old shipments have the raw fee stored
+        allocatedFee = shipment.deliveryFeeCollected;
+      } else {
+        // New approach: allocate proportionally by weight
+        // Get this shipment's weight from vendor groups
+        const shipmentWeight = getVendorGroupWeight(order, shipment.brandId);
+        if (orderWeight > 0 && shipmentWeight > 0) {
+          allocatedFee = Math.round(
+            ((order.deliveryFee || 0) * (shipmentWeight / orderWeight)) * 100
+          ) / 100;
+        } else {
+          // Fallback: equal split if no weight data
+          const shipmentCount = (order.shipments || []).length;
+          allocatedFee = shipmentCount > 0
+            ? Math.round(((order.deliveryFee || 0) / shipmentCount) * 100) / 100
+            : 0;
+        }
+      }
+
+      // Calculate margin using allocated fee
+      const margin =
+        cost !== null && cost !== undefined
+          ? Math.round((allocatedFee - cost) * 100) / 100
+          : null;
+
+      // Track by courier
+      const courier = shipment.courierName || "Unknown";
+      if (!byCourier[courier]) {
+        byCourier[courier] = { count: 0, totalCost: 0, totalCollected: 0, totalMargin: 0 };
+      }
+      byCourier[courier].count++;
+      if (cost !== null && cost !== undefined) {
+        byCourier[courier].totalCost += cost;
+      }
+      byCourier[courier].totalCollected += allocatedFee;
+      if (margin !== null) {
+        byCourier[courier].totalMargin += margin;
+      }
+    }
+
+    if (hasCostData) ordersWithCostData++;
+  }
+
+  const totalShippingMargin = totalDeliveryFeesCollected - totalActualShippingCost;
+
+  return {
+    totalDeliveryFeesCollected,
+    totalActualShippingCost,
+    totalShippingMargin,
+    ordersWithCostData,
+    shipmentsWithCostData,
+    avgShippingCostPerOrder:
+      ordersWithCostData > 0
+        ? Math.round((totalActualShippingCost / ordersWithCostData) * 100) / 100
+        : null,
+    avgShippingCostPerShipment:
+      shipmentsWithCostData > 0
+        ? Math.round((totalActualShippingCost / shipmentsWithCostData) * 100) / 100
+        : null,
+    avgShippingMarginPerOrder:
+      ordersWithCostData > 0
+        ? Math.round((totalShippingMargin / ordersWithCostData) * 100) / 100
+        : null,
+    avgShippingCostPerKg:
+      totalWeight > 0
+        ? Math.round((totalActualShippingCost / totalWeight) * 100) / 100
+        : null,
+    byCourier,
+  };
 }
 
 /* ═══════════════════════════════════════════════════

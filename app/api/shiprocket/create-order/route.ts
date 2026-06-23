@@ -347,6 +347,67 @@ if (!ENABLE_SHIPROCKET) {
       ? `https://shiprocket.co/tracking/${awbCode}`
       : null;
 
+    // ── Fetch actual shipping cost from Shiprocket order details API ──
+    let actualShippingCost: number | null = null;
+    if (shiprocketOrderId) {
+      try {
+        console.log("\n══════════ SHIPPING COST FETCH DEBUG ══════════");
+        console.log("[COST-1] Fetching order details for Shiprocket order ID:", shiprocketOrderId);
+        const orderDetailsRes = await axios.get(
+          `https://apiv2.shiprocket.in/v1/external/orders/show/${shiprocketOrderId}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        console.log("[COST-2] Order details response keys:", Object.keys(orderDetailsRes.data || {}));
+
+        // Try to extract freight/courier cost from the response
+        // Shiprocket may return it in various fields
+        const data = orderDetailsRes.data;
+        if (data) {
+          // Check common cost-related fields
+          const possibleCostFields = [
+            "freight_charge",
+            "courier_cost",
+            "shipping_charge",
+            "courier_charges",
+            "freight",
+          ];
+          for (const field of possibleCostFields) {
+            const val = data[field];
+            if (val !== undefined && val !== null && !isNaN(Number(val))) {
+              actualShippingCost = Number(val);
+              console.log(`[COST-3] Found cost in field "${field}":`, actualShippingCost);
+              break;
+            }
+          }
+
+          // Also check nested objects like "data" or "order"
+          if (actualShippingCost === null && data.data) {
+            for (const field of possibleCostFields) {
+              const val = data.data[field];
+              if (val !== undefined && val !== null && !isNaN(Number(val))) {
+                actualShippingCost = Number(val);
+                console.log(`[COST-4] Found cost in data."${field}":`, actualShippingCost);
+                break;
+              }
+            }
+          }
+        }
+
+        if (actualShippingCost === null) {
+          console.log("[COST-5] No shipping cost field found in Shiprocket response. Will retry later.");
+        }
+        console.log("══════════ END COST DEBUG ══════════\n");
+      } catch (err: any) {
+        console.warn("[COST-ERROR] Failed to fetch order details from Shiprocket:", err.message);
+        // Non-blocking — cost stays null, can be fetched later
+      }
+    }
+
     const shipmentResult = {
       brandId,
       brandName,
@@ -357,6 +418,7 @@ if (!ENABLE_SHIPROCKET) {
       trackingUrl,
       shipmentStatus: orderResult?.status || "NEW",
       createdAt: Date.now(),
+      actualShippingCost,
     };
 
     console.log("══════════ FINAL SHIPMENT RESULT ══════════");
