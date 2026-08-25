@@ -9,8 +9,6 @@ export interface VetProfile {
   fullName?: string;
   clinicName?: string;
   verificationStatus?: VetVerificationStatus;
-  shiprocketPickupId?: number;
-  shiprocketPickupName?: string;
 }
 
 export async function fetchVetVerificationStatus(uid: string): Promise<VetVerificationStatus | null> {

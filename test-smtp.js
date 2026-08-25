@@ -15,8 +15,8 @@ const nodemailer = require("nodemailer");
 const readline = require("readline");
 
 const HOST = "smtpout.secureserver.net";
-const PORT = 587;
-const SECURE = false;
+const PORT = 465;
+const SECURE = true;
 const USER = "info@animalsathi.com";
 
 // Parse CLI args
