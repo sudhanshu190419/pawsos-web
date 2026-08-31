@@ -57,3 +57,6 @@ apphosting.emulator.yaml
 .playwright-cli/
 output/
 test-results/
+.agents/
+.firebase/
+.superpowers/

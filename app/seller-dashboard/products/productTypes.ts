@@ -10,6 +10,7 @@ export interface ProductRecord {
   name: string;
   description: string;
   category: string;
+  animals?: string[];
   price: number;
   discountPrice: number | null;
   stockQty: number;
@@ -26,6 +27,7 @@ export interface ProductFormValues {
   name: string;
   description: string;
   category: string;
+  animals: string[];
   price: string;
   discountPrice: string;
   stockQty: string;

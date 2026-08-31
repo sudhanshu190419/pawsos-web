@@ -1,5 +1,5 @@
-import FullShop from "./full-shop";
+import ShopPage from "./full-shop";
 
-export default function ShopPage() {
-  return <FullShop />;
+export default function Page() {
+  return <ShopPage />;
 }

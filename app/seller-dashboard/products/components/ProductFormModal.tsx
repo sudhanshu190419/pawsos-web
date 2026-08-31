@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
+import { ANIMAL_OPTIONS, CATEGORY_OPTIONS } from "@/app/shop/shopConstants";
 import type { ProductFormValues, ProductImageItem, ProductRecord } from "../productTypes";
 
 interface ProductFormModalProps {
@@ -19,6 +19,7 @@ const INITIAL_VALUES: ProductFormValues = {
   name: "",
   description: "",
   category: "",
+  animals: [],
   price: "",
   discountPrice: "",
   stockQty: "",
@@ -48,6 +49,7 @@ export default function ProductFormModal({
         name: initialProduct.name,
         description: initialProduct.description,
         category: initialProduct.category,
+        animals: initialProduct.animals || [],
         price: String(initialProduct.price ?? ""),
         discountPrice: initialProduct.discountPrice ? String(initialProduct.discountPrice) : "",
         stockQty: String(initialProduct.stockQty ?? ""),
@@ -78,6 +80,17 @@ export default function ProductFormModal({
 
   const handleChange = (field: keyof ProductFormValues, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAnimalToggle = (animalValue: string) => {
+    setValues((prev) => {
+      const current = prev.animals || [];
+      const exists = current.includes(animalValue);
+      const next = exists
+        ? current.filter((val) => val !== animalValue)
+        : [...current, animalValue];
+      return { ...prev, animals: next };
+    });
   };
 
   const handleFiles = (files: FileList | null) => {
@@ -130,30 +143,134 @@ export default function ProductFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 space-y-6">
+          {/* Section 1: Basic */}
           <section className="space-y-4">
             <p className="text-xs font-semibold text-orange-600 uppercase tracking-widest">Basic</p>
             <div className="grid sm:grid-cols-2 gap-4">
-              <FormInput label="Product Name *" value={values.name} onChange={(val) => handleChange("name", val)} placeholder="Premium Pet Food" error={errors?.name} />
-              <FormInput label="Category *" value={values.category} onChange={(val) => handleChange("category", val)} placeholder="Supplements" error={errors?.category} />
+              <FormInput
+                label="Product Name *"
+                value={values.name}
+                onChange={(val) => handleChange("name", val)}
+                placeholder="Premium Pet Food"
+                error={errors?.name}
+              />
+              <FormSelect
+                label="Category *"
+                value={values.category}
+                onChange={(val) => handleChange("category", val)}
+                options={CATEGORY_OPTIONS}
+                placeholder="Select category"
+                error={errors?.category}
+              />
             </div>
-            <FormTextarea label="Description *" value={values.description} onChange={(val) => handleChange("description", val)} placeholder="Short description of the product" error={errors?.description} />
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                Target Animals (Select all that apply)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {ANIMAL_OPTIONS.map((animal) => {
+                  const isSelected = (values.animals || []).includes(animal.value);
+                  return (
+                    <button
+                      key={animal.value}
+                      type="button"
+                      onClick={() => handleAnimalToggle(animal.value)}
+                      aria-pressed={isSelected}
+                      className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-orange-500 border-orange-500 text-white shadow-sm shadow-orange-500/20"
+                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300"
+                      }`}
+                    >
+                      <span className="text-sm">{animal.emoji}</span>
+                      <span>{animal.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <FormTextarea
+              label="Description *"
+              value={values.description}
+              onChange={(val) => handleChange("description", val)}
+              placeholder="Short description of the product"
+              error={errors?.description}
+            />
+          </section>
+
+          {/* Section 2: Pricing & Stock */}
+          <section className="space-y-4">
+            <p className="text-xs font-semibold text-orange-600 uppercase tracking-widest">Pricing & Stock</p>
             <div className="grid sm:grid-cols-3 gap-4">
-              <FormInput label="Price (INR) *" value={values.price} onChange={(val) => handleChange("price", val)} placeholder="499" inputMode="numeric" error={errors?.price} />
-              <FormInput label="Discount Price" value={values.discountPrice} onChange={(val) => handleChange("discountPrice", val)} placeholder="449" inputMode="numeric" error={errors?.discountPrice} />
-              <FormInput label="Stock Qty *" value={values.stockQty} onChange={(val) => handleChange("stockQty", val)} placeholder="100" inputMode="numeric" error={errors?.stockQty} />
+              <FormInput
+                label="Price (INR) *"
+                value={values.price}
+                onChange={(val) => handleChange("price", val)}
+                placeholder="499"
+                inputMode="numeric"
+                error={errors?.price}
+              />
+              <FormInput
+                label="Discount Price"
+                value={values.discountPrice}
+                onChange={(val) => handleChange("discountPrice", val)}
+                placeholder="449"
+                inputMode="numeric"
+                error={errors?.discountPrice}
+              />
+              <FormInput
+                label="Stock Qty *"
+                value={values.stockQty}
+                onChange={(val) => handleChange("stockQty", val)}
+                placeholder="100"
+                inputMode="numeric"
+                error={errors?.stockQty}
+              />
             </div>
           </section>
 
+          {/* Section 3: Shipping */}
           <section className="space-y-4">
             <p className="text-xs font-semibold text-orange-600 uppercase tracking-widest">Shipping</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <FormInput label="Weight (kg) *" value={values.weight} onChange={(val) => handleChange("weight", val)} placeholder="1.2" inputMode="decimal" error={errors?.weight} />
-              <FormInput label="Length (cm)" value={values.length} onChange={(val) => handleChange("length", val)} placeholder="20" inputMode="numeric" error={errors?.length} />
-              <FormInput label="Breadth (cm)" value={values.breadth} onChange={(val) => handleChange("breadth", val)} placeholder="12" inputMode="numeric" error={errors?.breadth} />
-              <FormInput label="Height (cm)" value={values.height} onChange={(val) => handleChange("height", val)} placeholder="8" inputMode="numeric" error={errors?.height} />
+              <FormInput
+                label="Weight (kg) *"
+                value={values.weight}
+                onChange={(val) => handleChange("weight", val)}
+                placeholder="1.2"
+                inputMode="decimal"
+                error={errors?.weight}
+              />
+              <FormInput
+                label="Length (cm)"
+                value={values.length}
+                onChange={(val) => handleChange("length", val)}
+                placeholder="20"
+                inputMode="numeric"
+                error={errors?.length}
+              />
+              <FormInput
+                label="Breadth (cm)"
+                value={values.breadth}
+                onChange={(val) => handleChange("breadth", val)}
+                placeholder="12"
+                inputMode="numeric"
+                error={errors?.breadth}
+              />
+              <FormInput
+                label="Height (cm)"
+                value={values.height}
+                onChange={(val) => handleChange("height", val)}
+                placeholder="8"
+                inputMode="numeric"
+                error={errors?.height}
+              />
             </div>
           </section>
 
+          {/* Section 4: Media */}
           <section className="space-y-4">
             <p className="text-xs font-semibold text-orange-600 uppercase tracking-widest">Media</p>
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
@@ -246,6 +363,38 @@ function FormInput({ label, value, onChange, placeholder, inputMode, error }: Fi
           error ? "border-red-300 bg-red-50" : "border-slate-200"
         }`}
       />
+      {error && <p className="mt-1 text-xs text-red-500 font-medium">{error}</p>}
+    </div>
+  );
+}
+
+interface FormSelectProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly { value: string; [key: string]: unknown }[];
+  placeholder?: string;
+  error?: string;
+}
+
+function FormSelect({ label, value, onChange, options, placeholder = "Select category", error }: FormSelectProps) {
+  return (
+    <div>
+      <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full rounded-xl px-4 py-3 text-sm font-medium border bg-slate-50 text-slate-900 hover:border-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-200 transition-all cursor-pointer ${
+          error ? "border-red-300 bg-red-50" : "border-slate-200"
+        }`}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.value}
+          </option>
+        ))}
+      </select>
       {error && <p className="mt-1 text-xs text-red-500 font-medium">{error}</p>}
     </div>
   );

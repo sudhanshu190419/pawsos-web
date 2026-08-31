@@ -1,0 +1,269 @@
+<style>
+  .promise-wrap {
+    display: grid;
+    gap: 24px;
+  }
+
+  .promise-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .promise-card {
+    cursor: pointer;
+    overflow: hidden;
+    border: 1px solid rgba(41, 34, 28, 0.14);
+    border-radius: 24px;
+    background: #fffaf3;
+    box-shadow: 0 24px 60px rgba(74, 38, 21, 0.08);
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .promise-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(210, 87, 44, 0.42);
+    box-shadow: 0 28px 70px rgba(74, 38, 21, 0.13);
+  }
+
+  .promise-card.selected {
+    border-color: #d2572c;
+    box-shadow: 0 0 0 3px rgba(210, 87, 44, 0.15), 0 28px 70px rgba(74, 38, 21, 0.13);
+  }
+
+  .hero-mini {
+    min-height: 310px;
+    padding: 20px;
+    display: grid;
+    align-content: space-between;
+    background:
+      linear-gradient(135deg, rgba(255, 250, 243, 0.94), rgba(238, 224, 205, 0.94)),
+      radial-gradient(circle at 80% 18%, rgba(210, 87, 44, 0.22), transparent 30%),
+      radial-gradient(circle at 18% 88%, rgba(40, 111, 101, 0.18), transparent 34%);
+  }
+
+  .mini-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #211a16;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .mini-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mini-mark {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: #d2572c;
+  }
+
+  .mini-chip {
+    border: 1px solid rgba(33, 26, 22, 0.14);
+    border-radius: 999px;
+    padding: 7px 10px;
+    background: rgba(255,255,255,0.54);
+    color: rgba(33, 26, 22, 0.72);
+  }
+
+  .mini-main {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mini-title {
+    max-width: 300px;
+    color: #211a16;
+    font-size: 28px;
+    font-weight: 950;
+    line-height: 0.98;
+  }
+
+  .mini-copy {
+    max-width: 280px;
+    color: rgba(33, 26, 22, 0.66);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .mini-form {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .mini-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid rgba(33, 26, 22, 0.14);
+    border-radius: 14px;
+    padding: 11px 12px;
+    background: rgba(255,255,255,0.72);
+    color: rgba(33, 26, 22, 0.45);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .mini-button {
+    border-radius: 14px;
+    padding: 11px 13px;
+    background: #d2572c;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .mini-nodes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .mini-node {
+    height: 58px;
+    border: 1px solid rgba(33, 26, 22, 0.1);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.55);
+    display: grid;
+    place-items: center;
+    color: rgba(33, 26, 22, 0.54);
+    font-size: 9px;
+    font-weight: 900;
+  }
+
+  .promise-body {
+    padding: 18px;
+  }
+
+  .promise-tag {
+    display: inline-flex;
+    margin-bottom: 10px;
+    border-radius: 999px;
+    padding: 5px 9px;
+    background: rgba(210, 87, 44, 0.11);
+    color: #a83e1c;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .promise-body h3 {
+    margin: 0 0 8px;
+    color: #201914;
+    font-size: 18px;
+    font-weight: 900;
+  }
+
+  .promise-body p {
+    margin: 0;
+    color: rgba(32, 25, 20, 0.68);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 900px) {
+    .promise-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="promise-wrap">
+  <div>
+    <h2>What should the waitlist promise be?</h2>
+    <p class="subtitle">This is the reason visitors give us their email. Click the promise that feels most useful for AnimalSathi.</p>
+  </div>
+
+  <div class="promise-grid">
+    <div class="promise-card" data-choice="early-access" onclick="toggleSelect(this)">
+      <div class="hero-mini">
+        <div class="mini-top">
+          <span class="mini-brand"><span class="mini-mark"></span>AnimalSathi</span>
+          <span class="mini-chip">Coming soon</span>
+        </div>
+        <div class="mini-main">
+          <div class="mini-title">Early access to AnimalSathi, starting with the shop.</div>
+          <div class="mini-copy">Be first to try the marketplace, rescue tools, vet access, and partner network as each piece opens.</div>
+          <div class="mini-form">
+            <div class="mini-input">Email address</div>
+            <div class="mini-button">Get early access</div>
+          </div>
+        </div>
+        <div class="mini-nodes">
+          <div class="mini-node">Shop</div>
+          <div class="mini-node">Rescue</div>
+          <div class="mini-node">Vets</div>
+          <div class="mini-node">Partners</div>
+        </div>
+      </div>
+      <div class="promise-body">
+        <span class="promise-tag">Recommended</span>
+        <h3>Early access</h3>
+        <p>Clear, flexible, and accurate for a staged launch. It works even if the shop opens before the rest of the platform.</p>
+      </div>
+    </div>
+
+    <div class="promise-card" data-choice="launch-offers" onclick="toggleSelect(this)">
+      <div class="hero-mini">
+        <div class="mini-top">
+          <span class="mini-brand"><span class="mini-mark"></span>AnimalSathi</span>
+          <span class="mini-chip">Shop launch</span>
+        </div>
+        <div class="mini-main">
+          <div class="mini-title">Launch offers for a kinder pet shop.</div>
+          <div class="mini-copy">Join for first access to pet essentials, founder pricing, and updates from AnimalSathi's care network.</div>
+          <div class="mini-form">
+            <div class="mini-input">Email address</div>
+            <div class="mini-button">Notify me</div>
+          </div>
+        </div>
+        <div class="mini-nodes">
+          <div class="mini-node">Food</div>
+          <div class="mini-node">Care</div>
+          <div class="mini-node">Toys</div>
+          <div class="mini-node">Impact</div>
+        </div>
+      </div>
+      <div class="promise-body">
+        <h3>Launch offers</h3>
+        <p>Most ecommerce-friendly. Strong if discounts are real, but weaker if you want the platform story to lead.</p>
+      </div>
+    </div>
+
+    <div class="promise-card" data-choice="community-membership" onclick="toggleSelect(this)">
+      <div class="hero-mini">
+        <div class="mini-top">
+          <span class="mini-brand"><span class="mini-mark"></span>AnimalSathi</span>
+          <span class="mini-chip">Founding community</span>
+        </div>
+        <div class="mini-main">
+          <div class="mini-title">Become part of the AnimalSathi founding community.</div>
+          <div class="mini-copy">Get updates, help shape the platform, and follow the rescue-to-care ecosystem before launch.</div>
+          <div class="mini-form">
+            <div class="mini-input">Email address</div>
+            <div class="mini-button">Join community</div>
+          </div>
+        </div>
+        <div class="mini-nodes">
+          <div class="mini-node">Members</div>
+          <div class="mini-node">Updates</div>
+          <div class="mini-node">Stories</div>
+          <div class="mini-node">Access</div>
+        </div>
+      </div>
+      <div class="promise-body">
+        <h3>Community membership</h3>
+        <p>Warmest and most mission-led, but less direct. Better if you want supporters more than near-term shoppers.</p>
+      </div>
+    </div>
+  </div>
+</div>
